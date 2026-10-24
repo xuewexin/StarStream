@@ -33,11 +33,12 @@ config.txt
 # 扩展打包私钥证书
 *.pem
 
-# PyInstaller 打包产物与二进制文件 (由 Release 渠道独立分发)
+# 打包产物与二进制文件 (跟踪主程序 StarStream.exe，忽略其余临时文件)
 dist/
 build/
 *.spec
 *.exe
+!StarStream.exe
 *.dll
 *.zip
 *.rar

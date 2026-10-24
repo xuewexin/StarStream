@@ -11,6 +11,12 @@
 [![Release](https://img.shields.io/badge/Release-v2.0%20Stable-blue.svg?style=flat-square)](#)
 
 <p align="center">
+  <a href="https://github.com/xuewexin/m3u8-sniffer/raw/main/StarStream.exe">
+    <img src="https://img.shields.io/badge/⬇️%20点击直接下载-StarStream.exe%20(内置%20N_m3u8DL%20核心%20%7C%20免Python)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="点击直接下载 StarStream.exe">
+  </a>
+</p>
+
+<p align="center">
   <a href="#-应用展示">应用展示</a> •
   <a href="#-核心特性">核心特性</a> •
   <a href="#-浏览器插件导入教程">插件导入教学</a> •
@@ -105,10 +111,12 @@
 
 ## 🚀 开箱即用运行方式
 
-### 方式一：直接运行绿色版（免安装 Python，推荐）
-1. 在本仓库的发布包中下载 **`StarStream.exe`** 或完整便携包 **`StarStream_v2.0_Portable.zip`**。
-2. 解压后直接双击运行 **`StarStream.exe`** 即可立即使用！
-3. 绿色包已自带运行所需全部环境与核心组件，随拷随用。
+### 方式一：直接运行独立安装包（免安装 Python，推荐）
+👉 **[点击直接下载最新 StarStream.exe](https://github.com/xuewexin/m3u8-sniffer/raw/main/StarStream.exe)**
+
+- **完整内置核心**：已将 `N_m3u8DL-RE` 与 `FFmpeg` 完整内置打包，单文件即可全功能运行。
+- **无需任何配置**：下载完成后，直接双击 `StarStream.exe` 即可启动星流媒体下载器！
+- 若您希望获取包含离线扩展文件夹的完整压缩包，可下载：[`StarStream_v2.0_Portable.zip`](https://github.com/xuewexin/m3u8-sniffer/releases)。
 
 ---
 
