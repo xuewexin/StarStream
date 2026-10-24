@@ -124,6 +124,8 @@ class StreamDownloadTask:
             proxy = self.task_data.get("proxy") or config.get_effective_proxy()
             if proxy:
                 cmd.extend(["--custom-proxy", proxy])
+            elif config.get("proxy_mode", "none") == "none":
+                cmd.extend(["--use-system-proxy", "false"])
 
             base_url = self.task_data.get("baseUrl")
             if base_url:

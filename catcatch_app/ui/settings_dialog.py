@@ -4,9 +4,12 @@ CatCatch Downloader - Settings Dialog (系统与多代理池配置中心)
 """
 import os
 import time
+import socket
 import urllib.request
+import urllib.parse
 import subprocess
 import webbrowser
+import requests
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QFileDialog, QSpinBox, QCheckBox,
@@ -16,7 +19,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 
 from catcatch_app.core.config import (
-    config, ROOT_DIR, detect_system_proxy,
+    config, ROOT_DIR, detect_system_proxy, normalize_proxy_url,
     get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL
 )
 from catcatch_app.core.browser_helper import (
@@ -362,29 +365,85 @@ class SettingsDialog(QDialog):
         self._test_single_proxy(eff)
 
     def _test_single_proxy(self, proxy_url):
-        t0 = time.time()
-        try:
-            handler = urllib.request.ProxyHandler({'http': proxy_url, 'https': proxy_url})
-            opener = urllib.request.build_opener(handler)
-            req = urllib.request.Request("http://www.google.com/generate_204", headers={'User-Agent': 'Mozilla/5.0'})
-            with opener.open(req, timeout=3.5) as resp:
-                cost = int((time.time() - t0) * 1000)
-                QMessageBox.information(self, "代理连通性测试", f"连接成功！\n代理: {proxy_url}\n响应延迟: {cost} ms")
-                return
-        except Exception:
-            pass
+        proxy_url = normalize_proxy_url(proxy_url)
+        if not proxy_url:
+            QMessageBox.warning(self, "代理测试", "代理地址为空！")
+            return
 
-        # 尝试国内备用目标
+        # 1. 端口连通性探活 (TCP Socket 探测)
         try:
-            handler = urllib.request.ProxyHandler({'http': proxy_url, 'https': proxy_url})
-            opener = urllib.request.build_opener(handler)
-            req = urllib.request.Request("http://www.baidu.com", headers={'User-Agent': 'Mozilla/5.0'})
-            with opener.open(req, timeout=3.5) as resp:
-                cost = int((time.time() - t0) * 1000)
-                QMessageBox.information(self, "代理连通性测试", f"连接成功！(通过百度验证)\n代理: {proxy_url}\n响应延迟: {cost} ms")
-                return
-        except Exception as e:
-            QMessageBox.warning(self, "代理测试失败", f"无法通过该代理访问网络:\n{proxy_url}\n\n错误提示: {e}")
+            parsed = urllib.parse.urlsplit(proxy_url)
+            host = parsed.hostname or "127.0.0.1"
+            default_port = 1080 if "socks" in (parsed.scheme or "") else 80
+            port = parsed.port or default_port
+
+            sock = socket.create_connection((host, port), timeout=2.0)
+            sock.close()
+        except Exception as sock_err:
+            QMessageBox.warning(
+                self,
+                "代理端口无法连接",
+                f"无法连接到代理服务端口 {host}:{port}！\n\n"
+                f"错误原因: {sock_err}\n\n"
+                f"排查建议:\n"
+                f"1. 请确认 Clash / v2rayN / Shadowsocks 等代理客户端已启动；\n"
+                f"2. 请核对本地监听端口（常用端口: HTTP 7890 / 10809，SOCKS5 10808 / 3080）；\n"
+                f"3. 若为局域网代理，请确认防火墙已放行对应端口。"
+            )
+            return
+
+        # 2. 实际通过代理发起 HTTP 请求测试外网通信
+        t0 = time.time()
+        sess = requests.Session()
+        sess.proxies = {"http": proxy_url, "https": proxy_url}
+
+        # 先测国际测活节点 (Cloudflare / Google 204)
+        for target in ["http://cp.cloudflare.com/generate_204", "http://www.google.com/generate_204"]:
+            try:
+                resp = sess.get(target, timeout=4.5)
+                if resp.status_code in [200, 204]:
+                    cost = int((time.time() - t0) * 1000)
+                    QMessageBox.information(
+                        self,
+                        "代理连通性测试成功",
+                        f"代理连接正常！\n\n"
+                        f"代理地址: {proxy_url}\n"
+                        f"响应延迟: {cost} ms\n"
+                        f"网络验证: 国际网络通道通畅"
+                    )
+                    return
+            except Exception:
+                pass
+
+        # 备用测活节点 (国内验证)
+        t1 = time.time()
+        for target in ["http://www.baidu.com", "http://connect.rom.miui.com/generate_204"]:
+            try:
+                resp = sess.get(target, timeout=4.5)
+                if resp.status_code in [200, 204]:
+                    cost = int((time.time() - t1) * 1000)
+                    QMessageBox.information(
+                        self,
+                        "代理连通性测试成功",
+                        f"代理连接正常！(通过国内备用节点验证)\n\n"
+                        f"代理地址: {proxy_url}\n"
+                        f"响应延迟: {cost} ms\n"
+                        f"网络验证: 国内网络通道通畅"
+                    )
+                    return
+            except Exception as e_inner:
+                last_err = e_inner
+
+        QMessageBox.warning(
+            self,
+            "代理外网测试失败",
+            f"代理服务端口连接正常，但无法通过该代理建立外网连接！\n\n"
+            f"代理地址: {proxy_url}\n"
+            f"错误信息: {last_err}\n\n"
+            f"排查建议:\n"
+            f"1. 请检查代理软件中选中的节点是否失效、超时或欠费；\n"
+            f"2. 请检查代理模式（全局 / 规则分流），确保测试流量未被拦截。"
+        )
 
     def _browse_save_dir(self):
         d = QFileDialog.getExistingDirectory(self, "选择默认下载目录", self.save_edit.text())

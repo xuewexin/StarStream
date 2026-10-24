@@ -230,14 +230,26 @@ def get_nm3u8dl_status():
     }
 
 
+def normalize_proxy_url(url: str) -> str:
+    """标准化代理 URL，若无协议前缀则补全 http://"""
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if "://" not in url:
+        return f"http://{url}"
+    return url
+
+
 def detect_system_proxy():
     """获取 Windows 当前系统代理"""
     try:
         proxies = urllib.request.getproxies()
         if "http" in proxies:
-            return proxies["http"]
+            return normalize_proxy_url(proxies["http"])
         if "https" in proxies:
-            return proxies["https"]
+            return normalize_proxy_url(proxies["https"])
+        if "all" in proxies:
+            return normalize_proxy_url(proxies["all"])
     except Exception:
         pass
     return ""
@@ -399,7 +411,7 @@ class Config:
             active_id = self._config.get("active_proxy_id")
             for p in self._config.get("proxies", []):
                 if p.get("id") == active_id:
-                    return p.get("url", "").strip()
+                    return normalize_proxy_url(p.get("url", ""))
         return ""
 
     def get_proxies_list(self):
@@ -408,7 +420,7 @@ class Config:
     def add_proxy(self, name, url):
         pid = str(uuid.uuid4())[:6]
         proxies = self._config.get("proxies", [])
-        proxies.append({"id": pid, "name": name, "url": url})
+        proxies.append({"id": pid, "name": name, "url": normalize_proxy_url(url)})
         self._config["proxies"] = proxies
         self.save()
         return pid
@@ -418,7 +430,7 @@ class Config:
         for p in proxies:
             if p.get("id") == pid:
                 p["name"] = name
-                p["url"] = url
+                p["url"] = normalize_proxy_url(url)
                 break
         self._config["proxies"] = proxies
         self.save()
