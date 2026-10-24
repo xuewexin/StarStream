@@ -1,0 +1,52 @@
+# 个人下载产物与媒体文件（严格隔离，不推送到代码仓库）
+Downloads/
+Downloads/*
+!Downloads/.gitkeep
+
+# 日志与系统输出
+Logs/
+*.log
+native-host-error.log
+
+# 临时分片与测试数据
+test_mux/
+test_sample/
+m3u8-sniffer-extension/test_mux/
+m3u8-sniffer-extension/test_sample/
+*.tmp
+*.part
+*_tmp/
+
+# Python 运行时编译缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# 个人任务历史与私有本地配置 (保持干净模板)
+catcatch_app/tasks.json
+tasks.json
+config.json
+config.txt
+
+# 扩展打包私钥证书
+*.pem
+
+# PyInstaller 打包产物与二进制文件 (由 Release 渠道独立分发)
+dist/
+build/
+*.spec
+*.exe
+*.dll
+*.zip
+*.rar
+*.7z
+
+# IDE 与系统文件
+.vscode/
+.idea/
+.claude/
+.superpowers/
+Thumbs.db
+Desktop.ini

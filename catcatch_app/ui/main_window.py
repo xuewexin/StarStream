@@ -1,0 +1,815 @@
+"""
+CatCatch Downloader - Main Window (现代专业 IDM 风格主控程序)
+彻底去除 Emoji 符号，采用全矢量高精度 SVG 图标，集成全局多节点代理实时指示与切换
+"""
+import os
+import re
+import subprocess
+import webbrowser
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
+    QTreeWidget, QTreeWidgetItem, QTableWidget, QTableWidgetItem,
+    QToolBar, QAction, QStatusBar, QLabel, QLineEdit, QMenu,
+    QMessageBox, QHeaderView, QProgressBar, QSystemTrayIcon,
+    QApplication, QPushButton, QDialog, QFileDialog
+)
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QIcon, QColor, QFont
+
+from catcatch_app.core.config import config, get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL
+from catcatch_app.core.task_manager import task_manager
+from catcatch_app.core.server import local_server
+from catcatch_app.core.ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
+from catcatch_app.core.download_file import format_size
+from catcatch_app.ui.styles import DARK_THEME
+from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.ui.new_task_dialog import NewTaskDialog
+from catcatch_app.ui.ffmpeg_toolbox_dialog import FFmpegToolboxDialog
+from catcatch_app.ui.settings_dialog import SettingsDialog
+from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
+from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
+
+
+def parse_speed_to_bytes(spd_str):
+    if not spd_str:
+        return 0.0
+    m = re.search(r"([\d\.]+)\s*([KMGkmg]?B|[KMGkmg]?b)/s", str(spd_str))
+    if not m:
+        return 0.0
+    try:
+        val = float(m.group(1))
+        unit = m.group(2).upper()
+        if unit in ["GB/S", "GB"]:
+            return val * 1024 * 1024 * 1024
+        elif unit in ["MB/S", "MB"]:
+            return val * 1024 * 1024
+        elif unit in ["KB/S", "KB"]:
+            return val * 1024
+        elif "B" in unit:
+            return val
+    except Exception:
+        pass
+    return 0.0
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro)")
+        self.setWindowIcon(get_app_icon())
+        self.resize(1180, 720)
+        self.setStyleSheet(DARK_THEME)
+
+        self.current_category = "all"
+        self.search_keyword = ""
+
+        self._init_ui()
+        self._init_tray()
+        self._connect_signals()
+
+        self.refresh_table()
+
+        self.speed_timer = QTimer(self)
+        self.speed_timer.timeout.connect(self._update_status_stats)
+        self.speed_timer.start(1000)
+
+    def _init_ui(self):
+        # 1. 顶部专业工具栏
+        self._create_toolbar()
+
+        # 2. 中央主体分栏
+        central_widget = QWidget()
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        splitter = QSplitter(Qt.Horizontal)
+
+        # 左侧导航分类树
+        self.tree = QTreeWidget()
+        self.tree.setHeaderHidden(True)
+        self.tree.setFixedWidth(220)
+        self._build_tree_nodes()
+        self.tree.itemClicked.connect(self._on_tree_item_clicked)
+        splitter.addWidget(self.tree)
+
+        # 右侧任务表格区域
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(8, 8, 8, 8)
+        right_layout.setSpacing(6)
+
+        self.table = QTableWidget()
+        self.table.setColumnCount(11)
+        self.table.setHorizontalHeaderLabels([
+            "序号", "任务名称", "规格/分辨率", "时长", "类型", "文件大小", "下载进度", "实时速度", "剩余时间", "状态", "添加时间"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 48)
+        self.table.setColumnWidth(2, 90)
+        self.table.setColumnWidth(3, 80)
+        self.table.setColumnWidth(4, 75)
+        self.table.setColumnWidth(5, 95)
+        self.table.setColumnWidth(6, 170)
+        self.table.setColumnWidth(7, 95)
+        self.table.setColumnWidth(8, 75)
+        self.table.setColumnWidth(9, 85)
+        self.table.setColumnWidth(10, 135)
+
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QTableWidget.ExtendedSelection)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_context_menu)
+        self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
+
+        right_layout.addWidget(self.table)
+        splitter.addWidget(right_container)
+        splitter.setStretchFactor(1, 4)
+
+        main_layout.addWidget(splitter)
+        self.setCentralWidget(central_widget)
+
+        # 3. 底部状态栏
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+
+        self.lbl_server_status = QLabel("通信服务: 端口 18910 就绪")
+        self.lbl_server_status.setStyleSheet("color: #4ade80; font-weight: 500; margin-left: 8px;")
+        self.status_bar.addWidget(self.lbl_server_status)
+
+        self.lbl_ffmpeg_status = QLabel()
+        self._update_ffmpeg_label()
+        self.status_bar.addWidget(self.lbl_ffmpeg_status)
+
+        # N_m3u8DL 引擎状态指示交互按钮 (未检测到时醒目提示并一键直达下载)
+        self.btn_nm3u8dl_status = QPushButton()
+        self.btn_nm3u8dl_status.clicked.connect(self._on_nm3u8dl_status_clicked)
+        self._update_nm3u8dl_label()
+        self.status_bar.addWidget(self.btn_nm3u8dl_status)
+
+        # 代理状态指示交互按钮
+        self.btn_proxy_status = QPushButton()
+        self.btn_proxy_status.setIcon(get_icon("globe", "#9ca3af", 14))
+        self.btn_proxy_status.setStyleSheet("border: none; background: transparent; color: #9ca3af; padding: 2px 6px; font-size: 12px;")
+        self.btn_proxy_status.clicked.connect(self._action_settings)
+        self._update_proxy_label()
+        self.status_bar.addWidget(self.btn_proxy_status)
+
+        self.lbl_stats = QLabel("任务: 0 项")
+        self.lbl_stats.setStyleSheet("color: #71717a; margin-left: 12px;")
+        self.status_bar.addWidget(self.lbl_stats)
+
+        self.status_bar.addPermanentWidget(QLabel())
+        self.lbl_global_speed = QLabel("0.00 KB/s")
+        self.lbl_global_speed.setStyleSheet("color: #3875f6; font-weight: 600; font-size: 13px; margin-right: 12px;")
+        self.status_bar.addPermanentWidget(self.lbl_global_speed)
+
+    def _create_toolbar(self):
+        toolbar = QToolBar("主操作栏")
+        toolbar.setMovable(False)
+        self.addToolBar(toolbar)
+
+        # 新建
+        self.act_new = QAction(get_icon("add", "#f4f4f5", 18), "新建任务", self)
+        self.act_new.setShortcut("Ctrl+N")
+        self.act_new.triggered.connect(self._action_new_task)
+        toolbar.addAction(self.act_new)
+
+        toolbar.addSeparator()
+
+        # 开始 / 暂停 / 删除
+        self.act_start = QAction(get_icon("play", "#3875f6", 18), "开始", self)
+        self.act_start.triggered.connect(self._action_start_selected)
+        toolbar.addAction(self.act_start)
+
+        self.act_pause = QAction(get_icon("pause", "#d4d4d8", 18), "暂停", self)
+        self.act_pause.triggered.connect(self._action_pause_selected)
+        toolbar.addAction(self.act_pause)
+
+        self.act_delete = QAction(get_icon("delete", "#f87171", 18), "删除", self)
+        self.act_delete.setShortcut("Delete")
+        self.act_delete.triggered.connect(self._action_delete_selected)
+        toolbar.addAction(self.act_delete)
+
+        toolbar.addSeparator()
+
+        # 打开所在文件夹
+        self.act_open_dir = QAction(get_icon("folder", "#d4d4d8", 18), "打开目录", self)
+        self.act_open_dir.triggered.connect(self._action_open_dir)
+        toolbar.addAction(self.act_open_dir)
+
+        # FFmpeg 工具箱
+        self.act_ffmpeg = QAction(get_icon("toolbox", "#d4d4d8", 18), "FFmpeg 工具箱", self)
+        self.act_ffmpeg.triggered.connect(self._action_ffmpeg_toolbox)
+        toolbar.addAction(self.act_ffmpeg)
+
+        # 清理缓存
+        self.act_clean = QAction(get_icon("clean", "#d4d4d8", 18), "清理缓存", self)
+        self.act_clean.triggered.connect(self._action_clean_cache)
+        toolbar.addAction(self.act_clean)
+
+        # 浏览器扩展安装教学
+        self.act_ext = QAction(get_icon("extension", "#38bdf8", 18), "插件安装教学", self)
+        self.act_ext.setToolTip("查看星流媒体嗅探器在 Chrome / Edge 等浏览器中的安装与配置教学")
+        self.act_ext.triggered.connect(self._action_extension_tutorial)
+        toolbar.addAction(self.act_ext)
+
+        toolbar.addSeparator()
+
+        # 设置
+        self.act_settings = QAction(get_icon("settings", "#d4d4d8", 18), "设置", self)
+        self.act_settings.triggered.connect(self._action_settings)
+        toolbar.addAction(self.act_settings)
+
+        # 搜索框
+        spacer = QWidget()
+        spacer.setFixedWidth(20)
+        toolbar.addWidget(spacer)
+
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText("搜索任务名称或网址...")
+        self.search_edit.setFixedWidth(220)
+        self.search_edit.textChanged.connect(self._on_search_text_changed)
+        toolbar.addWidget(self.search_edit)
+
+    def _build_tree_nodes(self):
+        self.tree.clear()
+
+        # 分类大项
+        cat_root = QTreeWidgetItem(self.tree, ["任务分类"])
+        cat_root.setIcon(0, get_icon("folder", "#71717a", 16))
+        cat_root.setExpanded(True)
+
+        self.node_all = QTreeWidgetItem(cat_root, ["全部任务", "all"])
+        self.node_all.setIcon(0, get_icon("file", "#a1a1aa", 16))
+
+        self.node_downloading = QTreeWidgetItem(cat_root, ["正在下载", "downloading"])
+        self.node_downloading.setIcon(0, get_icon("download", "#3875f6", 16))
+
+        self.node_completed = QTreeWidgetItem(cat_root, ["已完成", "completed"])
+        self.node_completed.setIcon(0, get_icon("check", "#4ade80", 16))
+
+        self.node_paused = QTreeWidgetItem(cat_root, ["已暂停", "paused"])
+        self.node_paused.setIcon(0, get_icon("pause", "#a1a1aa", 16))
+
+        self.node_error = QTreeWidgetItem(cat_root, ["下载失败", "error"])
+        self.node_error.setIcon(0, get_icon("alert", "#f87171", 16))
+
+        # 格式媒体大项
+        type_root = QTreeWidgetItem(self.tree, ["媒体类型"])
+        type_root.setIcon(0, get_icon("toolbox", "#71717a", 16))
+        type_root.setExpanded(True)
+
+        self.node_m3u8 = QTreeWidgetItem(type_root, ["流媒体 (M3U8 / DASH)", "m3u8"])
+        self.node_m3u8.setIcon(0, get_icon("stream", "#a1a1aa", 16))
+
+        self.node_video = QTreeWidgetItem(type_root, ["视频文件 (MP4 / WebM)", "video"])
+        self.node_video.setIcon(0, get_icon("video", "#a1a1aa", 16))
+
+        self.node_audio = QTreeWidgetItem(type_root, ["音频文件 (MP3 / AAC)", "audio"])
+        self.node_audio.setIcon(0, get_icon("audio", "#a1a1aa", 16))
+
+        self.node_file = QTreeWidgetItem(type_root, ["常规文件", "file"])
+        self.node_file.setIcon(0, get_icon("file", "#a1a1aa", 16))
+
+        self.tree.setCurrentItem(self.node_all)
+
+    def _init_tray(self):
+        self.tray = QSystemTrayIcon(self)
+        self.tray.setIcon(get_app_icon())
+        self.tray.setToolTip("星流媒体下载器 (StarStream Pro)")
+
+        tray_menu = QMenu()
+        act_show = QAction("显示主界面", self)
+        act_show.triggered.connect(self.showNormal)
+        act_new = QAction("新建下载...", self)
+        act_new.triggered.connect(self._action_new_task)
+        act_clean = QAction("清理缓存...", self)
+        act_clean.triggered.connect(self._action_clean_cache)
+        act_ff = QAction("FFmpeg 工具箱", self)
+        act_ff.triggered.connect(self._action_ffmpeg_toolbox)
+        act_quit = QAction("退出程序", self)
+        act_quit.triggered.connect(QApplication.instance().quit)
+
+        tray_menu.addAction(act_show)
+        tray_menu.addAction(act_new)
+        tray_menu.addAction(act_clean)
+        act_ext = QAction("插件安装与使用教学...", self)
+        act_ext.triggered.connect(self._action_extension_tutorial)
+        tray_menu.addAction(act_ext)
+        tray_menu.addAction(act_ff)
+        tray_menu.addSeparator()
+        tray_menu.addAction(act_quit)
+
+        self.tray.setContextMenu(tray_menu)
+        self.tray.activated.connect(self._on_tray_activated)
+        self.tray.show()
+
+    def _on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.showNormal()
+            self.activateWindow()
+
+    def _connect_signals(self):
+        task_manager.task_added.connect(self._on_task_added)
+        task_manager.task_updated.connect(self._on_task_updated)
+        task_manager.task_status_changed.connect(self._on_task_status_changed)
+        task_manager.task_completed.connect(self._on_task_completed)
+        task_manager.task_failed.connect(self._on_task_failed)
+        task_manager.task_removed.connect(self._on_task_removed)
+
+    def _update_ffmpeg_label(self):
+        ok, msg = is_ffmpeg_available()
+        if ok:
+            self.lbl_ffmpeg_status.setText("FFmpeg: 就绪")
+            self.lbl_ffmpeg_status.setStyleSheet("color: #4ade80; margin-left: 14px;")
+        else:
+            self.lbl_ffmpeg_status.setText("FFmpeg: 未就绪")
+            self.lbl_ffmpeg_status.setStyleSheet("color: #f87171; margin-left: 14px;")
+
+    def _update_nm3u8dl_label(self):
+        status = get_nm3u8dl_status()
+        if status["found"]:
+            eng = status["engine"] or "RE"
+            self.btn_nm3u8dl_status.setText(f"✓ N_m3u8DL: 就绪 ({eng})")
+            self.btn_nm3u8dl_status.setStyleSheet(
+                "border: none; background: transparent; color: #4ade80; font-weight: 500; margin-left: 14px; padding: 2px 6px; font-size: 12px;"
+            )
+            self.btn_nm3u8dl_status.setToolTip(f"当前下载引擎路径:\n{status['active_path']}\n点击可在设置中切换或查看详情")
+        else:
+            self.btn_nm3u8dl_status.setText("⚠️ 未检测到 N_m3u8DL 引擎 (点击下载最新版)")
+            self.btn_nm3u8dl_status.setStyleSheet(
+                "border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-weight: 600; border-radius: 4px; margin-left: 14px; padding: 2px 8px; font-size: 12px;"
+            )
+            self.btn_nm3u8dl_status.setToolTip("星流下载器未检测到 N_m3u8DL 外部流媒体下载引擎！\n点击立即前往 GitHub 获取最新版发布包或手动指定路径。")
+
+    def _on_nm3u8dl_status_clicked(self):
+        status = get_nm3u8dl_status()
+        if not status["found"]:
+            self._show_nm3u8dl_download_dialog(status)
+        else:
+            self._action_settings()
+
+    def _show_nm3u8dl_download_dialog(self, status=None):
+        if status is None:
+            status = get_nm3u8dl_status()
+        dlg = QDialog(self)
+        dlg.setWindowTitle("获取最新版本 N_m3u8DL-RE 引擎 - 星流下载器")
+        dlg.setWindowIcon(get_app_icon())
+        dlg.setFixedWidth(560)
+        l = QVBoxLayout(dlg)
+        l.setSpacing(12)
+
+        t_lbl = QLabel("未检测到 N_m3u8DL 外部流媒体下载引擎")
+        t_lbl.setStyleSheet("font-size: 15px; font-weight: 700; color: #f59e0b;")
+        l.addWidget(t_lbl)
+
+        d_lbl = QLabel(
+            "星流媒体下载器推荐搭配由 nilaoda 开发的开源高性能切片下载引擎 N_m3u8DL-RE。\n\n"
+            "官方最新发布包原生支持多线程分片抓取、实时速率上报与高质量音频画面混流封装。\n"
+            "下载解压后，请将 N_m3u8DL-RE.exe 放入软件根目录，或点击下方「指定已有程序」即可！"
+        )
+        d_lbl.setStyleSheet("color: #cbd5e1; font-size: 12px; line-height: 1.5;")
+        l.addWidget(d_lbl)
+
+        btn_row = QHBoxLayout()
+        btn_github = QPushButton("🌐 前往 GitHub 下载最新版 (N_m3u8DL-RE)")
+        btn_github.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: 600; padding: 8px 16px;")
+        btn_github.clicked.connect(lambda: webbrowser.open(NM3U8DL_RE_DOWNLOAD_URL))
+        btn_row.addWidget(btn_github)
+
+        btn_mirror = QPushButton("⚡ 加速镜像站")
+        btn_mirror.setStyleSheet("background-color: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 8px 12px;")
+        btn_mirror.clicked.connect(lambda: webbrowser.open(status.get("mirror_url", NM3U8DL_RE_DOWNLOAD_URL)))
+        btn_row.addWidget(btn_mirror)
+        l.addLayout(btn_row)
+
+        action_box = QHBoxLayout()
+        btn_pick = QPushButton("📂 我已下载，指定 exe 路径...")
+        btn_pick.setStyleSheet("background-color: #334155; color: #ffffff; padding: 6px 14px;")
+        
+        def _pick_file():
+            f, _ = QFileDialog.getOpenFileName(dlg, "选择 N_m3u8DL 可执行程序", os.getcwd(), "Executable (*.exe);;All Files (*)")
+            if f and os.path.exists(f):
+                if "RE" in os.path.basename(f).upper():
+                    config.set("re_cli_path", f)
+                    config.set("stream_engine", "RE")
+                else:
+                    config.set("v3_cli_path", f)
+                    config.set("stream_engine", "V3")
+                self._update_nm3u8dl_label()
+                QMessageBox.information(dlg, "配置成功", f"已成功指定下载引擎:\n{f}")
+                dlg.accept()
+
+        btn_pick.clicked.connect(_pick_file)
+        action_box.addWidget(btn_pick)
+
+        btn_scan = QPushButton("🔄 重新扫描全盘")
+        def _do_rescan():
+            new_st = config.rescan_tools()
+            self._update_nm3u8dl_label()
+            if new_st["found"]:
+                QMessageBox.information(dlg, "扫描结果", f"成功找到 N_m3u8DL 引擎:\n{new_st['active_path']}")
+                dlg.accept()
+            else:
+                QMessageBox.warning(dlg, "未找到", "全盘扫描未能在常见目录或 PATH 中找到 N_m3u8DL-RE.exe 或 N_m3u8DL-CLI.exe。\n请点击上方按钮前往 GitHub 下载。")
+
+        btn_scan.clicked.connect(_do_rescan)
+        action_box.addWidget(btn_scan)
+        l.addLayout(action_box)
+
+        btn_close = QPushButton("稍后处理 (使用内置 Python 引擎下载)")
+        btn_close.clicked.connect(dlg.reject)
+        l.addWidget(btn_close)
+
+        dlg.exec_()
+
+    def _update_proxy_label(self):
+        mode = config.get("proxy_mode", "none")
+        if mode == "none":
+            self.btn_proxy_status.setText("代理: 直连")
+        elif mode == "system":
+            self.btn_proxy_status.setText("代理: 跟随系统")
+        else:
+            active_p = config.get_effective_proxy()
+            self.btn_proxy_status.setText(f"代理: {active_p if active_p else '直连'}")
+
+    def _on_tree_item_clicked(self, item, col):
+        code = item.text(1)
+        if code:
+            self.current_category = code
+            self.refresh_table()
+
+    def _on_search_text_changed(self, text):
+        self.search_keyword = text.strip().lower()
+        self.refresh_table()
+
+    def _filter_task(self, t):
+        status = t.get("status")
+        media = t.get("media_type")
+
+        if self.current_category == "all":
+            pass
+        elif self.current_category in ["downloading", "completed", "paused", "error"]:
+            if status != self.current_category:
+                return False
+        elif self.current_category in ["m3u8", "video", "audio", "file"]:
+            if media != self.current_category:
+                return False
+
+        if self.search_keyword:
+            name = (t.get("title") or "").lower()
+            url = (t.get("url") or "").lower()
+            if self.search_keyword not in name and self.search_keyword not in url:
+                return False
+
+        return True
+
+    def refresh_table(self):
+        tasks = task_manager.get_all_tasks()
+        filtered = [t for t in tasks if self._filter_task(t)]
+
+        self.table.setRowCount(len(filtered))
+        for row, t in enumerate(filtered):
+            self._render_row(row, t)
+
+    def _render_row(self, row, t):
+        # 0. 序号
+        item_id = QTableWidgetItem(str(row + 1))
+        item_id.setTextAlignment(Qt.AlignCenter)
+        item_id.setData(Qt.UserRole, t["id"])
+        self.table.setItem(row, 0, item_id)
+
+        # 1. 任务名称
+        title = t.get("title") or t.get("save_name") or "未命名"
+        item_title = QTableWidgetItem(title)
+        item_title.setToolTip(t.get("url", ""))
+        self.table.setItem(row, 1, item_title)
+
+        # 2. 规格/分辨率
+        res = t.get("resolution", "")
+        item_res = QTableWidgetItem(res if res else "-")
+        item_res.setTextAlignment(Qt.AlignCenter)
+        if "4K" in res or "2160" in res:
+            item_res.setForeground(QColor("#f43f5e"))
+            item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        elif "1080" in res:
+            item_res.setForeground(QColor("#a855f7"))
+            item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+        elif "720" in res:
+            item_res.setForeground(QColor("#38bdf8"))
+        else:
+            item_res.setForeground(QColor("#9ca3af"))
+        self.table.setItem(row, 2, item_res)
+
+        # 3. 视频时长
+        dur = t.get("duration", "")
+        item_dur = QTableWidgetItem(dur if dur else "-")
+        item_dur.setTextAlignment(Qt.AlignCenter)
+        item_dur.setForeground(QColor("#cbd5e1"))
+        self.table.setItem(row, 3, item_dur)
+
+        # 4. 类型
+        mtype = t.get("media_type", "file").upper()
+        item_type = QTableWidgetItem(f"[{mtype}]")
+        item_type.setTextAlignment(Qt.AlignCenter)
+        if mtype == "M3U8":
+            item_type.setForeground(QColor("#a78bfa"))
+        elif mtype in ["VIDEO", "MP4"]:
+            item_type.setForeground(QColor("#3875f6"))
+        elif mtype in ["AUDIO", "MP3"]:
+            item_type.setForeground(QColor("#34d399"))
+        self.table.setItem(row, 4, item_type)
+
+        # 5. 文件大小
+        tot = t.get("total_bytes", 0)
+        size_str = format_size(tot) if tot > 0 else "未知"
+        item_size = QTableWidgetItem(size_str)
+        item_size.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.table.setItem(row, 5, item_size)
+
+        # 6. 下载进度条
+        prog = int(t.get("progress", 0.0))
+        pbar = QProgressBar()
+        pbar.setRange(0, 100)
+        pbar.setValue(prog)
+        pbar.setTextVisible(True)
+        self.table.setCellWidget(row, 6, pbar)
+
+        # 7. 实时下载速度
+        spd_str = t.get("speed", "")
+        item_spd = QTableWidgetItem(spd_str)
+        item_spd.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        item_spd.setForeground(QColor("#38bdf8"))
+        self.table.setItem(row, 7, item_spd)
+
+        # 8. 剩余时间
+        item_eta = QTableWidgetItem(t.get("eta", ""))
+        item_eta.setTextAlignment(Qt.AlignCenter)
+        self.table.setItem(row, 8, item_eta)
+
+        # 9. 状态
+        status = t.get("status", "waiting")
+        status_map = {
+            "waiting": ("等待中", "#fbbf24"),
+            "downloading": ("下载中", "#3875f6"),
+            "paused": ("已暂停", "#9ca3af"),
+            "completed": ("已完成", "#4ade80"),
+            "error": ("失败", "#f87171")
+        }
+        text_status, color_status = status_map.get(status, (status, "#e4e4e7"))
+        item_st = QTableWidgetItem(text_status)
+        item_st.setTextAlignment(Qt.AlignCenter)
+        item_st.setForeground(QColor(color_status))
+        self.table.setItem(row, 9, item_st)
+
+        # 10. 添加时间
+        item_time = QTableWidgetItem(t.get("created_at", ""))
+        item_time.setTextAlignment(Qt.AlignCenter)
+        self.table.setItem(row, 10, item_time)
+
+    def _find_row_by_task_id(self, task_id):
+        for r in range(self.table.rowCount()):
+            it = self.table.item(r, 0)
+            if it and it.data(Qt.UserRole) == task_id:
+                return r
+        return -1
+
+    def _get_selected_task_ids(self):
+        selected_rows = set()
+        for idx in self.table.selectedIndexes():
+            selected_rows.add(idx.row())
+        ids = []
+        for r in sorted(selected_rows):
+            it = self.table.item(r, 0)
+            if it:
+                ids.append(it.data(Qt.UserRole))
+        return ids
+
+    def _on_task_added(self, task):
+        self.refresh_table()
+
+    def _on_task_updated(self, task_id, task):
+        row = self._find_row_by_task_id(task_id)
+        if row >= 0:
+            # 6: 进度条
+            pbar = self.table.cellWidget(row, 6)
+            if pbar:
+                pbar.setValue(int(task.get("progress", 0)))
+            
+            # 7: 实时速度
+            it_spd = self.table.item(row, 7)
+            if it_spd:
+                it_spd.setText(task.get("speed", ""))
+            
+            # 8: 剩余时间
+            it_eta = self.table.item(row, 8)
+            if it_eta:
+                it_eta.setText(task.get("eta", ""))
+
+            # 5: 文件大小
+            tot = task.get("total_bytes", 0)
+            if tot > 0:
+                it_sz = self.table.item(row, 5)
+                if it_sz and (it_sz.text() == "未知" or it_sz.text() == ""):
+                    it_sz.setText(format_size(tot))
+
+            # 2: 规格/分辨率
+            res = task.get("resolution", "")
+            if res:
+                it_res = self.table.item(row, 2)
+                if it_res and it_res.text() in ["-", ""]:
+                    it_res.setText(res)
+                    if "4K" in res or "2160" in res:
+                        it_res.setForeground(QColor("#f43f5e"))
+                        it_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                    elif "1080" in res:
+                        it_res.setForeground(QColor("#a855f7"))
+                        it_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+                    elif "720" in res:
+                        it_res.setForeground(QColor("#38bdf8"))
+
+            # 3: 视频时长
+            dur = task.get("duration", "")
+            if dur:
+                it_dur = self.table.item(row, 3)
+                if it_dur and it_dur.text() in ["-", ""]:
+                    it_dur.setText(dur)
+
+    def _on_task_status_changed(self, task_id, new_status):
+        self.refresh_table()
+
+    def _on_task_completed(self, task_id, output_path):
+        self.refresh_table()
+        if config.get("notify_on_complete", True):
+            task = task_manager.get_task(task_id)
+            title = task.get("title") if task else "任务"
+            self.tray.showMessage(
+                "下载完成",
+                f"{title} 已成功下载并合并完毕",
+                QSystemTrayIcon.Information,
+                3000
+            )
+
+    def _on_task_failed(self, task_id, error_msg):
+        self.refresh_table()
+
+    def _on_task_removed(self, task_id):
+        self.refresh_table()
+
+    def _update_status_stats(self):
+        tasks = task_manager.get_all_tasks()
+        total_tasks = len(tasks)
+        downloading_tasks = [t for t in tasks if t["status"] == "downloading"]
+        active_count = len(downloading_tasks)
+        completed_count = sum(1 for t in tasks if t["status"] == "completed")
+
+        self.lbl_stats.setText(f"总计: {total_tasks} | 下载中: {active_count} | 已完成: {completed_count}")
+
+        total_speed_bytes = sum(parse_speed_to_bytes(t.get("speed", "")) for t in downloading_tasks)
+        if total_speed_bytes > 0:
+            self.lbl_global_speed.setText(f"总下载速度: {format_size(total_speed_bytes)}/s")
+        else:
+            speeds = [t.get("speed", "") for t in downloading_tasks if t.get("speed")]
+            if speeds:
+                self.lbl_global_speed.setText(f"总下载速度: {' + '.join(speeds[:2])}")
+            else:
+                self.lbl_global_speed.setText("0.00 KB/s")
+
+    def _show_context_menu(self, pos):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+
+        menu = QMenu(self)
+        act_run = menu.addAction(get_icon("play", "#3875f6", 14), "立即开始 / 恢复")
+        act_run.triggered.connect(self._action_start_selected)
+
+        act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), "暂停任务")
+        act_pau.triggered.connect(self._action_pause_selected)
+
+        menu.addSeparator()
+
+        act_open_f = menu.addAction(get_icon("video", "#d4d4d8", 14), "打开播放文件")
+        act_open_f.triggered.connect(self._action_play_file)
+
+        act_open_d = menu.addAction(get_icon("folder", "#d4d4d8", 14), "打开所在目录")
+        act_open_d.triggered.connect(self._action_open_dir)
+
+        menu.addSeparator()
+
+        act_ff = menu.addAction(get_icon("toolbox", "#d4d4d8", 14), "FFmpeg 视音频处理 (转码/提取/修复)")
+        act_ff.triggered.connect(self._action_ffmpeg_toolbox_for_selected)
+
+        act_copy = menu.addAction(get_icon("copy", "#d4d4d8", 14), "复制下载链接")
+        act_copy.triggered.connect(self._action_copy_url)
+
+        menu.addSeparator()
+
+        act_del = menu.addAction(get_icon("delete", "#f87171", 14), "从列表中删除")
+        act_del.triggered.connect(lambda: self._delete_tasks(ids, delete_file=False))
+
+        act_del_all = menu.addAction(get_icon("delete", "#f87171", 14), "删除任务及文件")
+        act_del_all.triggered.connect(lambda: self._delete_tasks(ids, delete_file=True))
+
+        menu.exec_(self.table.mapToGlobal(pos))
+
+    def _on_cell_double_clicked(self, row, col):
+        it = self.table.item(row, 0)
+        if it:
+            t_id = it.data(Qt.UserRole)
+            task = task_manager.get_task(t_id)
+            if task and task.get("status") == "completed" and task.get("output_file"):
+                out_p = task["output_file"]
+                if os.path.exists(out_p):
+                    os.startfile(out_p)
+
+    def _action_new_task(self):
+        dlg = NewTaskDialog(self)
+        dlg.exec_()
+
+    def _action_start_selected(self):
+        for t_id in self._get_selected_task_ids():
+            task_manager.start_task(t_id)
+
+    def _action_pause_selected(self):
+        for t_id in self._get_selected_task_ids():
+            task_manager.pause_task(t_id)
+
+    def _action_delete_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        ret = QMessageBox.question(
+            self, "确认删除", f"确定要删除选中的 {len(ids)} 个任务吗？",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
+        )
+        if ret == QMessageBox.Yes:
+            self._delete_tasks(ids, delete_file=False)
+
+    def _delete_tasks(self, ids, delete_file=False):
+        for t_id in ids:
+            task_manager.remove_task(t_id, delete_file=delete_file)
+
+    def _action_open_dir(self):
+        ids = self._get_selected_task_ids()
+        target_dir = config.get("save_dir")
+        if ids:
+            task = task_manager.get_task(ids[0])
+            if task and task.get("save_dir") and os.path.exists(task.get("save_dir")):
+                target_dir = task.get("save_dir")
+        if os.path.exists(target_dir):
+            os.startfile(target_dir)
+
+    def _action_play_file(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task = task_manager.get_task(ids[0])
+        if task and task.get("output_file") and os.path.exists(task.get("output_file")):
+            os.startfile(task.get("output_file"))
+        else:
+            QMessageBox.information(self, "提示", "文件尚在下载中或已被移动！")
+
+    def _action_ffmpeg_toolbox(self):
+        dlg = FFmpegToolboxDialog(self)
+        dlg.exec_()
+
+    def _action_ffmpeg_toolbox_for_selected(self):
+        ids = self._get_selected_task_ids()
+        preset = ""
+        if ids:
+            t = task_manager.get_task(ids[0])
+            if t and t.get("output_file") and os.path.exists(t.get("output_file")):
+                preset = t.get("output_file")
+        dlg = FFmpegToolboxDialog(self, preset_file=preset)
+        dlg.exec_()
+
+    def _action_copy_url(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task = task_manager.get_task(ids[0])
+        if task and task.get("url"):
+            QApplication.clipboard().setText(task["url"])
+            self.statusBar().showMessage("链接已复制", 2000)
+
+    def _action_clean_cache(self):
+        dlg = CacheCleanDialog(self)
+        if dlg.exec_() == CacheCleanDialog.Accepted:
+            self.refresh_table()
+
+    def _action_extension_tutorial(self):
+        dlg = ExtensionTutorialDialog(self)
+        dlg.exec_()
+
+    def _action_settings(self):
+        dlg = SettingsDialog(self)
+        if dlg.exec_() == SettingsDialog.Accepted:
+            self._update_ffmpeg_label()
+            self._update_nm3u8dl_label()
+            self._update_proxy_label()
+            self.refresh_table()

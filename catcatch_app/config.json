@@ -1,0 +1,39 @@
+{
+  "save_dir": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\Downloads",
+  "ffmpeg_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\ffmpeg.exe",
+  "re_cli_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\N_m3u8DL-RE.exe",
+  "v3_cli_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\N_m3u8DL-CLI-SimpleG.exe",
+  "extension_dir": "",
+  "server_host": "127.0.0.1",
+  "server_port": 18910,
+  "proxy_mode": "none",
+  "active_proxy_id": "clash",
+  "proxies": [
+    {
+      "id": "clash",
+      "name": "Clash / Clash Verge (7890)",
+      "url": "http://127.0.0.1:7890"
+    },
+    {
+      "id": "v2ray",
+      "name": "v2rayN / Xray SOCKS5 (10808)",
+      "url": "socks5://127.0.0.1:10808"
+    },
+    {
+      "id": "v2ray_http",
+      "name": "v2rayN HTTP (10809)",
+      "url": "http://127.0.0.1:10809"
+    }
+  ],
+  "max_concurrent_tasks": 5,
+  "max_threads_per_task": 16,
+  "del_tmp_files": true,
+  "auto_merge": true,
+  "auto_convert_mp4": true,
+  "attach_metadata": true,
+  "stream_engine": "RE",
+  "theme": "dark",
+  "close_to_tray": true,
+  "notify_on_complete": true,
+  "auto_start_tasks": true
+}

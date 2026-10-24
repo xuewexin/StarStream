@@ -1,0 +1,128 @@
+/* content_style.css - Modern Minimalist IDM Video Floating Button */
+.catcatch-floating-btn {
+  position: absolute;
+  z-index: 2147483640;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: rgba(24, 25, 29, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #f4f4f5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  opacity: 0.88;
+}
+
+.catcatch-floating-btn:hover {
+  opacity: 1;
+  background-color: #272a32;
+  border-color: #3875f6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(56, 117, 246, 0.25);
+}
+
+.catcatch-icon-svg {
+  width: 14px;
+  height: 14px;
+  stroke: #3875f6;
+  fill: none;
+}
+
+.catcatch-floating-panel {
+  position: absolute;
+  z-index: 2147483645;
+  background-color: #1a1b20;
+  color: #f4f4f5;
+  border: 1px solid #2e3138;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+  min-width: 280px;
+  max-width: 380px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.catcatch-panel-title {
+  font-weight: 600;
+  color: #f4f4f5;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catcatch-panel-info {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.catcatch-badge {
+  background-color: #24262d;
+  border: 1px solid #30333b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #a1a1aa;
+  font-size: 11px;
+}
+
+.catcatch-badge.accent {
+  background-color: rgba(56, 117, 246, 0.15);
+  border-color: rgba(56, 117, 246, 0.3);
+  color: #60a5fa;
+}
+
+.catcatch-panel-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.catcatch-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #30333b;
+  background-color: #24262d;
+  color: #d4d4d8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.catcatch-btn:hover {
+  background-color: #2e313a;
+  color: #ffffff;
+}
+
+.catcatch-btn.primary {
+  background-color: #3875f6;
+  border-color: #3875f6;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.catcatch-btn.primary:hover {
+  background-color: #4f87ff;
+}
+
+.catcatch-btn.success {
+  background-color: #166534;
+  border-color: #22c55e;
+  color: #ffffff;
+}

@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "星流媒体嗅探器 (StarStream Sniffer)",
+  "version": "2.0.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5fZtqGJchnQlbUBeRW3kqkar+hIRTcfZQm6o1dGapdQYYzZCcwbtY8VhCoXno9go06ua0iGTGfIjohseWPeUvNnJ4kkJkieNRhprknlTogSDILuu0hmkRQUZauQLuevY7AE3lKVioIi7Z1hE9lHzx00myX9EwQjPN2foAaJ6+OU0AsZXd7K39RojXAxhYNhFpP3YOoc6nvBgGNNz7DukNvDAqZeAxNU+EKbRlP7yTBO2ARJT1IYTjrMNvBjCOUWSpw7maUHnnHvlx7fcAiLeVDhcgCVT0TKPrIa+sS4ipvEwQh5neswQOA1RvsAuCG7d0imKSa8JluRIHMOY/OyatQIDAQAB",
+  "description": "全能网页音视频/流媒体(M3U8/DASH/MP4/MP3)深度嗅探，类似IDM悬浮抓取，一键直通星流桌面客户端与内置FFmpeg极速下载",
+  "permissions": [
+    "webRequest",
+    "storage",
+    "tabs",
+    "nativeMessaging",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_script.js"],
+      "css": ["content_style.css"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "inject.js",
+        "icons/icon16.png",
+        "icons/icon48.png",
+        "icons/icon128.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

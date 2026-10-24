@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星流媒体嗅探器 (StarStream Sniffer) - 扩展安装引导</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #111827;
+      --card-border: #1f293d;
+      --text-main: #f3f4f6;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --primary: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --kbd-bg: #1e293b;
+      --kbd-border: #334155;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+      padding: 30px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      max-width: 780px;
+      width: 100%;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(99, 102, 241, 0.15));
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    
+    /* 核心提示横幅 */
+    .hero-banner {
+      background: linear-gradient(145deg, #0f1e36, #111b2e);
+      border: 1px solid #1e3a5f;
+      border-left: 5px solid var(--accent);
+      border-radius: 12px;
+      padding: 22px;
+      margin-bottom: 26px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow);
+    }
+    .banner-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 10px;
+    }
+    .banner-desc {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 16px;
+    }
+    .action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    button.btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+    button.btn-primary {
+      background: #0284c7;
+      color: #ffffff;
+    }
+    button.btn-primary:hover {
+      background: #0369a1;
+      transform: translateY(-1px);
+    }
+    button.btn-secondary {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    button.btn-secondary:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    /* 步骤卡片 */
+    .steps-container {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px 22px;
+      transition: border-color 0.2s;
+    }
+    .step-card:hover {
+      border-color: #334155;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2563eb, #38bdf8);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .step-content {
+      font-size: 13px;
+      color: var(--text-muted);
+      padding-left: 40px;
+    }
+    .code-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      word-break: break-all;
+    }
+    .code-text {
+      font-family: Consolas, "Fira Code", monospace;
+      color: #a78bfa;
+      font-size: 12px;
+    }
+    kbd {
+      background: var(--kbd-bg);
+      border: 1px solid var(--kbd-border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 12px;
+      color: #f1f5f9;
+      font-family: Consolas, monospace;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.4);
+    }
+    .highlight-tip {
+      background: rgba(56, 189, 248, 0.08);
+      border-left: 3px solid #38bdf8;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 10px;
+      color: #93c5fd;
+      font-size: 12px;
+    }
+
+    /* 浮动 Toast 提示 */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      color: #38bdf8;
+      padding: 10px 20px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="logo-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        星流媒体下载器 · 扩展安装指引
+      </div>
+      <h1>星流媒体嗅探器 (StarStream Sniffer) 安装教学</h1>
+      <p class="subtitle">简单三步，即可将网页嗅探胶囊与多线程高速下载接入您的浏览器</p>
+    </div>
+
+    <!-- 醒目顶栏提示 -->
+    <div class="hero-banner">
+      <div class="banner-title">
+        <span>⚡ 扩展地址已自动为您复制到剪贴板！</span>
+      </div>
+      <div class="banner-desc">
+        受现代 Chromium (Edge / Chrome) 安全沙箱机制保护，任何第三方应用程序均被严格禁止直接向浏览器强制跳转内部设置页。<br>
+        👉 <strong>请直接在刚打开的浏览器顶部地址栏，按下 <kbd>Ctrl</kbd> + <kbd>V</kbd> 粘贴并按 <kbd>Enter</kbd>（回车），即可瞬间直达！</strong>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-primary" onclick="copyEdgeUrl()">
+          📋 复制 Edge 扩展页地址 (edge://extensions)
+        </button>
+        <button class="btn btn-secondary" onclick="copyChromeUrl()">
+          📋 复制 Chrome 扩展页地址 (chrome://extensions)
+        </button>
+        <button class="btn btn-secondary" onclick="copyExtDir()">
+          📂 复制当前插件本地目录路径
+        </button>
+      </div>
+    </div>
+
+    <!-- 步骤指引 -->
+    <div class="steps-container">
+
+      <!-- Step 1 -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">直达浏览器的扩展管理中心</div>
+        </div>
+        <div class="step-content">
+          请在当前浏览器顶部地址栏按 <kbd>Ctrl</kbd> + <kbd>V</kbd> 粘贴并回车。如果未自动打开，可点击上方按钮手动复制并粘贴访问：
+          <div class="code-box">
+            <span class="code-text" id="targetBrowserUrl">edge://extensions</span>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="copyText(document.getElementById('targetBrowserUrl').innerText)">复制</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">开启「开发者模式」开关</div>
+        </div>
+        <div class="step-content">
+          进入扩展中心后，在页面<strong>【右上角】</strong>（或 Edge 左侧菜单底部）找到<strong>「开发者模式」 (Developer mode)</strong> 开关，将其勾选开启。<br>
+          <div class="highlight-tip">
+            💡 只有开启「开发者模式」后，浏览器上方才会显示「加载已解压的扩展程序」按钮。
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">点击「加载已解压的扩展程序」选择插件目录</div>
+        </div>
+        <div class="step-content">
+          点击页面左上角的<strong>「加载已解压的扩展程序」</strong>，在弹出的窗口中选择本项目下的扩展源码文件夹：
+          <div class="code-box">
+            <span class="code-text" id="extensionPathText">E:\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\m3u8-sniffer-extension</span>
+            <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="copyExtDir()">复制路径</button>
+          </div>
+          <div class="highlight-tip" style="border-left-color: #10b981; background: rgba(16, 185, 129, 0.08); color: #6ee7b7;">
+            ✓ 选中该文件夹后点击「选择文件夹」，插件即刻安装成功并永久生效！不会报任何“无效的程序包”错误。
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-card">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-title">固定插件并开启极速嗅探</div>
+        </div>
+        <div class="step-content">
+          1. 点击浏览器右上角拼图图标 🧩，将<strong>「星流媒体嗅探器」</strong>固定到浏览器工具栏。<br>
+          2. 打开任意视频播放网页（B站、各类影视播放站等），视频右上角会自动浮现天蓝色<strong>【下载视频】</strong>胶囊按钮。<br>
+          3. 点击<strong>【推送到星流下载器】</strong>，即可享受自动多线程切片合并、转封装标准 MP4 等全自动极速体验！
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast">已成功复制到剪贴板！</div>
+
+  <script>
+    // 动态注入的扩展物理路径
+    window.EXT_DIR = "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\m3u8-sniffer-extension";
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2200);
+    }
+
+    function copyText(text, successMsg = "已成功复制到剪贴板！") {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(successMsg);
+      }).catch(err => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast(successMsg);
+      });
+    }
+
+    function copyEdgeUrl() {
+      copyText("edge://extensions", "已复制 edge://extensions 到剪贴板！");
+    }
+
+    function copyChromeUrl() {
+      copyText("chrome://extensions", "已复制 chrome://extensions 到剪贴板！");
+    }
+
+    function copyExtDir() {
+      const path = window.EXT_DIR || document.getElementById('extensionPathText').innerText;
+      copyText(path, "已复制扩展本地绝对路径！");
+    }
+
+    // 读取 URL 参数以动态展示
+    (function init() {
+      const params = new URLSearchParams(window.location.search);
+      const browser = params.get('browser') || 'edge';
+      const extP = params.get('ext');
+      if (extP) {
+        window.EXT_DIR = decodeURIComponent(extP);
+        document.getElementById('extensionPathText').innerText = window.EXT_DIR;
+      }
+      if (browser === 'chrome') {
+        document.getElementById('targetBrowserUrl').innerText = 'chrome://extensions';
+      } else {
+        document.getElementById('targetBrowserUrl').innerText = 'edge://extensions';
+      }
+    })();
+  </script>
+</body>
+</html>
