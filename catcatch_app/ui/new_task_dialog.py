@@ -112,6 +112,11 @@ class NewTaskDialog(QDialog):
 
         layout.addWidget(self.adv_group)
 
+        # 免责声明小贴士
+        disclaimer_lbl = QLabel("⚖️ 免责声明：本软件仅供个人合法学习交流与离线备份，严禁用于商业牟利或盗版侵权。")
+        disclaimer_lbl.setStyleSheet("color: #71717a; font-size: 11px; margin-top: 4px;")
+        layout.addWidget(disclaimer_lbl)
+
         # 5. 底部按钮
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()

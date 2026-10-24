@@ -8,7 +8,7 @@
 
 **全能网页音视频智能嗅探扩展 + IDM 工业级多线程下载客户端 + 内置 N_m3u8DL-RE 与 FFmpeg 核心**
 
-[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/m3u8-sniffer?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/m3u8-sniffer/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
 [![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
@@ -17,11 +17,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream.exe">
     <img src="https://img.shields.io/badge/⬇️%20官方桌面客户端-StarStream.exe%20(内置%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="点击直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip">
     <img src="https://img.shields.io/badge/🧩%20单独下载浏览器嗅探插件-Extension.zip%20(仅%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
 </p>
@@ -38,7 +38,8 @@
   <a href="#-核心特性">核心特性</a> •
   <a href="#-浏览器插件导入教学">插件教学</a> •
   <a href="#-代理网络配置说明">代理设置</a> •
-  <a href="#-常见问题-faq">常见问题</a>
+  <a href="#-常见问题-faq">常见问题</a> •
+  <a href="#-免责声明-disclaimer">免责声明</a>
 </p>
 
 </div>
@@ -89,10 +90,10 @@
 
 | 下载方式 | 包含组件 | 适用场景 | 官方下载链接 |
 |---|---|---|---|
-| **⭐ 推荐：StarStream.exe 单文件客户端** | 内置完整 **N_m3u8DL-RE** + **FFmpeg** | 免安装任何运行环境，双击即可直接运行 | [👉 点击下载 StarStream.exe (55MB)](https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream.exe)<br>*(备用镜像：[Raw 下载](https://github.com/xuewexin/m3u8-sniffer/raw/main/StarStream.exe))* |
-| **🧩 必装搭档：浏览器嗅探插件独立包 (v2.0.1)** | 纯插件源码包 (仅 140KB)，含 MV3 嗅探/悬浮胶囊/弹窗 | 仅需安装或更新浏览器插件的场景，极速秒下 | [👉 点击下载 Extension.zip (140KB)](https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip) |
-| **StarStream_v2.0_Portable.zip 便携全套包** | 包含 exe 客户端 + 浏览器扩展离线源码 + 启动脚本 | 解压即用，包含客户端与插件全套套件 | [👉 点击下载 Portable.zip (55MB)](https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream_v2.0_Portable.zip) |
-| **GitHub Releases 官方发行版主页** | 查看所有历史版本、更新日志与资产列表 | 追溯所有更新与校验包 | [👉 访问 Releases 页面](https://github.com/xuewexin/m3u8-sniffer/releases) |
+| **⭐ 推荐：StarStream.exe 单文件客户端** | 内置完整 **N_m3u8DL-RE** + **FFmpeg** | 免安装任何运行环境，双击即可直接运行 | [👉 点击下载 StarStream.exe (55MB)](https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream.exe)<br>*(备用镜像：[Raw 下载](https://github.com/xuewexin/StarStream/raw/main/StarStream.exe))* |
+| **🧩 必装搭档：浏览器嗅探插件独立包 (v2.0.1)** | 纯插件源码包 (仅 140KB)，含 MV3 嗅探/悬浮胶囊/弹窗 | 仅需安装或更新浏览器插件的场景，极速秒下 | [👉 点击下载 Extension.zip (140KB)](https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip) |
+| **StarStream_v2.0_Portable.zip 便携全套包** | 包含 exe 客户端 + 浏览器扩展离线源码 + 启动脚本 | 解压即用，包含客户端与插件全套套件 | [👉 点击下载 Portable.zip (55MB)](https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_v2.0_Portable.zip) |
+| **GitHub Releases 官方发行版主页** | 查看所有历史版本、更新日志与资产列表 | 追溯所有更新与校验包 | [👉 访问 Releases 页面](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **提示**：独立版 exe **已打包内置最新的 N_m3u8DL-RE 引擎与 FFmpeg**，完全开箱即用，无需单独下载或配置外部命令行工具。
 
@@ -134,7 +135,7 @@
 ### 第三步：选择扩展源码目录
 1. 点击左上角的 **【加载已解压的扩展程序】** 按钮。
 2. 在弹出的文件选择器中，定位并选中 **`m3u8-sniffer-extension`** 文件夹：
-   - 若您单独下载了 [插件独立包 Extension.zip](https://github.com/xuewexin/m3u8-sniffer/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip)，将其解压后直接选中解压得到的文件夹即可；
+   - 若您单独下载了 [插件独立包 Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip)，将其解压后直接选中解压得到的文件夹即可；
    - 若您使用的是便携全套包或克隆了仓库，直接选中根目录下的 `m3u8-sniffer-extension` 文件夹（您亦可在星流客户端设置中一键复制当前电脑上的准确路径）。
 3. 点击「选择文件夹」，插件即刻导入成功！
 4. 点击浏览器右上角的拼图图标 🧩，将 **「星流媒体嗅探器」** 固定到工具栏即可开始使用。
@@ -160,8 +161,8 @@
 
 ```bash
 # 1. 克隆代码仓库
-git clone https://github.com/xuewexin/m3u8-sniffer.git
-cd m3u8-sniffer
+git clone https://github.com/xuewexin/StarStream.git
+cd StarStream
 
 # 2. 安装项目依赖
 pip install -r requirements.txt
@@ -234,6 +235,17 @@ StarStream-Pro/
 请先确认您的代理软件（如 Clash、v2rayN）已启动且开启了“允许局域网连接”或本地监听。星流下载器具备自动端口诊断功能，可分别测试 TCP 端口监听与 HTTP/SOCKS5 外网通道。输入代理端口时支持简写（如 <code>127.0.0.1:7890</code>），系统将自动适配。
 </p>
 </details>
+
+---
+
+## ⚖️ 免责声明 (Disclaimer)
+
+在使用**星流媒体下载器 (StarStream Pro)** 及配套浏览器嗅探扩展前，请您务必仔细阅读并理解本声明：
+
+1. **技术研究与个人学习**：本项目属于开源个人技术探索，旨在研究浏览器网络底层拦截机制、流媒体协议（HLS / DASH）解析技术与多线程分块下载算法，仅供计算机技术爱好者交流学习及个人合法离线备份之用。
+2. **知识产权与版权保护**：请使用者严格遵守所在国家或地区的法律法规，自觉尊重原创作者及版权持有人的知识产权与合法权益。未经版权方明确书面授权许可，**严禁将通过本工具下载的任何视听内容用于商业盈利、公开转播、二次分发、非法盗版传播或其它任何侵犯版权的违法违规行为**。
+3. **免责与法律责任界定**：本工具仅提供通用的客户端流媒体协议解析与本地存储技术，开发者不提供、不托管、亦不分发任何音视频资源。用户因使用本工具而导致的任何形式的直接或间接法律责任、版权纠纷、民事侵权或第三方经济损失，**均由使用者本人独立全权承担，开发者及贡献者不承担任何直接或连带法律责任**。
+4. **合理使用原则**：若您通过本工具获取的媒体资源涉及第三方版权争议，请在测试或学习完成后 24 小时内自觉删除。如果您对某些资源的版权归属存疑，请立即停止下载与使用。
 
 ---
 

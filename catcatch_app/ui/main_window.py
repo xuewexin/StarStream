@@ -217,6 +217,12 @@ class MainWindow(QMainWindow):
         self.act_ext.triggered.connect(self._action_extension_tutorial)
         toolbar.addAction(self.act_ext)
 
+        # 视频下载免责声明
+        self.act_disclaimer = QAction(get_icon("info", "#d4d4d8", 18), "免责声明", self)
+        self.act_disclaimer.setToolTip("查看视频下载合法合规使用与免责声明")
+        self.act_disclaimer.triggered.connect(self._action_show_disclaimer)
+        toolbar.addAction(self.act_disclaimer)
+
         toolbar.addSeparator()
 
         # 设置
@@ -813,3 +819,14 @@ class MainWindow(QMainWindow):
             self._update_nm3u8dl_label()
             self._update_proxy_label()
             self.refresh_table()
+
+    def _action_show_disclaimer(self):
+        QMessageBox.information(
+            self,
+            "免责声明 - 星流媒体下载器",
+            "【星流媒体下载器 (StarStream Pro) 免责声明】\n\n"
+            "1. 本软件仅供计算机网络协议研究、技术交流以及个人合法离线备份之用。\n"
+            "2. 请使用者自觉遵守国家法律法规，充分尊重原创作者与版权所有方的合法权益。严禁将下载内容用于商业盈利、非法分发或侵权盗版活动！\n"
+            "3. 本软件不托管、不提供亦不转播任何媒体资源，因用户违规下载使用而引发的任何版权纠纷与法律责任，均由使用者独立承担，开发者不承担任何直接或连带责任。\n"
+            "4. 若测试下载的音视频涉及版权争议，请在下载后 24 小时内自觉删除。"
+        )
