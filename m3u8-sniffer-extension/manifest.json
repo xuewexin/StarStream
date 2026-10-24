@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "星流媒体嗅探器 (StarStream Sniffer)",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5fZtqGJchnQlbUBeRW3kqkar+hIRTcfZQm6o1dGapdQYYzZCcwbtY8VhCoXno9go06ua0iGTGfIjohseWPeUvNnJ4kkJkieNRhprknlTogSDILuu0hmkRQUZauQLuevY7AE3lKVioIi7Z1hE9lHzx00myX9EwQjPN2foAaJ6+OU0AsZXd7K39RojXAxhYNhFpP3YOoc6nvBgGNNz7DukNvDAqZeAxNU+EKbRlP7yTBO2ARJT1IYTjrMNvBjCOUWSpw7maUHnnHvlx7fcAiLeVDhcgCVT0TKPrIa+sS4ipvEwQh5neswQOA1RvsAuCG7d0imKSa8JluRIHMOY/OyatQIDAQAB",
   "description": "全能网页音视频/流媒体(M3U8/DASH/MP4/MP3)深度嗅探，类似IDM悬浮抓取，一键直通星流桌面客户端与内置FFmpeg极速下载",
   "permissions": [

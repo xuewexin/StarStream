@@ -209,14 +209,59 @@ async function insertIntoStorage(entry) {
   }
 
   await chrome.storage.local.set({ mediaList });
-  updateBadge(mediaList.length);
+  if (entry.tabId >= 0) {
+    const tabCount = mediaList.filter((it) => it.tabId === entry.tabId).length;
+    updateBadgeForTab(entry.tabId, tabCount);
+  }
 }
 
-function updateBadge(count) {
+// 标签页专属角标更新（仅在对应标签页显示数字，避免全局常驻残留）
+function updateBadgeForTab(tabId, count) {
   const text = count > 0 ? (count > 99 ? "99+" : String(count)) : "";
-  chrome.action.setBadgeText({ text });
-  chrome.action.setBadgeBackgroundColor({ color: "#7aa2f7" });
+  if (tabId !== undefined && tabId !== null && tabId >= 0) {
+    chrome.action.setBadgeText({ tabId, text });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: "#2563eb" });
+  } else {
+    chrome.action.setBadgeText({ text });
+    chrome.action.setBadgeBackgroundColor({ color: "#2563eb" });
+  }
 }
+
+// 标签页刷新或导航至新页面时：立即清除该标签页的旧角标，并清理旧网址嗅探数据
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === "loading") {
+    chrome.action.setBadgeText({ tabId, text: "" });
+    if (changeInfo.url) {
+      const { mediaList = [] } = await chrome.storage.local.get("mediaList");
+      const filtered = mediaList.filter((it) => it.tabId !== tabId);
+      if (filtered.length !== mediaList.length) {
+        await chrome.storage.local.set({ mediaList: filtered });
+      }
+    }
+  }
+});
+
+// 标签页关闭时，释放其关联记录与角标
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+  try {
+    chrome.action.setBadgeText({ tabId, text: "" });
+  } catch (e) {}
+  const { mediaList = [] } = await chrome.storage.local.get("mediaList");
+  const filtered = mediaList.filter((it) => it.tabId !== tabId);
+  if (filtered.length !== mediaList.length) {
+    await chrome.storage.local.set({ mediaList: filtered });
+  }
+});
+
+// 存储列表全部清空时，同步清除全局残留角标
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.mediaList) {
+    const list = changes.mediaList.newValue || [];
+    if (list.length === 0) {
+      chrome.action.setBadgeText({ text: "" });
+    }
+  }
+});
 
 // 深入解析 M3U8 清单内容 (提取分辨率、AES-128 密钥、总时长)
 async function parseM3u8Metadata(entry) {
@@ -287,6 +332,16 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       );
       sendResponse({ media: matched });
     });
+    return true;
+  }
+
+  if (req.action === "CLEAR_TAB_BADGE") {
+    const tabId = req.tabId || (sender.tab ? sender.tab.id : -1);
+    if (tabId >= 0) {
+      chrome.action.setBadgeText({ tabId, text: "" });
+    }
+    chrome.action.setBadgeText({ text: "" });
+    sendResponse({ success: true });
     return true;
   }
 

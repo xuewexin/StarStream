@@ -26,6 +26,14 @@
   const settingsPanel = document.getElementById('settingsPanel');
 
   document.addEventListener('DOMContentLoaded', async () => {
+    // 弹窗打开表示用户已查阅当前页面的嗅探结果，清除未读角标提示
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs[0] && tabs[0].id) {
+        chrome.action.setBadgeText({ tabId: tabs[0].id, text: '' });
+      }
+    });
+    chrome.action.setBadgeText({ text: '' });
+
     bindEvents();
     await loadSettings();
     await checkClientStatus();
@@ -390,6 +398,16 @@
       renderList();
       updateCategoryCounts();
       updateBatchBar();
+
+      // 同步更新剩余角标
+      if (item.tabId !== undefined && item.tabId >= 0) {
+        const remaining = mediaList.filter((i) => i.tabId === item.tabId).length;
+        const text = remaining > 0 ? (remaining > 99 ? '99+' : String(remaining)) : '';
+        chrome.action.setBadgeText({ tabId: item.tabId, text });
+      }
+      if (mediaList.length === 0) {
+        chrome.action.setBadgeText({ text: '' });
+      }
     });
 
     return card;

@@ -27,9 +27,11 @@
     }).catch(() => {});
   });
 
-  // 3. IDM 悬浮下载条
+  // 3. IDM 悬浮下载条 (支持闲置自动渐隐、标签页切换清理与一键关闭)
   let activeFloatingBtn = null;
   let activePanel = null;
+  let autoHideTimer = null;
+  let isMouseOverBtn = false;
 
   const SVG_DOWNLOAD_ICON = `<svg class="catcatch-icon-svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -37,12 +39,33 @@
     <line x1="12" y1="15" x2="12" y2="3"></line>
   </svg>`;
 
+  function resetAutoHideTimer(delay = 3500) {
+    if (autoHideTimer) clearTimeout(autoHideTimer);
+    if (activePanel) return; // 详情面板展开时不自动隐藏
+    autoHideTimer = setTimeout(() => {
+      if (activeFloatingBtn && !activePanel && !isMouseOverBtn) {
+        activeFloatingBtn.classList.add('catcatch-btn-hidden');
+      }
+    }, delay);
+  }
+
   function initFloatingDownloadBar() {
     document.addEventListener('mouseover', handleMouseOver, true);
-    
+
     document.addEventListener('play', (e) => {
       if (e.target && (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO')) {
         showFloatingBarForMedia(e.target);
+      }
+    }, true);
+
+    // 点击页面任意外部空白处关闭详情面板
+    document.addEventListener('click', (e) => {
+      if (activePanel && !activePanel.contains(e.target) && (!activeFloatingBtn || !activeFloatingBtn.contains(e.target))) {
+        if (activePanel) {
+          activePanel.remove();
+          activePanel = null;
+        }
+        resetAutoHideTimer(2000);
       }
     }, true);
   }
@@ -52,24 +75,35 @@
     if (!target) return;
     if (target.tagName === 'VIDEO' || (target.tagName === 'DIV' && target.querySelector('video'))) {
       const videoEl = target.tagName === 'VIDEO' ? target : target.querySelector('video');
-      if (videoEl) {
+      if (videoEl && !videoEl.__catcatch_dismissed) {
         showFloatingBarForMedia(videoEl);
       }
     }
   }
 
   function showFloatingBarForMedia(mediaEl) {
+    if (mediaEl.__catcatch_dismissed) return;
+
     const rect = mediaEl.getBoundingClientRect();
     if (rect.width < 160 || rect.height < 100) return;
 
     if (activeFloatingBtn && activeFloatingBtn.__targetMedia === mediaEl) {
+      // 唤醒并重新开始倒计时自动消失
+      activeFloatingBtn.classList.remove('catcatch-btn-hidden');
+      resetAutoHideTimer(3500);
       return;
     }
     removeFloatingBar();
 
     const btn = document.createElement('div');
     btn.className = 'catcatch-floating-btn';
-    btn.innerHTML = `${SVG_DOWNLOAD_ICON}<span>下载视频</span>`;
+    btn.innerHTML = `
+      <div class="catcatch-btn-main" style="display:inline-flex;align-items:center;gap:5px;">
+        ${SVG_DOWNLOAD_ICON}
+        <span>下载视频</span>
+      </div>
+      <span class="catcatch-close-badge" title="关闭悬浮角标">×</span>
+    `;
     btn.__targetMedia = mediaEl;
 
     const topPos = window.scrollY + rect.top + 10;
@@ -77,13 +111,44 @@
     btn.style.top = `${topPos}px`;
     btn.style.right = `${rightPos}px`;
 
-    btn.addEventListener('click', (e) => {
+    // 鼠标在按钮上时阻止自动隐藏
+    btn.addEventListener('mouseenter', () => {
+      isMouseOverBtn = true;
+      if (autoHideTimer) clearTimeout(autoHideTimer);
+      btn.classList.remove('catcatch-btn-hidden');
+    });
+
+    btn.addEventListener('mouseleave', () => {
+      isMouseOverBtn = false;
+      resetAutoHideTimer(2000);
+    });
+
+    // 点击主区域展开下载面板
+    const mainArea = btn.querySelector('.catcatch-btn-main');
+    mainArea.addEventListener('click', (e) => {
       e.stopPropagation();
       toggleMediaPanel(mediaEl, btn);
     });
 
+    // 点击右上角 × 彻底关闭此视频的角标
+    const closeBadge = btn.querySelector('.catcatch-close-badge');
+    closeBadge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      mediaEl.__catcatch_dismissed = true;
+      removeFloatingBar();
+    });
+
+    // 监听播放器上的鼠标移动，有操作时唤醒，闲置 3.5 秒后自动隐去
+    mediaEl.addEventListener('mousemove', () => {
+      if (activeFloatingBtn && !mediaEl.__catcatch_dismissed) {
+        activeFloatingBtn.classList.remove('catcatch-btn-hidden');
+        resetAutoHideTimer(3500);
+      }
+    }, { passive: true });
+
     document.body.appendChild(btn);
     activeFloatingBtn = btn;
+    resetAutoHideTimer(3500);
   }
 
   async function resolveRealMediaUrl(mediaEl) {
@@ -226,6 +291,11 @@
   }
 
   function removeFloatingBar() {
+    if (autoHideTimer) {
+      clearTimeout(autoHideTimer);
+      autoHideTimer = null;
+    }
+    isMouseOverBtn = false;
     if (activeFloatingBtn) {
       activeFloatingBtn.remove();
       activeFloatingBtn = null;
