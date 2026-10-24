@@ -363,11 +363,12 @@ class Config:
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     saved = json.load(f)
-                    # 关键防御：校验保存的绝对路径。如果因移动文件夹或换电脑导致路径失效，
+                    # 关键防御：校验保存的绝对路径。如果因移动文件夹、换电脑或临时解压目录导致路径失效，
                     # 立即丢弃无效配置，由动态探测算法按当前环境自动重新搜寻，坚决避免使用硬编码死路径。
                     for path_key in ["ffmpeg_path", "re_cli_path", "v3_cli_path", "extension_dir"]:
                         if path_key in saved and saved[path_key]:
-                            if not os.path.exists(saved[path_key]):
+                            val = str(saved[path_key])
+                            if "_MEI" in val or "AppData\\Local\\Temp" in val or not os.path.exists(val):
                                 del saved[path_key]
                     if "save_dir" in saved and saved["save_dir"]:
                         if not os.path.exists(saved["save_dir"]):
@@ -379,8 +380,14 @@ class Config:
     def save(self):
         try:
             os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+            dump_data = dict(self._config)
+            # 任何 PyInstaller 打包环境产生的临时解压路径 (_MEI) 绝不写入持久化配置文件
+            for path_key in ["ffmpeg_path", "re_cli_path", "v3_cli_path"]:
+                val = str(dump_data.get(path_key, ""))
+                if "_MEI" in val or "AppData\\Local\\Temp" in val:
+                    dump_data[path_key] = ""
             with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(self._config, f, indent=2, ensure_ascii=False)
+                json.dump(dump_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"[Config] 保存配置文件失败: {e}")
 

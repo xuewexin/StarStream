@@ -457,18 +457,54 @@ class SettingsDialog(QDialog):
 
     def _test_ffmpeg(self):
         path = self.ff_edit.text().strip()
+        # 若路径为空或指向不存在的旧临时目录，自动动态重扫有效路径
         if not path or not os.path.exists(path):
-            QMessageBox.warning(self, "FFmpeg 校验", "指定的文件路径不存在！")
-            return
-        try:
-            p = subprocess.run([path, "-version"], stdout=subprocess.PIPE, text=True, timeout=5)
-            if p.returncode == 0:
-                first = p.stdout.splitlines()[0]
-                QMessageBox.information(self, "FFmpeg 校验成功", f"有效引擎:\n{first}")
+            valid_path = get_ffmpeg_path()
+            if valid_path and os.path.exists(valid_path):
+                path = valid_path
+                self.ff_edit.setText(path)
             else:
-                QMessageBox.warning(self, "FFmpeg 校验失败", f"返回错误代码: {p.returncode}")
+                QMessageBox.warning(
+                    self,
+                    "FFmpeg 校验失败",
+                    "未能检测到有效的 ffmpeg.exe！\n\n"
+                    "排查建议：\n"
+                    "1. 请确认 ffmpeg.exe 是否位于软件同一目录下；\n"
+                    "2. 或点击「浏览...」按钮手动选择您电脑上的 ffmpeg.exe。"
+                )
+                return
+
+        creationflags = 0
+        if os.name == "nt":
+            creationflags = subprocess.CREATE_NO_WINDOW
+
+        try:
+            p = subprocess.run(
+                [path, "-version"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=5,
+                creationflags=creationflags
+            )
+            stdout_str = p.stdout.decode("utf-8", errors="replace") if p.stdout else ""
+            stderr_str = p.stderr.decode("utf-8", errors="replace") if p.stderr else ""
+            output = stdout_str or stderr_str
+
+            if p.returncode == 0 or "ffmpeg version" in output.lower():
+                first = output.splitlines()[0] if output else "FFmpeg 引擎已就绪"
+                QMessageBox.information(
+                    self,
+                    "FFmpeg 校验成功",
+                    f"恭喜！FFmpeg 引擎校验成功，运行正常！\n\n"
+                    f"执行路径: {path}\n"
+                    f"版本信息: {first}"
+                )
+            else:
+                err_msg = output or f"错误代码: {p.returncode}"
+                QMessageBox.warning(self, "FFmpeg 校验失败", f"程序返回异常:\n{err_msg}")
         except Exception as e:
-            QMessageBox.critical(self, "FFmpeg 校验异常", str(e))
+            QMessageBox.critical(self, "FFmpeg 校验异常", f"执行异常: {e}")
 
     def _browse_re(self):
         f, _ = QFileDialog.getOpenFileName(self, "选择 N_m3u8DL-RE.exe", self.re_edit.text() or ROOT_DIR, "Executable (*.exe);;All Files (*)")
@@ -514,10 +550,17 @@ class SettingsDialog(QDialog):
         elif self.radio_manual.isChecked():
             mode = "manual"
 
+        ff_val = self.ff_edit.text().strip()
+        if "_MEI" in ff_val or "AppData\\Local\\Temp" in ff_val:
+            ff_val = ""
+        re_val = self.re_edit.text().strip()
+        if "_MEI" in re_val or "AppData\\Local\\Temp" in re_val:
+            re_val = ""
+
         config.update({
             "save_dir": self.save_edit.text().strip(),
-            "ffmpeg_path": self.ff_edit.text().strip(),
-            "re_cli_path": self.re_edit.text().strip(),
+            "ffmpeg_path": ff_val,
+            "re_cli_path": re_val,
             "extension_dir": self.ext_edit.text().strip(),
             "stream_engine": engine_str,
             "proxy_mode": mode,

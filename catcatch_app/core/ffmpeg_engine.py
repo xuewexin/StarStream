@@ -6,18 +6,36 @@ import os
 import re
 import subprocess
 import threading
-from .config import config
+import sys
+from .config import config, ROOT_DIR
 
 
 def get_ffmpeg_path():
-    """获取有效的 ffmpeg 可执行文件路径 (动态搜寻防御)"""
+    """获取有效的 ffmpeg 可执行文件路径 (多层动态搜寻与防失效保护)"""
+    # 1. 优先检查配置中用户指定的有效绝对路径 (排除易失的 _MEI 临时目录)
     path = config.get("ffmpeg_path", "")
-    if path and os.path.isfile(path):
+    if path and ("_MEI" not in path) and os.path.isfile(path):
         return os.path.abspath(path)
+
+    # 2. 检查程序所在根目录 (ROOT_DIR, 即 exe 同级目录)
+    local_ff = os.path.join(ROOT_DIR, "ffmpeg.exe")
+    if os.path.isfile(local_ff):
+        return os.path.abspath(local_ff)
+
+    # 3. 检查 PyInstaller 打包内置环境 (_MEIPASS)
+    _MEI = getattr(sys, '_MEIPASS', '')
+    if _MEI:
+        mei_ff = os.path.join(_MEI, "ffmpeg.exe")
+        if os.path.isfile(mei_ff):
+            return os.path.abspath(mei_ff)
+
+    # 4. 全盘与系统 PATH 搜寻
     from .config import find_executable
     found = find_executable("ffmpeg.exe")
     if found:
-        config.set("ffmpeg_path", found)
+        # 只有非临时目录才持久化保存
+        if "_MEI" not in found and "AppData\\Local\\Temp" not in found:
+            config.set("ffmpeg_path", found)
         return found
     return ""
 
@@ -27,10 +45,26 @@ def is_ffmpeg_available():
     path = get_ffmpeg_path()
     if not path:
         return False, "未找到 ffmpeg.exe"
+
+    creationflags = 0
+    if os.name == "nt":
+        creationflags = subprocess.CREATE_NO_WINDOW
+
     try:
-        proc = subprocess.run([path, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=5)
-        if proc.returncode == 0:
-            first_line = proc.stdout.split("\n")[0] if proc.stdout else "FFmpeg 已就绪"
+        proc = subprocess.run(
+            [path, "-version"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=5,
+            creationflags=creationflags
+        )
+        stdout_str = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
+        stderr_str = proc.stderr.decode("utf-8", errors="replace") if proc.stderr else ""
+        out_text = stdout_str or stderr_str
+
+        if proc.returncode == 0 or "ffmpeg version" in out_text.lower():
+            first_line = out_text.splitlines()[0] if out_text else "FFmpeg 已就绪"
             return True, first_line
     except Exception as e:
         return False, str(e)
