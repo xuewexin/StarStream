@@ -157,8 +157,17 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
             "【解决建议】请确认嗅探到的链接是标准 M3U8 清单或实际流地址，而非网页 HTML 页面。"
         )
 
-    # 12. FFmpeg 错误
-    if re.search(r"ffmpeg|FFmpeg|Invalid\s*data\s*found\s*when\s*processing\s*input", all_text, re.I):
+    # 11.5 Python 代码内部未捕获异常
+    py_err = re.search(r"(?:NameError|TypeError|AttributeError|ImportError|ZeroDivisionError|KeyError|IndexError):\s*([^\r\n]+)", all_text)
+    if py_err:
+        return (
+            "客户端代码内部异常",
+            f"客户端内部运行遇到代码未捕获异常: {py_err.group(0)}。\n"
+            "【解决建议】此问题已在最新版本中修复，请更新或重启客户端。"
+        )
+
+    # 12. FFmpeg 真实执行错误 (避免误匹配命令参数中的 --ffmpeg-binary-path)
+    if re.search(r"ffmpeg\s*(?:failed|error|process\s*exit|exited\s*with)|(?:调用|启动)\s*ffmpeg\s*失败|ffmpeg\s*merge\s*error|Invalid\s*data\s*found\s*when\s*processing\s*input", all_text, re.I):
         return (
             "FFmpeg 音视频合并处理异常",
             "分片下载已完成，但在调用 FFmpeg 进行无损拼接封装或转码为 MP4 时发生错误。\n"

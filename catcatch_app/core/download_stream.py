@@ -16,6 +16,7 @@ from .config import (
     config, find_nm3u8dl, get_temp_segments_dir,
     is_proxy_alive, detect_local_active_proxies
 )
+from .download_file import format_size
 from .ffmpeg_engine import get_ffmpeg_path, concat_ts_list
 
 
