@@ -6,7 +6,8 @@ import os
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QFileDialog, QTabWidget, QWidget,
-    QProgressBar, QTextEdit, QGroupBox, QMessageBox, QSpinBox
+    QProgressBar, QTextEdit, QGroupBox, QMessageBox, QSpinBox,
+    QFrame
 )
 from PyQt5.QtCore import Qt, pyqtSignal, QObject
 
