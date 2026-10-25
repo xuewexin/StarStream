@@ -220,9 +220,18 @@ class StreamDownloadTask:
                 m = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)ps$", s, re.I)
                 if m:
                     return f"{m.group(1)} {m.group(2).upper()}/s"
-                m2 = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)/s$", s, re.I)
+                m2 = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)/?s?$", s, re.I)
                 if m2:
                     return f"{m2.group(1)} {m2.group(2).upper()}/s"
+                return s
+
+            def clean_eta_str(raw):
+                if not raw or raw == "--:--:--":
+                    return ""
+                s = raw.strip()
+                if s.isdigit():
+                    sec = int(s)
+                    return f"{sec//3600:02d}:{(sec%3600)//60:02d}:{sec%60:02d}"
                 return s
 
             def parse_size_to_bytes(s):
@@ -252,7 +261,7 @@ class StreamDownloadTask:
             while True:
                 if self._is_cancelled:
                     break
-                chunk = self.process.stdout.read(32)
+                chunk = self.process.stdout.read(64)
                 if not chunk:
                     if buffer.strip() and self.on_log:
                         self.on_log(buffer.strip())
@@ -270,9 +279,7 @@ class StreamDownloadTask:
                     tot_parts = int(last_m.group(2))
                     percent = float(last_m.group(3))
                     raw_sp = (last_m.group(4) or "").strip()
-                    eta_str = last_m.group(5) or ""
-                    if eta_str == "--:--:--":
-                        eta_str = ""
+                    eta_str = clean_eta_str(last_m.group(5) or "")
 
                     # 解析速度或已下载大小
                     if "/" in raw_sp or "ps" in raw_sp.lower():

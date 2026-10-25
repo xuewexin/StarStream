@@ -469,7 +469,7 @@ class Config:
         return dict(self._config)
 
     # 代理控制辅助方法
-    def get_effective_proxy(self):
+    def get_effective_proxy(self, validate=False):
         """解析并返回当前生效的有效代理 URL，返回空字符串表示直连"""
         mode = self._config.get("proxy_mode", "none")
         if mode == "none":
@@ -485,7 +485,9 @@ class Config:
                     break
             
             if selected_url:
-                is_alive, _ = is_proxy_alive(selected_url, timeout=0.6)
+                if not validate:
+                    return selected_url
+                is_alive, _ = is_proxy_alive(selected_url, timeout=0.4)
                 if is_alive:
                     return selected_url
                 # 若配置的代理端口离线 (10061拒绝连接)，自动探活本机其它活跃代理

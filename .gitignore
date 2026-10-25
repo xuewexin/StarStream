@@ -17,6 +17,8 @@ Logs/
 native-host-error.log
 
 # 临时分片与测试数据
+Temp_Segments/
+Temp_Segments/*
 test_mux/
 test_sample/
 m3u8-sniffer-extension/test_mux/

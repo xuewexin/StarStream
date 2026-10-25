@@ -47,7 +47,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             self._send_json_response(200, {
                 "status": "ok",
                 "app": "StarStream Downloader",
-                "version": "2.1.0",
+                "version": "2.2.0",
                 "ffmpeg_available": ff_ok,
                 "ffmpeg_info": ff_msg,
                 "ffmpeg_path": get_ffmpeg_path(),
@@ -213,6 +213,11 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         return task_manager.add_task(task_info, auto_start=auto_start)
 
 
+class ReusableHTTPServer(HTTPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 class LocalServer:
     def __init__(self):
         self.server = None
@@ -224,20 +229,23 @@ class LocalServer:
         port = int(config.get("server_port", 18910))
 
         try:
-            self.server = HTTPServer((host, port), CatCatchHTTPHandler)
+            self.server = ReusableHTTPServer((host, port), CatCatchHTTPHandler)
+            self.server.timeout = 0.5
             self.is_running = True
             self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self._thread.start()
-            print(f"[Server] 本地通信服务已在 http://{host}:{port} 启动")
             return True
         except Exception as e:
-            print(f"[Server] 本地服务启动失败 (端口 {port}): {e}")
             self.is_running = False
             return False
 
     def stop(self):
         if self.server:
-            self.server.shutdown()
+            try:
+                self.server.shutdown()
+                self.server.server_close()
+            except Exception:
+                pass
             self.is_running = False
 
 

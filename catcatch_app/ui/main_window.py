@@ -75,9 +75,17 @@ class MainWindow(QMainWindow):
 
         self.refresh_table()
 
+        # 启动后异步刷新底层引擎与代理状态，避免主线程初始化网络阻塞卡死
+        QTimer.singleShot(0, self._async_init_status)
+
         self.speed_timer = QTimer(self)
         self.speed_timer.timeout.connect(self._update_status_stats)
         self.speed_timer.start(1000)
+
+    def _async_init_status(self):
+        self._update_ffmpeg_label()
+        self._update_nm3u8dl_label()
+        self._update_proxy_label()
 
     def _init_ui(self):
         # 1. 顶部专业工具栏
@@ -146,22 +154,20 @@ class MainWindow(QMainWindow):
         self.lbl_server_status.setStyleSheet("color: #4ade80; font-weight: 500; margin-left: 8px;")
         self.status_bar.addWidget(self.lbl_server_status)
 
-        self.lbl_ffmpeg_status = QLabel()
-        self._update_ffmpeg_label()
+        self.lbl_ffmpeg_status = QLabel("FFmpeg: 检测中...")
+        self.lbl_ffmpeg_status.setStyleSheet("color: #71717a; margin-left: 14px;")
         self.status_bar.addWidget(self.lbl_ffmpeg_status)
 
         # N_m3u8DL 引擎状态指示交互按钮 (未检测到时醒目提示并一键直达下载)
-        self.btn_nm3u8dl_status = QPushButton()
+        self.btn_nm3u8dl_status = QPushButton("下载引擎: 检测中...")
         self.btn_nm3u8dl_status.clicked.connect(self._on_nm3u8dl_status_clicked)
-        self._update_nm3u8dl_label()
         self.status_bar.addWidget(self.btn_nm3u8dl_status)
 
         # 代理状态指示交互按钮
-        self.btn_proxy_status = QPushButton()
+        self.btn_proxy_status = QPushButton("代理: 检测中...")
         self.btn_proxy_status.setIcon(get_icon("globe", "#9ca3af", 14))
         self.btn_proxy_status.setStyleSheet("border: none; background: transparent; color: #9ca3af; padding: 2px 6px; font-size: 12px;")
         self.btn_proxy_status.clicked.connect(self._action_settings)
-        self._update_proxy_label()
         self.status_bar.addWidget(self.btn_proxy_status)
 
         self.lbl_stats = QLabel("任务: 0 项")
@@ -314,7 +320,7 @@ class MainWindow(QMainWindow):
 
         tray_menu = QMenu()
         act_show = QAction("显示主界面", self)
-        act_show.triggered.connect(self.showNormal)
+        act_show.triggered.connect(self._restore_and_activate)
         act_new = QAction("新建下载...", self)
         act_new.triggered.connect(self._action_new_task)
         act_clean = QAction("清理缓存...", self)
@@ -322,7 +328,7 @@ class MainWindow(QMainWindow):
         act_ff = QAction("FFmpeg 工具箱", self)
         act_ff.triggered.connect(self._action_ffmpeg_toolbox)
         act_quit = QAction("退出程序", self)
-        act_quit.triggered.connect(QApplication.instance().quit)
+        act_quit.triggered.connect(self.quit_app)
 
         tray_menu.addAction(act_show)
         tray_menu.addAction(act_new)
@@ -338,10 +344,41 @@ class MainWindow(QMainWindow):
         self.tray.activated.connect(self._on_tray_activated)
         self.tray.show()
 
+    def _restore_and_activate(self):
+        self.showNormal()
+        self.activateWindow()
+        self.raise_()
+
     def _on_tray_activated(self, reason):
-        if reason == QSystemTrayIcon.DoubleClick:
-            self.showNormal()
-            self.activateWindow()
+        if reason in (QSystemTrayIcon.Trigger, QSystemTrayIcon.DoubleClick):
+            self._restore_and_activate()
+
+    def closeEvent(self, event):
+        if config.get("close_to_tray", True):
+            event.ignore()
+            self.hide()
+            if hasattr(self, 'tray') and self.tray.isVisible():
+                self.tray.showMessage(
+                    "星流媒体下载器",
+                    "程序已最小化到系统托盘，双击托盘图标可重新打开",
+                    QSystemTrayIcon.Information,
+                    2000
+                )
+        else:
+            event.accept()
+            self.quit_app()
+
+    def quit_app(self):
+        """安全彻底退出应用，确保保存所有状态并释放端口"""
+        try:
+            local_server.stop()
+        except Exception:
+            pass
+        try:
+            task_manager.save_tasks()
+        except Exception:
+            pass
+        QApplication.instance().quit()
 
     def _connect_signals(self):
         task_manager.task_added.connect(self._on_task_added)
@@ -464,7 +501,7 @@ class MainWindow(QMainWindow):
         elif mode == "system":
             self.btn_proxy_status.setText("代理: 跟随系统")
         else:
-            active_p = config.get_effective_proxy()
+            active_p = config.get_effective_proxy(validate=False)
             self.btn_proxy_status.setText(f"代理: {active_p if active_p else '直连'}")
 
     def _on_tree_item_clicked(self, item, col):
