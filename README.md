@@ -17,11 +17,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.1.0/StarStream.exe">
     <img src="https://img.shields.io/badge/⬇️%20官方桌面客户端-StarStream.exe%20(内置%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="点击直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v2.1.0/StarStream_Browser_Extension_v2.1.0.zip">
     <img src="https://img.shields.io/badge/🧩%20单独下载浏览器嗅探插件-Extension.zip%20(仅%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
 </p>
@@ -197,7 +197,7 @@ flowchart TD
 ### 第三步：选择扩展源码目录
 1. 点击左上角的 **【加载已解压的扩展程序】** 按钮。
 2. 在弹出的文件选择器中，定位并选中 **`m3u8-sniffer-extension`** 文件夹：
-   - 若您单独下载了 [插件独立包 Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v2.0.0/StarStream_Browser_Extension_v2.0.1.zip)，将其解压后直接选中解压得到的文件夹即可；
+   - 若您单独下载了 [插件独立包 Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v2.1.0/StarStream_Browser_Extension_v2.1.0.zip)，将其解压后直接选中解压得到的文件夹即可；
    - 若您使用的是便携全套包或克隆了仓库，直接选中根目录下的 `m3u8-sniffer-extension` 文件夹（您亦可在星流客户端设置中一键复制当前电脑上的准确路径）。
 3. 点击「选择文件夹」，插件即刻导入成功！
 4. 点击浏览器右上角的拼图图标 🧩，将 **「星流媒体嗅探器」** 固定到工具栏即可开始使用。
