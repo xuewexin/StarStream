@@ -209,8 +209,10 @@ class SettingsDialog(QDialog):
         c_row = QHBoxLayout()
         self.del_tmp_cb = QCheckBox("下载完成后自动清理临时分片目录")
         self.auto_start_cb = QCheckBox("插件推送任务后自动开始下载")
+        self.notify_cb = QCheckBox("任务完成与失败时展示桌面弹窗提醒")
         c_row.addWidget(self.del_tmp_cb)
         c_row.addWidget(self.auto_start_cb)
+        c_row.addWidget(self.notify_cb)
         perf_layout.addLayout(c_row)
 
         layout.addWidget(perf_group)
@@ -301,6 +303,7 @@ class SettingsDialog(QDialog):
         self.port_spin.setValue(int(config.get("server_port", 18910)))
         self.del_tmp_cb.setChecked(config.get("del_tmp_files", True))
         self.auto_start_cb.setChecked(config.get("auto_start_tasks", True))
+        self.notify_cb.setChecked(config.get("notify_on_complete", True))
         self.auto_convert_mp4_cb.setChecked(config.get("auto_convert_mp4", True))
         self.attach_metadata_cb.setChecked(config.get("attach_metadata", True))
 
@@ -568,6 +571,8 @@ class SettingsDialog(QDialog):
             "max_threads_per_task": self.max_threads_spin.value(),
             "del_tmp_files": self.del_tmp_cb.isChecked(),
             "auto_start_tasks": self.auto_start_cb.isChecked(),
+            "notify_on_complete": self.notify_cb.isChecked(),
+            "notify_on_error": self.notify_cb.isChecked(),
             "auto_convert_mp4": self.auto_convert_mp4_cb.isChecked(),
             "attach_metadata": self.attach_metadata_cb.isChecked(),
             "server_port": self.port_spin.value()

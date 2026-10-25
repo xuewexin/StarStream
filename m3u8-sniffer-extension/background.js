@@ -367,6 +367,13 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true;
   }
 
+  if (req.action === "DETECT_BROWSER_PROXY") {
+    detectBrowserProxy()
+      .then((info) => sendResponse(info))
+      .catch(() => sendResponse({ mode: "system", proxyUrl: "", label: "跟随系统代理" }));
+    return true;
+  }
+
   if (req.action === "PUSH_TO_CLIENT" && req.data) {
     // 推送到本地客户端
     pushTaskToLocalClient(req.data)
@@ -375,6 +382,47 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true;
   }
 });
+
+function detectBrowserProxy() {
+  return new Promise((resolve) => {
+    try {
+      if (chrome.proxy && chrome.proxy.settings) {
+        chrome.proxy.settings.get({ incognito: false }, (config) => {
+          if (chrome.runtime.lastError || !config || !config.value) {
+            resolve({ mode: "system", proxyUrl: "", label: "系统/默认代理" });
+            return;
+          }
+          const val = config.value;
+          let mode = val.mode || "system";
+          let proxyUrl = "";
+          let label = "系统/默认代理";
+
+          if (val.rules) {
+            const p = val.rules.singleProxy || val.rules.proxyForHttps || val.rules.proxyForHttp;
+            if (p && p.host) {
+              const scheme = (p.scheme || "http").toLowerCase();
+              proxyUrl = `${scheme}://${p.host}:${p.port}`;
+              mode = "fixed_servers";
+              label = `浏览器代理 (${proxyUrl})`;
+            }
+          } else if (val.pacScript && val.pacScript.url) {
+            mode = "pac_script";
+            label = `PAC 自动配置脚本 (${val.pacScript.url})`;
+          } else if (mode === "direct") {
+            label = "直连 (不使用代理)";
+          } else if (mode === "system") {
+            label = "跟随系统代理配置";
+          }
+          resolve({ mode, proxyUrl, label, raw: val });
+        });
+      } else {
+        resolve({ mode: "system", proxyUrl: "", label: "跟随系统代理" });
+      }
+    } catch (e) {
+      resolve({ mode: "system", proxyUrl: "", label: "跟随系统代理" });
+    }
+  });
+}
 
 async function pushTaskToLocalClient(taskData) {
   try {

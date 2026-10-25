@@ -29,6 +29,7 @@ from catcatch_app.ui.settings_dialog import SettingsDialog
 from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 from catcatch_app.ui.task_log_dialog import TaskLogDialog
+from catcatch_app.ui.notify_dialog import DownloadNotifyDialog
 from catcatch_app.core.logger import get_logs_dir, get_master_error_log_path
 
 
@@ -57,13 +58,14 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro)")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.1.0")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self.setStyleSheet(DARK_THEME)
 
         self.current_category = "all"
         self.search_keyword = ""
+        self._active_notifiers = []
 
         self._init_ui()
         self._init_tray()
@@ -670,18 +672,48 @@ class MainWindow(QMainWindow):
 
     def _on_task_completed(self, task_id, output_path):
         self.refresh_table()
+        task = task_manager.get_task(task_id)
+        title = task.get("title") if task else "任务"
+
         if config.get("notify_on_complete", True):
-            task = task_manager.get_task(task_id)
-            title = task.get("title") if task else "任务"
             self.tray.showMessage(
-                "下载完成",
+                "星流 - 下载完成",
                 f"{title} 已成功下载并合并完毕",
                 QSystemTrayIcon.Information,
-                3000
+                4000
             )
+
+        # 屏幕右下角现代化桌面弹窗提醒
+        if task:
+            try:
+                notifier = DownloadNotifyDialog(task, is_success=True, parent=self)
+                self._active_notifiers.append(notifier)
+                notifier.show()
+            except Exception as e:
+                print(f"[Notifier] 弹窗展示异常: {e}")
 
     def _on_task_failed(self, task_id, error_msg):
         self.refresh_table()
+        task = task_manager.get_task(task_id)
+        title = task.get("title") if task else "任务"
+        err_reason = task.get("error_reason") or error_msg or "下载遇到异常"
+
+        if config.get("notify_on_error", True):
+            self.tray.showMessage(
+                "星流 - 下载失败",
+                f"{title}\n原因: {err_reason}",
+                QSystemTrayIcon.Warning,
+                5000
+            )
+
+        # 屏幕右下角现代化桌面弹窗提醒
+        if task:
+            try:
+                notifier = DownloadNotifyDialog(task, is_success=False, parent=self)
+                self._active_notifiers.append(notifier)
+                notifier.show()
+            except Exception as e:
+                print(f"[Notifier] 弹窗展示异常: {e}")
 
     def _on_task_removed(self, task_id):
         self.refresh_table()

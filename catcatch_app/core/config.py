@@ -61,6 +61,7 @@ DEFAULT_CONFIG = {
     "theme": "dark",
     "close_to_tray": True,
     "notify_on_complete": True,
+    "notify_on_error": True,
     "auto_start_tasks": True,
 }
 

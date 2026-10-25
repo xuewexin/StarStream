@@ -9,6 +9,7 @@
   let clientOnline = false;
   let clientPort = 18910;
   let activeHls = null;
+  let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
 
   // DOM 元素引用
   const mediaListContainer = document.getElementById('mediaListContainer');
@@ -35,6 +36,18 @@
     chrome.action.setBadgeText({ text: '' });
 
     bindEvents();
+    try {
+      chrome.runtime.sendMessage({ action: 'DETECT_BROWSER_PROXY' }, (res) => {
+        if (res) {
+          detectedProxy = res;
+          document.querySelectorAll('.cfg-proxy-tip').forEach((el) => {
+            el.textContent = detectedProxy.proxyUrl
+              ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
+              : (detectedProxy.label ? `⚡ 当前浏览器网络环境: ${detectedProxy.label}` : '⚡ 当前浏览器代理: 跟随系统');
+          });
+        }
+      });
+    } catch (e) {}
     await loadSettings();
     await checkClientStatus();
     loadAndRenderMedia();
@@ -292,6 +305,10 @@
     }
     tagsHtml += `<span class="tag-badge tag-domain">${domain}</span>`;
 
+    const proxyTipText = detectedProxy.proxyUrl
+      ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
+      : (detectedProxy.label ? `⚡ 当前浏览器网络环境: ${detectedProxy.label}` : '⚡ 当前浏览器代理: 跟随系统');
+
     card.innerHTML = `
       <div class="card-top">
         <input type="checkbox" class="card-checkbox" ${isChecked ? 'checked' : ''}>
@@ -303,9 +320,45 @@
       <div class="card-url-box" title="点击复制完整直链">${escapeHtml(item.url)}</div>
       <div class="card-actions">
         <button class="btn-sm btn-primary action-push">下载 (推送)</button>
+        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">⚙️ 配置</button>
+        <button class="btn-sm btn-secondary action-copy-cmd" title="复制 N_m3u8DL-RE 独立运行命令 (免客户端)">复制命令</button>
         <button class="btn-sm btn-secondary action-preview">预览</button>
         <button class="btn-sm btn-secondary action-copy">复制</button>
         <button class="btn-sm btn-danger action-del">删除</button>
+      </div>
+      <div class="card-config-panel hidden">
+        <div class="config-row">
+          <span class="config-label">📁 保存目录:</span>
+          <input type="text" class="config-input cfg-savedir" placeholder="留空使用客户端配置 (如 D:\\Downloads)">
+        </div>
+        <div class="config-row">
+          <span class="config-label">⚡ 并发线程:</span>
+          <select class="config-select cfg-threads">
+            <option value="">跟随客户端设置 (默认 16)</option>
+            <option value="4">4 线程 (稳定防限流)</option>
+            <option value="8">8 线程 (平衡加速)</option>
+            <option value="16">16 线程 (极速推荐)</option>
+            <option value="32">32 线程 (极限并发)</option>
+          </select>
+        </div>
+        <div class="config-row">
+          <span class="config-label">🌐 下载代理:</span>
+          <select class="config-select cfg-proxy">
+            <option value="auto">🎯 自动匹配浏览器代理</option>
+            <option value="default" selected>💻 跟随客户端全局设置</option>
+            <option value="direct">⚡ 直连 (不走任何代理)</option>
+            <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
+            <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
+            <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
+            <option value="custom">✏️ 手动输入代理地址...</option>
+          </select>
+        </div>
+        <div class="config-row cfg-custom-proxy-row hidden">
+          <span class="config-label">代理地址:</span>
+          <input type="text" class="config-input cfg-custom-proxy" placeholder="例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:10808">
+        </div>
+        <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
+        <button class="btn-copy-cli-inside">📋 复制 N_m3u8DL-RE 完整运行命令 (脱离客户端独立运行)</button>
       </div>
     `;
 
@@ -331,11 +384,87 @@
       });
     });
 
+    // 展开/收起视频独立下载配置面板
+    const configBtn = card.querySelector('.action-config');
+    const configPanel = card.querySelector('.card-config-panel');
+    configBtn.addEventListener('click', () => {
+      configPanel.classList.toggle('hidden');
+    });
+
+    const proxySelect = configPanel.querySelector('.cfg-proxy');
+    const customProxyRow = configPanel.querySelector('.cfg-custom-proxy-row');
+    const customProxyInput = configPanel.querySelector('.cfg-custom-proxy');
+    proxySelect.addEventListener('change', () => {
+      if (proxySelect.value === 'custom') {
+        customProxyRow.classList.remove('hidden');
+      } else {
+        customProxyRow.classList.add('hidden');
+      }
+    });
+
+    function getTaskConfigOptions() {
+      const saveDir = configPanel.querySelector('.cfg-savedir').value.trim();
+      const threadCount = configPanel.querySelector('.cfg-threads').value;
+      const pVal = proxySelect.value;
+      let finalProxy = '';
+      if (pVal === 'auto') {
+        finalProxy = detectedProxy.proxyUrl || (detectedProxy.mode === 'direct' ? 'direct' : 'default');
+      } else if (pVal === 'custom') {
+        finalProxy = customProxyInput.value.trim();
+      } else {
+        finalProxy = pVal;
+      }
+      return { saveDir, threadCount, proxy: finalProxy };
+    }
+
+    function copyCliCommand(btnSource) {
+      const cfg = getTaskConfigOptions();
+      let proxyForCmd = '';
+      if (cfg.proxy && cfg.proxy !== 'default' && cfg.proxy !== 'direct') {
+        proxyForCmd = cfg.proxy;
+      } else if (cfg.proxy === 'auto' && detectedProxy.proxyUrl) {
+        proxyForCmd = detectedProxy.proxyUrl;
+      }
+
+      let cmd = `N_m3u8DL-RE "${item.url}"`;
+      if (cfg.saveDir) {
+        cmd += ` --save-dir "${cfg.saveDir}"`;
+      }
+      const safeTitle = (titleInput.value.trim() || item.pageTitle || 'video').replace(/[\\/*?:"<>|]/g, '_');
+      cmd += ` --save-name "${safeTitle}"`;
+      if (cfg.threadCount) {
+        cmd += ` --thread-count ${cfg.threadCount}`;
+      }
+      cmd += ` --auto-select -M format=mp4`;
+      if (proxyForCmd) {
+        cmd += ` --custom-proxy "${proxyForCmd}"`;
+      }
+      if (item.referer) {
+        cmd += ` -H "Referer: ${item.referer}"`;
+      }
+      if (item.userAgent) {
+        cmd += ` -H "User-Agent: ${item.userAgent}"`;
+      }
+
+      navigator.clipboard.writeText(cmd).then(() => {
+        const originalText = btnSource.textContent;
+        btnSource.textContent = '已复制 N_m3u8DL 命令！';
+        setTimeout(() => (btnSource.textContent = originalText), 1800);
+      });
+    }
+
+    const copyCmdBtn = card.querySelector('.action-copy-cmd');
+    copyCmdBtn.addEventListener('click', () => copyCliCommand(copyCmdBtn));
+
+    const copyInsideBtn = configPanel.querySelector('.btn-copy-cli-inside');
+    copyInsideBtn.addEventListener('click', () => copyCliCommand(copyInsideBtn));
+
     const pushBtn = card.querySelector('.action-push');
     pushBtn.addEventListener('click', async () => {
       pushBtn.textContent = '推送中...';
       pushBtn.disabled = true;
 
+      const cfg = getTaskConfigOptions();
       const taskData = {
         url: item.url,
         title: titleInput.value.trim() || item.pageTitle || 'video',
@@ -348,7 +477,10 @@
           'User-Agent': item.userAgent || '',
           Cookie: item.cookie || ''
         },
-        baseUrl: item.baseUrl || ''
+        baseUrl: item.baseUrl || '',
+        saveDir: cfg.saveDir,
+        threadCount: cfg.threadCount,
+        proxy: cfg.proxy
       };
 
       try {

@@ -46,7 +46,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             self._send_json_response(200, {
                 "status": "ok",
                 "app": "StarStream Downloader",
-                "version": "2.0.0",
+                "version": "2.1.0",
                 "ffmpeg_available": ff_ok,
                 "ffmpeg_info": ff_msg,
                 "ffmpeg_path": get_ffmpeg_path(),
@@ -144,18 +144,42 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         if "cookie" in item and "Cookie" not in headers:
             headers["Cookie"] = item["cookie"]
 
+        # 优先级规则：
+        # 1. 保存路径：优先使用插件显式传递的 save_dir/saveDir，若未设置则使用 exe 客户端当前配置 config.get("save_dir")
+        custom_save_dir = (item.get("saveDir") or item.get("save_dir") or "").strip()
+        save_dir = custom_save_dir if custom_save_dir else config.get("save_dir")
+
+        # 2. 并发线程：优先使用插件显式传递的 threadCount/thread_count，若未设置则使用 exe 客户端配置
+        custom_threads = item.get("threadCount") or item.get("thread_count")
+        try:
+            thread_count = int(custom_threads) if custom_threads else int(config.get("max_threads_per_task", 16))
+        except (ValueError, TypeError):
+            thread_count = int(config.get("max_threads_per_task", 16))
+
+        # 3. 代理配置：
+        # - 如果插件指定了 "direct" 或 "none"，表示强制直连；
+        # - 如果插件指定了具体代理 (如 http://127.0.0.1:7890 或 socks5://...)，优先使用该代理；
+        # - 如果插件未设置 (空或 "default")，则回退使用 exe 客户端当前的全局有效代理 config.get_effective_proxy()
+        custom_proxy = (item.get("proxy") or "").strip()
+        if custom_proxy in ["direct", "none"]:
+            final_proxy = ""
+        elif custom_proxy and custom_proxy != "default":
+            final_proxy = custom_proxy
+        else:
+            final_proxy = config.get_effective_proxy()
+
         task_info = {
             "url": url,
             "title": title,
             "resolution": item.get("resolution", ""),
             "duration": item.get("duration", 0),
             "media_type": media_type,
-            "save_dir": item.get("saveDir") or config.get("save_dir"),
-            "save_name": item.get("saveName", ""),
+            "save_dir": save_dir,
+            "save_name": item.get("saveName", "") or item.get("save_name", ""),
             "headers": headers,
             "format": item.get("format", "mp4"),
-            "proxy": item.get("proxy") or config.get("proxy", ""),
-            "thread_count": item.get("threadCount") or config.get("max_threads_per_task", 16)
+            "proxy": final_proxy,
+            "thread_count": thread_count
         }
         auto_start = config.get("auto_start_tasks", True)
         return task_manager.add_task(task_info, auto_start=auto_start)

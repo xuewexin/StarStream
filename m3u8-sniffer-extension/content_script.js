@@ -200,8 +200,20 @@
     panel.innerHTML = `
       <div class="catcatch-panel-title" title="${title}">${title}</div>
       <div id="catcatchPanelContent" class="catcatch-panel-info">正在定位真实视频流...</div>
+      <div class="catcatch-config-row" style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:#a1a1aa;">
+        <span>下载代理:</span>
+        <select id="catcatchProxySelect" style="flex:1;background:#27272a;color:#f4f4f5;border:1px solid #3f3f46;border-radius:4px;padding:3px 6px;font-size:11px;outline:none;">
+          <option value="auto">🎯 自动匹配浏览器代理</option>
+          <option value="default" selected>💻 跟随客户端全局设置</option>
+          <option value="direct">⚡ 直连 (不走任何代理)</option>
+          <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
+          <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
+          <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
+        </select>
+      </div>
       <div class="catcatch-panel-actions">
         <button id="catcatchPushBtn" class="catcatch-btn primary" disabled>推送到星流下载器</button>
+        <button id="catcatchCopyCmdBtn" class="catcatch-btn" disabled>复制命令</button>
         <button id="catcatchCopyBtn" class="catcatch-btn" disabled>复制链接</button>
         <button id="catcatchCloseBtn" class="catcatch-btn">关闭</button>
       </div>
@@ -213,7 +225,9 @@
     // 解析真实地址
     const mediaInfo = await resolveRealMediaUrl(mediaEl);
     const contentDiv = panel.querySelector('#catcatchPanelContent');
+    const proxySelect = panel.querySelector('#catcatchProxySelect');
     const pushBtn = panel.querySelector('#catcatchPushBtn');
+    const copyCmdBtn = panel.querySelector('#catcatchCopyCmdBtn');
     const copyBtn = panel.querySelector('#catcatchCopyBtn');
     const closeBtn = panel.querySelector('#catcatchCloseBtn');
 
@@ -235,12 +249,29 @@
     `;
 
     pushBtn.disabled = false;
+    copyCmdBtn.disabled = false;
     copyBtn.disabled = false;
+
+    copyCmdBtn.addEventListener('click', () => {
+      const pChoice = proxySelect.value;
+      const safeTitle = (title || 'video').replace(/[\\/*?:"<>|]/g, '_');
+      let cmd = `N_m3u8DL-RE "${mediaInfo.url}" --save-name "${safeTitle}" --auto-select -M format=mp4`;
+      if (pChoice && pChoice !== 'default' && pChoice !== 'direct' && pChoice !== 'auto') {
+        cmd += ` --custom-proxy "${pChoice}"`;
+      }
+      cmd += ` -H "Referer: ${window.location.href}" -H "User-Agent: ${navigator.userAgent}"`;
+
+      navigator.clipboard.writeText(cmd).then(() => {
+        copyCmdBtn.textContent = '已复制命令';
+        setTimeout(() => (copyCmdBtn.textContent = '复制命令'), 1500);
+      });
+    });
 
     pushBtn.addEventListener('click', async () => {
       pushBtn.textContent = '正在推送...';
       pushBtn.disabled = true;
 
+      const pVal = proxySelect.value;
       const taskData = {
         url: mediaInfo.url,
         title: title,
@@ -248,6 +279,7 @@
         mediaType: mediaInfo.mediaType,
         resolution: mediaInfo.resolution || resStr || '',
         duration: mediaInfo.duration || durSec || 0,
+        proxy: pVal,
         headers: {
           Referer: window.location.href,
           'User-Agent': navigator.userAgent
