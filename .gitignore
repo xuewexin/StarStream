@@ -2,6 +2,14 @@
 Downloads/
 Downloads/*
 !Downloads/.gitkeep
+* - 电影 - */
+*在线观看*/
+未命名媒体/
+*.mp4
+*.ts
+*.mkv
+*.flv
+*.m4s
 
 # 日志与系统输出
 Logs/

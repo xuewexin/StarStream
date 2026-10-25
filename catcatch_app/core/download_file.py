@@ -155,6 +155,7 @@ class FileDownloadTask:
 
         part_files = [f"{self.output_file}.part{i}" for i in range(num_threads)]
         downloaded_bytes = [0] * num_threads
+        chunk_errors = []
         lock = threading.Lock()
 
         last_time = time.time()
@@ -192,6 +193,8 @@ class FileDownloadTask:
                                         if self.on_progress:
                                             self.on_progress(pct, spd_str, eta_str, cur_total, total_size)
             except Exception as e:
+                with lock:
+                    chunk_errors.append(str(e))
                 if self.on_log:
                     self.on_log(f"分块 {idx} 下载异常: {e}")
 
@@ -213,8 +216,11 @@ class FileDownloadTask:
         # 检查是否全部下载完成
         total_dl = sum(downloaded_bytes)
         if total_dl < total_size:
+            err_detail = f"分块下载未完成: 已接收 {format_size(total_dl)} / 期望 {format_size(total_size)}"
+            if chunk_errors:
+                err_detail += f" (原因: {chunk_errors[-1]})"
             if self.on_finished:
-                self.on_finished(False, f"下载未完成: 已接收 {format_size(total_dl)} / 期望 {format_size(total_size)}", "")
+                self.on_finished(False, err_detail, "")
             return
 
         # 合并各分块文件

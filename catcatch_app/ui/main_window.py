@@ -28,6 +28,8 @@ from catcatch_app.ui.ffmpeg_toolbox_dialog import FFmpegToolboxDialog
 from catcatch_app.ui.settings_dialog import SettingsDialog
 from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
+from catcatch_app.ui.task_log_dialog import TaskLogDialog
+from catcatch_app.core.logger import get_logs_dir, get_master_error_log_path
 
 
 def parse_speed_to_bytes(spd_str):
@@ -210,6 +212,12 @@ class MainWindow(QMainWindow):
         self.act_clean = QAction(get_icon("clean", "#d4d4d8", 18), "清理缓存", self)
         self.act_clean.triggered.connect(self._action_clean_cache)
         toolbar.addAction(self.act_clean)
+
+        # 错误日志
+        self.act_view_errors = QAction(get_icon("log", "#38bdf8", 18), "错误日志", self)
+        self.act_view_errors.setToolTip("查看下载错误汇总日志与排查诊断 (Logs/download_errors.log)")
+        self.act_view_errors.triggered.connect(self._action_open_master_error_log)
+        toolbar.addAction(self.act_view_errors)
 
         # 浏览器扩展安装教学
         self.act_ext = QAction(get_icon("extension", "#38bdf8", 18), "插件安装教学", self)
@@ -570,6 +578,18 @@ class MainWindow(QMainWindow):
         item_st = QTableWidgetItem(text_status)
         item_st.setTextAlignment(Qt.AlignCenter)
         item_st.setForeground(QColor(color_status))
+
+        if status == "error":
+            err_title = t.get("error_reason") or t.get("error_msg") or "下载异常"
+            err_hint = t.get("error_hint", "")
+            tip = f"【失败原因】\n{err_title}"
+            if err_hint:
+                tip += f"\n\n【排查建议】\n{err_hint}"
+            tip += "\n\n(双击此任务或右键菜单可查看详细运行日志与诊断)"
+            item_st.setToolTip(tip)
+        else:
+            item_st.setToolTip("")
+
         self.table.setItem(row, 9, item_st)
 
         # 10. 添加时间
@@ -715,6 +735,11 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
+        act_log = menu.addAction(get_icon("log", "#38bdf8", 14), "查看任务日志与错误诊断...")
+        act_log.triggered.connect(self._action_view_task_log)
+
+        menu.addSeparator()
+
         act_del = menu.addAction(get_icon("delete", "#f87171", 14), "从列表中删除")
         act_del.triggered.connect(lambda: self._delete_tasks(ids, delete_file=False))
 
@@ -728,10 +753,38 @@ class MainWindow(QMainWindow):
         if it:
             t_id = it.data(Qt.UserRole)
             task = task_manager.get_task(t_id)
-            if task and task.get("status") == "completed" and task.get("output_file"):
-                out_p = task["output_file"]
-                if os.path.exists(out_p):
-                    os.startfile(out_p)
+            if task:
+                if task.get("status") == "completed" and task.get("output_file"):
+                    out_p = task["output_file"]
+                    if os.path.exists(out_p):
+                        os.startfile(out_p)
+                else:
+                    self._show_task_log(task)
+
+    def _action_view_task_log(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task = task_manager.get_task(ids[0])
+        if task:
+            self._show_task_log(task)
+
+    def _show_task_log(self, task):
+        dlg = TaskLogDialog(task, self)
+        dlg.exec_()
+
+    def _action_open_master_error_log(self):
+        log_p = get_master_error_log_path()
+        if not os.path.exists(log_p):
+            try:
+                with open(log_p, "w", encoding="utf-8") as f:
+                    f.write("=== 星流 (StarStream) 下载错误日志 ===\n(暂无下载失败记录)\n")
+            except Exception:
+                pass
+        try:
+            os.startfile(log_p)
+        except Exception as e:
+            QMessageBox.warning(self, "打开日志提示", f"无法直接打开错误日志文件:\n{e}\n\n日志路径:\n{log_p}")
 
     def _action_new_task(self):
         dlg = NewTaskDialog(self)

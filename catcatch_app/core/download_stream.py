@@ -182,6 +182,7 @@ class StreamDownloadTask:
                 return s
 
             buffer = ""
+            recent_lines = []
             while True:
                 if self._is_cancelled:
                     break
@@ -189,6 +190,7 @@ class StreamDownloadTask:
                 if not chunk:
                     if buffer.strip() and self.on_log:
                         self.on_log(buffer.strip())
+                        recent_lines.append(buffer.strip())
                     break
                 buffer += chunk
 
@@ -226,6 +228,9 @@ class StreamDownloadTask:
                     line = line.strip()
                     if not line:
                         continue
+                    recent_lines.append(line)
+                    if len(recent_lines) > 100:
+                        recent_lines.pop(0)
                     if self.on_log:
                         self.on_log(line)
 
@@ -278,8 +283,12 @@ class StreamDownloadTask:
                 if self.on_finished:
                     self.on_finished(True, "下载并合并成功", actual_output)
             else:
+                err_summary = f"下载器退出代码异常: {ret}"
+                warn_lines = [l for l in recent_lines if any(k in l for k in ["WARN", "ERROR", "FAIL", "403", "404", "401", "Exception"])]
+                if warn_lines:
+                    err_summary += f" ({warn_lines[-1]})"
                 if self.on_finished:
-                    self.on_finished(False, f"下载器退出代码异常: {ret}", "")
+                    self.on_finished(False, err_summary, "")
 
         except Exception as e:
             if self.on_finished:

@@ -13,6 +13,7 @@ from .config import config, APP_DIR, TASKS_FILE, build_save_name, format_resolut
 from .download_stream import StreamDownloadTask
 from .download_file import FileDownloadTask, format_size
 from .ffmpeg_engine import probe_media_info
+from .logger import record_download_error, diagnose_error
 
 TASKS_DB_FILE = TASKS_FILE
 
@@ -55,7 +56,11 @@ class TaskManager(QObject):
                 saved_list = []
                 for t in self._tasks[:200]:
                     copy_t = dict(t)
-                    copy_t.pop("logs", None)
+                    if copy_t.get("status") == "error":
+                        if "logs" in copy_t and isinstance(copy_t["logs"], list):
+                            copy_t["logs"] = copy_t["logs"][-60:]
+                    else:
+                        copy_t.pop("logs", None)
                     saved_list.append(copy_t)
                 json.dump(saved_list, f, indent=2, ensure_ascii=False)
         except Exception as e:
@@ -87,6 +92,7 @@ class TaskManager(QObject):
         if not save_name:
             save_name = build_save_name(raw_title, res_formatted, dur_formatted)
 
+        blob_err = "blob: 为浏览器临时内存对象，非网络地址。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！"
         task = {
             "id": task_id,
             "url": url,
@@ -102,15 +108,21 @@ class TaskManager(QObject):
             "thread_count": task_info.get("thread_count", config.get("max_threads_per_task", 16)),
             "status": "error" if is_blob else ("waiting" if auto_start else "paused"),
             "progress": 0.0,
-            "speed": "",
-            "eta": "",
+            "speed": "失败" if is_blob else "",
+            "eta": "--" if is_blob else "",
             "downloaded_bytes": 0,
             "total_bytes": 0,
             "output_file": "",
-            "error_msg": "blob: 为浏览器临时内存对象，非网络地址。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！" if is_blob else "",
+            "error_msg": blob_err if is_blob else "",
+            "error_reason": "无效地址 (blob: 临时内存流)" if is_blob else "",
+            "error_hint": "blob: 是浏览器前端在内存中生成的临时流对象，并非实际网络资源地址。请在播放视频后选择嗅探到的 .m3u8 清单或 .mp4 直链下载。" if is_blob else "",
             "created_at": now,
-            "logs": []
+            "logs": [f"[{now}] 任务初始化", f"[{now}] 检测到 blob: 内存流地址，已标记错误"] if is_blob else []
         }
+
+        if is_blob:
+            diag_title, diag_hint, log_p = record_download_error(task, blob_err, task["logs"])
+            task["log_file"] = log_p
 
         with self._lock:
             self._tasks.insert(0, task)
@@ -256,6 +268,13 @@ class TaskManager(QObject):
                 task["speed"] = "失败"
                 task["eta"] = "--"
                 task["error_msg"] = message
+
+                # 智能诊断出错根因并写入 Logs/ 错误日志
+                diag_title, diag_hint, log_p = record_download_error(task, message, task.get("logs", []))
+                task["error_reason"] = diag_title
+                task["error_hint"] = diag_hint
+                task["log_file"] = log_p
+
                 self.task_failed.emit(task_id, message)
             
             self.task_status_changed.emit(task_id, task["status"])
