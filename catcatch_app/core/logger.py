@@ -43,6 +43,22 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
             all_text = str(log_lines)
     all_text += f"\n{error_msg}"
 
+    # 0. 手动取消检测（最高优先级，避免将用户主动暂停误判为网络或服务端错误）
+    if re.search(r"手动取消|用户取消|已暂停|task\s*cancelled|task\s*paused", all_text, re.I):
+        return (
+            "任务已被手动取消/暂停",
+            "该任务是由用户手动停止或暂停的，并非网络故障或远程服务端异常。\n"
+            "【解决建议】如需继续下载，可点击任务列表右侧的继续/重试按钮重新启动下载。"
+        )
+
+    # 0.1 临时目录占用异常检测
+    if re.search(r"being\s*used\s*by\s*another\s*process|RemoveDirectoryInternal|SafeDeleteDir", all_text, re.I):
+        return (
+            "临时分片目录被系统占用",
+            "分片下载已顺利完成，但在下载引擎尝试清理临时分片存储目录时，受到系统文件句柄锁定。\n"
+            "【解决建议】视频分片已完整保存，系统会自动调用 FFmpeg 进行无损封装；请直接前往下载目录查看已生成的视频文件。"
+        )
+
     url_str = str(url).strip()
     if url_str.startswith("blob:"):
         return (
@@ -51,8 +67,11 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
             "【解决建议】请在浏览器播放视频后，在星流嗅探扩展中查找实际的 .m3u8 清单或 .ts / .mp4 直链下载。"
         )
 
+    # 过滤时间戳（如 23:21:56.504）与纯数字段，避免毫秒数或版本号误触发 HTTP 状态码正则
+    text_clean = re.sub(r"\d{1,2}:\d{2}:\d{2}(?:\.\d+)?", " ", all_text)
+
     # 1. HTTP 403 Forbidden
-    if re.search(r"\b403\b|forbidden|FORBIDDEN", all_text, re.I):
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*403\b|forbidden|status\s*code\s*[:=]?\s*403\b)", text_clean, re.I):
         return (
             "HTTP 403 权限被拒绝 (防盗链 / 链接鉴权过期)",
             "目标站点启用了防盗链安全机制，或者当前视频链接的访问 Token/时间戳鉴权已过期失效。\n"
@@ -60,7 +79,7 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
         )
 
     # 2. HTTP 401 Unauthorized
-    if re.search(r"\b401\b|unauthorized|UNAUTHORIZED", all_text, re.I):
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*401\b|unauthorized|status\s*code\s*[:=]?\s*401\b)", text_clean, re.I):
         return (
             "HTTP 401 访问未授权 (需登录或专用凭证)",
             "该视频流需要网站账号登录权限或特定 Cookie/Authorization 头鉴权。\n"
@@ -68,7 +87,7 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
         )
 
     # 3. HTTP 404 Not Found
-    if re.search(r"\b404\b|not\s*found|NOT\s*FOUND", all_text, re.I):
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*404\b|not\s*found|status\s*code\s*[:=]?\s*404\b)", text_clean, re.I):
         return (
             "HTTP 404 资源不存在",
             "目标视频 M3U8 清单或媒体分片在远程服务器上不存在或已被下架删除。\n"
@@ -76,15 +95,15 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
         )
 
     # 4. HTTP 429 Too Many Requests
-    if re.search(r"\b429\b|too\s*many\s*requests", all_text, re.I):
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*429\b|too\s*many\s*requests|status\s*code\s*[:=]?\s*429\b)", text_clean, re.I):
         return (
             "HTTP 429 请求过于频繁 (触发站点限流)",
             "向目标流媒体服务器发起的并发请求频率过高，触发了服务端的防爬/限流阈值。\n"
             "【解决建议】请在【设置】中将分片下载并发线程数调小（建议降为 4 ~ 8 线程），稍后重新开始任务。"
         )
 
-    # 5. HTTP 5xx Server Error
-    if re.search(r"\b(500|502|503|504)\b|bad\s*gateway|service\s*unavailable", all_text, re.I):
+    # 5. HTTP 5xx Server Error（严格匹配 HTTP 上下文，彻底防止毫秒 504 误判）
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*(?:500|502|503|504)\b|bad\s*gateway|service\s*unavailable|gateway\s*time-?out|internal\s*server\s*error|status\s*code\s*[:=]?\s*(?:500|502|503|504)\b)", text_clean, re.I):
         return (
             "HTTP 5xx 远程服务器异常",
             "目标流媒体服务器内部发生故障、宕机或反向代理网关超时，非本地软件原因。\n"
@@ -122,8 +141,8 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
             "与远程服务器建立安全 HTTPS 传输连接失败，可能是系统证书链不完整或受到网络中间人干扰。"
         )
 
-    # 10. AES-128 / DRM 解密失败
-    if re.search(r"Failed\s*to\s*decrypt|解密失败|AES|DRM|Widevine|PlayReady|FairPlay", all_text, re.I):
+    # 10. AES-128 / DRM 解密失败 (需匹配真实解密异常关键词，避免误报正常的 Vid*AES_128 清单规格)
+    if re.search(r"Failed\s*to\s*decrypt|解密失败|解密密钥错误|无法获取.*?(?:密钥|key)|decrypt\s*error|DRM\s*protected|Widevine|PlayReady|FairPlay", all_text, re.I):
         return (
             "切片解密失败 (AES 密钥无法获取或受 DRM 版权保护)",
             "该视频流使用了加密保护，下载器未能从清单中声明的 Key 地址获取到解密密钥，或者该视频采用了商用不可逆 DRM 数字版权保护。\n"

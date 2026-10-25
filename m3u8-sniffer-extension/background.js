@@ -1,11 +1,15 @@
 // background.js - CatCatch Pro Sniffer Engine & IPC Bridge
+// 专注抓取完整媒体流 (M3U8 / MPD / MP4 / 音频)，严格过滤海量无用切片，页面消失自动实时清理关联爬取视频
 const MAX_ITEMS = 100;
 const LOCAL_SERVER_URL = "http://127.0.0.1:18910";
 
-// 支持的视音频与流媒体扩展名正则
-const MEDIA_EXT_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|ts|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
+// 支持的完整视音频与流媒体扩展名正则 (已彻底移除 .ts，杜绝几秒一段的切片风暴)
+const MEDIA_EXT_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
 
-// 黑名单过滤（过滤广告、统计追踪、微小分片请求风暴）
+// 严格过滤已知分片与切片特征 (过滤 .ts/.m4s 切片、Range 分段、init.mp4 初始化段)
+const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+
+// 黑名单过滤（过滤广告、统计追踪）
 const BLACKLIST_REGEX = /(google-analytics|cnzz|stat|beacon|doubleclick|clarity\.ms|hm\.baidu\.com|sentry\.io|segment\.ts\?)/i;
 
 // 初始化存储
@@ -20,11 +24,19 @@ chrome.runtime.onInstalled.addListener(() => {
           serverPort: 18910,
           autoPush: false,
           minSizeKB: 0,
-          customRegex: ""
+          customRegex: "",
+          filterFragments: true,
+          onlyLiveTabs: true
         }
       });
     }
   });
+  purgeClosedTabsMedia();
+});
+
+// 浏览器启动时立即清理已关闭网页的残留爬取记录
+chrome.runtime.onStartup.addListener(() => {
+  purgeClosedTabsMedia();
 });
 
 // 串行队列保证存储读写原子性
@@ -34,7 +46,10 @@ let storageQueue = Promise.resolve();
 chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     const url = details.url;
+    // 丢弃无真实活动网页依附的后台/孤立请求
+    if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
+    if (FRAGMENT_REGEX.test(url)) return; // 严格过滤分片
     if (!MEDIA_EXT_REGEX.test(url)) return;
 
     captureMediaRequest(details, null);
@@ -47,7 +62,10 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     const url = details.url;
+    // 丢弃无真实活动网页依附的后台/孤立请求
+    if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
+    if (FRAGMENT_REGEX.test(url)) return; // 严格过滤分片
 
     let contentType = "";
     let contentLength = 0;
@@ -62,15 +80,22 @@ chrome.webRequest.onHeadersReceived.addListener(
       }
     }
 
-    const isMediaContent =
-      contentType.startsWith("video/") ||
-      contentType.startsWith("audio/") ||
+    // 过滤常见切片 MIME 类型 (video/mp2t 为 TS 切片, video/iso.segment 为 DASH 分片)
+    if (contentType.includes("mp2t") || contentType.includes("segment")) {
+      return;
+    }
+
+    const isMasterStream =
       contentType.includes("vnd.apple.mpegurl") ||
       contentType.includes("x-mpegurl") ||
-      contentType.includes("dash+xml") ||
-      (contentType.includes("octet-stream") && MEDIA_EXT_REGEX.test(url));
+      contentType.includes("dash+xml");
 
-    if (isMediaContent || MEDIA_EXT_REGEX.test(url)) {
+    const isCompleteMedia =
+      (contentType.startsWith("video/") || contentType.startsWith("audio/")) &&
+      !FRAGMENT_REGEX.test(url) &&
+      (MEDIA_EXT_REGEX.test(url) || contentLength > 1024 * 1024);
+
+    if (isMasterStream || isCompleteMedia || MEDIA_EXT_REGEX.test(url)) {
       captureMediaRequest(details, {
         contentType,
         contentLength,
@@ -88,17 +113,26 @@ async function captureMediaRequest(details, respInfo) {
   if (!url || url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("chrome:")) {
     return; // 忽略内存对象与非网络资源
   }
+  if (FRAGMENT_REGEX.test(url)) {
+    return; // 坚决丢弃视频切片分片
+  }
+
   const tabId = details.tabId;
+  // 核心约束：只记录依附于真实开启页面的媒体
+  if (tabId === undefined || tabId === null || tabId < 0) {
+    return;
+  }
 
   // 获取页面标题与网页 URL
   let pageTitle = "";
   let pageUrl = "";
-  if (tabId >= 0) {
-    try {
-      const tab = await chrome.tabs.get(tabId);
-      pageTitle = tab.title || "";
-      pageUrl = tab.url || "";
-    } catch (e) {}
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    pageTitle = tab.title || "";
+    pageUrl = tab.url || "";
+  } catch (e) {
+    // 若标签页已不在（瞬间关闭），放弃记录
+    return;
   }
 
   // 提取请求头
@@ -165,7 +199,7 @@ function detectMediaType(url, contentType) {
   if (u.endsWith(".m3u8") || contentType.includes("mpegurl")) return "m3u8";
   if (u.endsWith(".mpd") || contentType.includes("dash+xml")) return "mpd";
   if (
-    anyEndsWith(u, [".mp4", ".flv", ".f4v", ".webm", ".mkv", ".avi", ".mov", ".wmv", ".ts"]) ||
+    anyEndsWith(u, [".mp4", ".flv", ".f4v", ".webm", ".mkv", ".avi", ".mov", ".wmv"]) ||
     contentType.startsWith("video/")
   ) {
     return "video";
@@ -186,8 +220,8 @@ function anyEndsWith(str, exts) {
 // 插入存储并去重
 async function insertIntoStorage(entry) {
   let { mediaList = [] } = await chrome.storage.local.get("mediaList");
-  // 清除可能遗留的 blob 伪协议地址
-  mediaList = mediaList.filter((item) => !item.url.startsWith("blob:"));
+  // 清除可能遗留的 blob 伪协议地址与切片
+  mediaList = mediaList.filter((item) => !item.url.startsWith("blob:") && !FRAGMENT_REGEX.test(item.url));
 
   // 去重检测
   const existIdx = mediaList.findIndex((item) => item.url === entry.url);
@@ -227,21 +261,23 @@ function updateBadgeForTab(tabId, count) {
   }
 }
 
-// 标签页刷新或导航至新页面时：立即清除该标签页的旧角标，并清理旧网址嗅探数据
+// 核心功能：标签页刷新、重新加载或导航离开时：立即清除旧网页爬取的视频并清除角标
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === "loading") {
-    chrome.action.setBadgeText({ tabId, text: "" });
-    if (changeInfo.url) {
-      const { mediaList = [] } = await chrome.storage.local.get("mediaList");
-      const filtered = mediaList.filter((it) => it.tabId !== tabId);
-      if (filtered.length !== mediaList.length) {
-        await chrome.storage.local.set({ mediaList: filtered });
-      }
+    try {
+      chrome.action.setBadgeText({ tabId, text: "" });
+    } catch (e) {}
+
+    // 无论是否带 url，只要网页重新 loading，即代表原页面内容发生刷新或替换
+    const { mediaList = [] } = await chrome.storage.local.get("mediaList");
+    const filtered = mediaList.filter((it) => it.tabId !== tabId);
+    if (filtered.length !== mediaList.length) {
+      await chrome.storage.local.set({ mediaList: filtered });
     }
   }
 });
 
-// 标签页关闭时，释放其关联记录与角标
+// 核心功能：标签页关闭时，立即彻底清除该页面爬取的所有视频记录，释放角标
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   try {
     chrome.action.setBadgeText({ tabId, text: "" });
@@ -252,6 +288,21 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
     await chrome.storage.local.set({ mediaList: filtered });
   }
 });
+
+// 定时与按需比对清理：自动核对当前浏览器中所有存活的标签页，彻底刷新抹除已不存在的孤儿页面记录
+async function purgeClosedTabsMedia() {
+  return new Promise((resolve) => {
+    chrome.tabs.query({}, async (tabs) => {
+      const openTabIds = new Set((tabs || []).map((t) => t.id));
+      const { mediaList = [] } = await chrome.storage.local.get("mediaList");
+      const filtered = mediaList.filter((it) => it.tabId && openTabIds.has(it.tabId));
+      if (filtered.length !== mediaList.length) {
+        await chrome.storage.local.set({ mediaList: filtered });
+      }
+      resolve(filtered);
+    });
+  });
+}
 
 // 存储列表全部清空时，同步清除全局残留角标
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -323,8 +374,13 @@ async function parseM3u8Metadata(entry) {
 
 // 4. 与本地桌面客户端通信
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
+  if (req.action === "PURGE_CLOSED_TABS") {
+    purgeClosedTabsMedia().then((cleanedList) => sendResponse({ success: true, count: cleanedList.length }));
+    return true;
+  }
+
   if (req.action === "GET_MEDIA_FOR_TAB") {
-    chrome.storage.local.get("mediaList", ({ mediaList = [] }) => {
+    purgeClosedTabsMedia().then((mediaList) => {
       const tabId = sender.tab ? sender.tab.id : -1;
       const targetUrl = req.pageUrl || (sender.tab ? sender.tab.url : "");
       const matched = mediaList.filter(
@@ -346,15 +402,17 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "SNIFFED_MEDIA" && req.data) {
-    // 来自 content_script 的注入嗅探
-    captureMediaRequest(
-      {
-        url: req.data.url,
-        tabId: sender.tab ? sender.tab.id : -1,
-        requestHeaders: []
-      },
-      null
-    );
+    // 来自 content_script 的注入嗅探 (若为切片分片直接拦截)
+    if (!FRAGMENT_REGEX.test(req.data.url)) {
+      captureMediaRequest(
+        {
+          url: req.data.url,
+          tabId: sender.tab ? sender.tab.id : -1,
+          requestHeaders: []
+        },
+        null
+      );
+    }
     sendResponse({ success: true });
     return true;
   }
@@ -375,7 +433,6 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "PUSH_TO_CLIENT" && req.data) {
-    // 推送到本地客户端
     pushTaskToLocalClient(req.data)
       .then((res) => sendResponse(res))
       .catch((err) => sendResponse({ success: false, error: String(err) }));
@@ -435,7 +492,6 @@ async function pushTaskToLocalClient(taskData) {
       return await resp.json();
     }
   } catch (e) {
-    // HTTP 服务未响应，退回 Native Messaging 尝试唤醒
     return new Promise((resolve) => {
       chrome.runtime.sendNativeMessage(
         "com.m3u8.sniffer",

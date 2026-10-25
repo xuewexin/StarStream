@@ -16,6 +16,7 @@ from catcatch_app.core.ffmpeg_engine import (
     mux_video_audio, extract_audio, trim_media, repair_media
 )
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.ui.batch_convert_dialog import BatchConvertDialog
 
 
 class WorkerBridge(QObject):
@@ -52,7 +53,8 @@ class FFmpegToolboxDialog(QDialog):
 
         # 选项卡
         self.tabs = QTabWidget()
-        self.tabs.addTab(self._create_convert_tab(preset_file), "格式转换")
+        self.tabs.addTab(self._create_convert_tab(preset_file), "单文件转换")
+        self.tabs.addTab(self._create_batch_tab(preset_file), "批量格式转换")
         self.tabs.addTab(self._create_mux_tab(preset_file), "音视频混流")
         self.tabs.addTab(self._create_extract_tab(preset_file), "提取音频")
         self.tabs.addTab(self._create_trim_tab(preset_file), "无损剪切")
@@ -109,7 +111,58 @@ class FFmpegToolboxDialog(QDialog):
             self.status_banner.setText(f"引擎状态: 未就绪 ({msg})")
             self.status_banner.setStyleSheet("padding: 6px 12px; background-color: #2e171b; color: #f87171; border: 1px solid #991b1b; border-radius: 4px; font-weight: 500;")
 
-    # 1. 格式转换 Tab
+    # 1. 批量转换 Tab
+    def _create_batch_tab(self, preset_file):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(16)
+
+        info_box = QFrame()
+        info_box.setStyleSheet("background-color: #1c1d22; border: 1px solid #2e3038; border-radius: 8px; padding: 18px;")
+        ib_layout = QVBoxLayout(info_box)
+        ib_layout.setSpacing(12)
+
+        title = QLabel("🚀 批量媒体格式转换中心")
+        title.setStyleSheet("font-size: 15px; font-weight: 700; color: #f4f4f5;")
+        ib_layout.addWidget(title)
+
+        desc = QLabel(
+            "• 支持批量选择多文件或一键扫描整个文件夹（支持 MP4、MKV、TS、FLV、MOV、AVI、MP3、M4A 等）\n"
+            "• 提供智能极速无损拷贝 (-c copy，秒级无损封装转码)\n"
+            "• 提供 H.264 / H.265 / 音频提取等多种工业级转换预设\n"
+            "• 支持多任务排队顺序转换、单文件与总体双重进度条及一键输出"
+        )
+        desc.setStyleSheet("color: #a1a1aa; line-height: 1.6; font-size: 12px;")
+        ib_layout.addWidget(desc)
+
+        btn_open = QPushButton("立即打开批量转换中心...")
+        btn_open.setIcon(get_icon("refresh", "#ffffff", 14))
+        btn_open.setStyleSheet("""
+            QPushButton {
+                background-color: #3875f6;
+                color: #ffffff;
+                font-weight: 600;
+                font-size: 13px;
+                padding: 8px 22px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #2563eb;
+            }
+        """)
+        def open_dialog():
+            files = [preset_file] if preset_file and os.path.exists(preset_file) else None
+            dlg = BatchConvertDialog(self, preset_files=files)
+            dlg.exec_()
+        btn_open.clicked.connect(open_dialog)
+        ib_layout.addWidget(btn_open, 0, Qt.AlignLeft)
+
+        layout.addWidget(info_box)
+        layout.addStretch()
+        return widget
+
+    # 2. 单文件格式转换 Tab
     def _create_convert_tab(self, preset_file):
         widget = QWidget()
         layout = QVBoxLayout(widget)

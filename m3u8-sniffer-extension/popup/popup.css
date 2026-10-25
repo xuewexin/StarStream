@@ -47,6 +47,42 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* 页面生命周期范围切换 */
+.scope-tabs-bar {
+  display: flex;
+  background-color: var(--bg-surface);
+  padding: 5px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.scope-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--text-muted);
+  padding: 5px 0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  text-align: center;
+}
+
+.scope-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scope-btn.active {
+  background: #27272a;
+  color: #38bdf8;
+  border-color: #3875f6;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .brand {
   display: flex;
   align-items: center;

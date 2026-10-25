@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import requests
 
-from .config import config
+from .config import config, is_proxy_alive, detect_local_active_proxies
 from .ffmpeg_engine import get_ffmpeg_path
 
 
@@ -100,6 +100,20 @@ class FileDownloadTask:
             self.on_log(f"正在探测远程资源信息: {url}")
 
         proxy = self.task_data.get("proxy") or config.get_effective_proxy()
+        if proxy and proxy not in ["none", "direct"]:
+            is_alive, check_msg = is_proxy_alive(proxy)
+            if not is_alive:
+                if self.on_log:
+                    self.on_log(f"[代理探活警告] 配置的代理 ({proxy}) 无法连通 ({check_msg})，正在搜寻本机在线代理...")
+                actives = detect_local_active_proxies()
+                if actives:
+                    proxy = actives[0]["url"]
+                    if self.on_log:
+                        self.on_log(f"[代理智能切换] 自动切换为活跃本地代理: {proxy} ({actives[0]['name']})")
+                else:
+                    if self.on_log:
+                        self.on_log("[代理降级提示] 未发现其它活跃代理，尝试直连下载...")
+                    proxy = None
         self.session = get_requests_session(proxy)
 
         # 1. 探测资源头部信息

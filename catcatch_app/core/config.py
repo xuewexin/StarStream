@@ -34,6 +34,7 @@ DEFAULT_PROXIES = [
 DEFAULT_CONFIG = {
     # 路径配置 (默认均由运行时动态探测，不硬编码任何盘符路径)
     "save_dir": os.path.join(ROOT_DIR, "Downloads"),
+    "temp_segments_dir": os.path.join(ROOT_DIR, "Temp_Segments"),  # 专用临时分片切片存放目录
     "ffmpeg_path": "",
     "re_cli_path": "",
     "v3_cli_path": "",
@@ -231,6 +232,66 @@ def get_nm3u8dl_status():
     }
 
 
+def get_temp_segments_dir():
+    """获取并确保临时分片存放目录存在"""
+    d = config.get("temp_segments_dir") or os.path.join(ROOT_DIR, "Temp_Segments")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        pass
+    return d
+
+
+def is_proxy_alive(proxy_url, timeout=0.8):
+    """
+    极速检测代理服务端口是否连通探活
+    返回: (is_alive, reason)
+    """
+    if not proxy_url or proxy_url in ["none", "direct", "system"]:
+        return True, "直连/系统代理"
+    try:
+        import urllib.parse, socket
+        parsed = urllib.parse.urlsplit(normalize_proxy_url(proxy_url))
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (1080 if "socks" in (parsed.scheme or "") else 80)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        res = sock.connect_ex((host, port))
+        sock.close()
+        if res == 0:
+            return True, "端口通畅"
+        return False, f"端口无法连接 (错误代码: {res})"
+    except Exception as e:
+        return False, str(e)
+
+
+def detect_local_active_proxies():
+    """
+    快速全自动扫描常见本地代理客户端监听端口 (sing-box 1080, Clash 7890/7891, v2rayN 10808/10809, SOCKS5 3080 等)
+    返回当前存活在线的本地代理列表
+    """
+    candidates = [
+        ("singbox_1080", "sing-box / SOCKS5 (1080)", "http://127.0.0.1:1080", "127.0.0.1", 1080),
+        ("clash_7890", "Clash / Verge (7890)", "http://127.0.0.1:7890", "127.0.0.1", 7890),
+        ("clash_7891", "Clash Mixed (7891)", "http://127.0.0.1:7891", "127.0.0.1", 7891),
+        ("v2ray_10808", "v2rayN SOCKS5 (10808)", "socks5://127.0.0.1:10808", "127.0.0.1", 10808),
+        ("v2ray_10809", "v2rayN HTTP (10809)", "http://127.0.0.1:10809", "127.0.0.1", 10809),
+        ("socks_3080", "Local SOCKS5 (3080)", "socks5://127.0.0.1:3080", "127.0.0.1", 3080),
+    ]
+    import socket
+    active = []
+    for pid, name, url, host, port in candidates:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(0.3)
+            if s.connect_ex((host, port)) == 0:
+                active.append({"id": pid, "name": f"{name} (在线)", "url": url, "port": port})
+            s.close()
+        except Exception:
+            pass
+    return active
+
+
 def normalize_proxy_url(url: str) -> str:
     """标准化代理 URL，若无协议前缀则补全 http://"""
     url = (url or "").strip()
@@ -417,9 +478,21 @@ class Config:
             return detect_system_proxy()
         elif mode == "manual":
             active_id = self._config.get("active_proxy_id")
+            selected_url = ""
             for p in self._config.get("proxies", []):
                 if p.get("id") == active_id:
-                    return normalize_proxy_url(p.get("url", ""))
+                    selected_url = normalize_proxy_url(p.get("url", ""))
+                    break
+            
+            if selected_url:
+                is_alive, _ = is_proxy_alive(selected_url, timeout=0.6)
+                if is_alive:
+                    return selected_url
+                # 若配置的代理端口离线 (10061拒绝连接)，自动探活本机其它活跃代理
+                actives = detect_local_active_proxies()
+                if actives:
+                    return actives[0]["url"]
+                return selected_url
         return ""
 
     def get_proxies_list(self):

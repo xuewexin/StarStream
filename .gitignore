@@ -24,6 +24,8 @@ m3u8-sniffer-extension/test_sample/
 *.tmp
 *.part
 *_tmp/
+x36xhzz*/
+m3u8-sniffer-extension/x36xhzz*/
 
 # Python 运行时编译缓存
 __pycache__/

@@ -23,6 +23,11 @@
         </div>
       </div>
       <div class="header-tools">
+        <button id="btnFragments" class="btn-icon" title="分片文件夹管理 (整理与清空切片)">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </button>
         <button id="btnSettings" class="btn-icon" title="设置">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="3"></circle>
@@ -37,6 +42,12 @@
         </button>
       </div>
     </header>
+
+    <!-- 页面生命周期范围 (只显示当前还存在的网站视频，页面消失自动刷新清理) -->
+    <div class="scope-tabs-bar">
+      <button id="scopeCurrentTab" class="scope-btn active" title="仅显示当前正浏览网页上抓取的视频">当前网页视频</button>
+      <button id="scopeAllTabs" class="scope-btn" title="显示所有仍存活打开的网页视频 (网页关闭或刷新后立即自动消除)">全部存活网页</button>
+    </div>
 
     <!-- 分类 Tabs -->
     <nav class="category-tabs">
@@ -76,8 +87,8 @@
           <circle cx="12" cy="12" r="2"></circle>
           <path d="M12 14v7"></path>
         </svg>
-        <div class="empty-title">正在监听网页媒体流</div>
-        <div class="empty-desc">播放视频或音频后，嗅探到的地址将自动列在此处</div>
+        <div class="empty-title">当前页面暂未嗅探到完整视频</div>
+        <div class="empty-desc">已过滤无用碎片切片；在网页播放视频后，完整 M3U8/MP4 将自动显示</div>
       </div>
     </main>
 
@@ -100,10 +111,34 @@
       </div>
     </div>
 
+    <!-- 分片管理快捷弹窗 -->
+    <div id="fragmentsModal" class="modal-overlay hidden">
+      <div class="modal-content" style="max-height: 480px;">
+        <div class="modal-header">
+          <span class="modal-title">📁 本地分片文件夹管理</span>
+          <button id="closeFragmentsBtn" class="btn-icon">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 14px;">
+          <div style="color: #9ca3af; font-size: 12px; margin-bottom: 8px;">专用分片目录: <span id="fragDirPath" style="color: #38bdf8; font-family: monospace;">Temp_Segments</span></div>
+          <div id="fragStats" style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #f4f4f5;">正在获取本地分片状态...</div>
+          <div id="fragListContainer" style="max-height: 220px; overflow-y: auto; background: #18191d; border-radius: 6px; padding: 8px; border: 1px solid #2e3138; margin-bottom: 12px;"></div>
+          <div style="display: flex; gap: 8px;">
+            <button id="btnCleanAllFrags" class="btn-sm btn-danger" style="flex: 1;">一键清空全部残留分片</button>
+            <button id="btnRefreshFrags" class="btn-sm btn-secondary">刷新</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 设置抽屉面板 -->
     <div id="settingsPanel" class="settings-drawer hidden">
       <div class="drawer-header">
-        <span>连接与规则设置</span>
+        <span>嗅探与连接设置</span>
         <button id="closeSettingsBtn" class="btn-icon">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -118,6 +153,16 @@
         </div>
         <div class="setting-item">
           <label class="checkbox-row">
+            <input type="checkbox" id="settingFilterFragments" checked> <strong>仅抓取整个视频</strong> (过滤海量无用切片与未知碎片)
+          </label>
+        </div>
+        <div class="setting-item">
+          <label class="checkbox-row">
+            <input type="checkbox" id="settingAutoPurge" checked> <strong>页面关闭或刷新时自动消除</strong> 对应网页抓取的视频
+          </label>
+        </div>
+        <div class="setting-item">
+          <label class="checkbox-row">
             <input type="checkbox" id="settingAutoPush"> 嗅探到媒体时自动推送到本地客户端下载
           </label>
         </div>
@@ -126,8 +171,8 @@
           <input type="number" id="settingMinSize" value="0" class="input-text">
         </div>
         <div class="client-help-box">
-          <div class="help-title">客户端状态说明</div>
-          <p>若显示“客户端离线”，请双击根目录下 <strong>启动灵猫下载器.bat</strong> 打开桌面客户端。</p>
+          <div class="help-title">分片切片存放管理</div>
+          <p>所有下载中临时分片集中存放在软件根目录 <strong>Temp_Segments</strong> 文件夹下，下载成功后自动合并，可随时在右上角文件夹图标中整理和删除。</p>
         </div>
       </div>
       <div class="drawer-footer">

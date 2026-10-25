@@ -1,5 +1,6 @@
 {
   "save_dir": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\Downloads",
+  "temp_segments_dir": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\Temp_Segments",
   "ffmpeg_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\ffmpeg.exe",
   "re_cli_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\N_m3u8DL-RE.exe",
   "v3_cli_path": "E:\\N_m3u8DL-CLI_v3.0.2_with_ffmpeg_and_SimpleG\\N_m3u8DL-CLI-SimpleG.exe",

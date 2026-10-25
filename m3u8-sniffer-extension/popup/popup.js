@@ -1,8 +1,15 @@
 // popup.js - CatCatch Pro Modern Minimalist Controller
+// 支持：仅抓取整个完整视频、页面消失自动刷新清除、本地活跃代理自动对齐、分片文件夹管理
 (function () {
   'use strict';
 
+  // 严格过滤已知切片分片特征
+  const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+
   let currentCategory = 'all';
+  let currentScope = 'current'; // 'current': 仅当前网页 | 'all': 全部仍打开网页
+  let currentActiveTabId = -1;
+  let liveTabIds = new Set();
   let searchKeyword = '';
   let mediaList = [];
   let selectedIds = new Set();
@@ -10,6 +17,9 @@
   let clientPort = 18910;
   let activeHls = null;
   let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
+  let clientDetectedProxies = [];
+  let clientEffectiveProxy = '';
+  let clientTempDir = 'Temp_Segments';
 
   // DOM 元素引用
   const mediaListContainer = document.getElementById('mediaListContainer');
@@ -25,43 +35,119 @@
   const previewAudio = document.getElementById('previewAudio');
   const previewTitle = document.getElementById('previewTitle');
   const settingsPanel = document.getElementById('settingsPanel');
+  const fragmentsModal = document.getElementById('fragmentsModal');
 
   document.addEventListener('DOMContentLoaded', async () => {
-    // 弹窗打开表示用户已查阅当前页面的嗅探结果，清除未读角标提示
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs && tabs[0] && tabs[0].id) {
-        chrome.action.setBadgeText({ tabId: tabs[0].id, text: '' });
-      }
-    });
+    // 1. 获取当前活动窗口的标签页 ID 与所有仍存活的标签页集合
+    await initTabTracking();
+
+    // 2. 清除当前标签页未读角标提示
+    if (currentActiveTabId >= 0) {
+      chrome.action.setBadgeText({ tabId: currentActiveTabId, text: '' });
+    }
     chrome.action.setBadgeText({ text: '' });
 
     bindEvents();
+    bindTabLifecycleListeners();
+
     try {
       chrome.runtime.sendMessage({ action: 'DETECT_BROWSER_PROXY' }, (res) => {
         if (res) {
           detectedProxy = res;
-          document.querySelectorAll('.cfg-proxy-tip').forEach((el) => {
-            el.textContent = detectedProxy.proxyUrl
-              ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
-              : (detectedProxy.label ? `⚡ 当前浏览器网络环境: ${detectedProxy.label}` : '⚡ 当前浏览器代理: 跟随系统');
-          });
+          updateProxyTips();
         }
       });
     } catch (e) {}
+
     await loadSettings();
     await checkClientStatus();
-    loadAndRenderMedia();
+
+    // 核心清理：自动核对并抹除所有已关闭网页残留的爬取视频
+    try {
+      chrome.runtime.sendMessage({ action: 'PURGE_CLOSED_TABS' }, () => {
+        loadAndRenderMedia();
+      });
+    } catch (e) {
+      loadAndRenderMedia();
+    }
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.mediaList) {
-        mediaList = changes.mediaList.newValue || [];
+        mediaList = (changes.mediaList.newValue || []).filter((it) => !FRAGMENT_REGEX.test(it.url));
         renderList();
         updateCategoryCounts();
       }
     });
   });
 
+  async function initTabTracking() {
+    return new Promise((resolve) => {
+      chrome.tabs.query({}, (tabs) => {
+        liveTabIds = new Set((tabs || []).map((t) => t.id));
+        chrome.tabs.query({ active: true, currentWindow: true }, (actTabs) => {
+          if (actTabs && actTabs[0]) {
+            currentActiveTabId = actTabs[0].id;
+          }
+          resolve();
+        });
+      });
+    });
+  }
+
+  // 监听标签页生命周期：页面关闭或刷新导航时，自动实时清除其爬取视频
+  function bindTabLifecycleListeners() {
+    try {
+      chrome.tabs.onRemoved.addListener((closedTabId) => {
+        liveTabIds.delete(closedTabId);
+        mediaList = mediaList.filter((it) => it.tabId !== closedTabId);
+        renderList();
+        updateCategoryCounts();
+      });
+
+      chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+        if (changeInfo.status === 'loading') {
+          mediaList = mediaList.filter((it) => it.tabId !== tabId);
+          renderList();
+          updateCategoryCounts();
+        }
+      });
+    } catch (e) {}
+  }
+
+  function updateProxyTips() {
+    const tipText = detectedProxy.proxyUrl
+      ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
+      : (clientEffectiveProxy ? `⚡ 当前客户端生效代理: ${clientEffectiveProxy}` : (detectedProxy.label ? `⚡ 网络环境: ${detectedProxy.label}` : '⚡ 代理: 直连/跟随系统'));
+
+    document.querySelectorAll('.cfg-proxy-tip').forEach((el) => {
+      el.textContent = tipText;
+    });
+  }
+
   function bindEvents() {
+    // 页面范围切换 (当前网页 / 所有存活网页)
+    const btnScopeCurrent = document.getElementById('scopeCurrentTab');
+    const btnScopeAll = document.getElementById('scopeAllTabs');
+
+    if (btnScopeCurrent && btnScopeAll) {
+      btnScopeCurrent.addEventListener('click', () => {
+        btnScopeCurrent.classList.add('active');
+        btnScopeAll.classList.remove('active');
+        currentScope = 'current';
+        renderList();
+        updateCategoryCounts();
+      });
+
+      btnScopeAll.addEventListener('click', () => {
+        btnScopeAll.classList.add('active');
+        btnScopeCurrent.classList.remove('active');
+        currentScope = 'all';
+        renderList();
+        updateCategoryCounts();
+      });
+    }
+
+    // 分类筛选
     document.querySelectorAll('.tab-item').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-item').forEach((b) => b.classList.remove('active'));
@@ -89,7 +175,7 @@
     });
 
     document.getElementById('btnClear').addEventListener('click', async () => {
-      if (confirm('确定要清空全部已嗅探的媒体记录吗？')) {
+      if (confirm('确定要清空已嗅探的媒体记录吗？')) {
         await chrome.storage.local.set({ mediaList: [] });
         selectedIds.clear();
         mediaList = [];
@@ -98,6 +184,19 @@
         chrome.action.setBadgeText({ text: '' });
       }
     });
+
+    // 分片文件夹管理弹窗
+    const btnFrag = document.getElementById('btnFragments');
+    if (btnFrag && fragmentsModal) {
+      btnFrag.addEventListener('click', () => {
+        openFragmentsModal();
+      });
+      document.getElementById('closeFragmentsBtn').addEventListener('click', () => {
+        fragmentsModal.classList.add('hidden');
+      });
+      document.getElementById('btnRefreshFrags').addEventListener('click', loadFragmentsStatus);
+      document.getElementById('btnCleanAllFrags').addEventListener('click', cleanAllFragments);
+    }
 
     document.getElementById('btnBatchPush').addEventListener('click', async () => {
       const selectedItems = mediaList.filter((it) => selectedIds.has(it.id));
@@ -187,9 +286,14 @@
         cache: 'no-store'
       });
       if (resp.ok) {
+        const data = await resp.json();
         clientOnline = true;
         clientStatusBadge.className = 'status-pill online';
         clientStatusText.textContent = '客户端已连接';
+        if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
+        if (data.effective_proxy) clientEffectiveProxy = data.effective_proxy;
+        if (data.temp_segments_dir) clientTempDir = data.temp_segments_dir;
+        updateProxyTips();
         return;
       }
     } catch (e) {}
@@ -200,6 +304,65 @@
     clientStatusBadge.onclick = () => {
       settingsPanel.classList.remove('hidden');
     };
+  }
+
+  async function openFragmentsModal() {
+    fragmentsModal.classList.remove('hidden');
+    document.getElementById('fragDirPath').textContent = clientTempDir || 'Temp_Segments';
+    loadFragmentsStatus();
+  }
+
+  async function loadFragmentsStatus() {
+    const statsEl = document.getElementById('fragStats');
+    const container = document.getElementById('fragListContainer');
+    statsEl.textContent = '正在获取本地分片状态...';
+    container.innerHTML = '<div style="color:#71717a; text-align:center; padding:10px;">加载中...</div>';
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        const folders = data.folders || [];
+        statsEl.textContent = `找到 ${folders.length} 个残留分片文件夹 (共 ${data.count || 0} 个)`;
+
+        if (!folders.length) {
+          container.innerHTML = '<div style="color:#4ade80; text-align:center; padding:10px;">✔ 当前分片目录干净，无残留切片文件</div>';
+          return;
+        }
+
+        container.innerHTML = '';
+        folders.forEach((f) => {
+          const itemDiv = document.createElement('div');
+          itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #27272a; font-size:12px;';
+          itemDiv.innerHTML = `
+            <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;" title="${f.path}">
+              📁 ${f.name}
+            </div>
+            <div style="color:#38bdf8; font-size:11px; white-space:nowrap;">
+              ${f.ts_count} 切片 | ${formatSize(f.size)}
+            </div>
+          `;
+          container.appendChild(itemDiv);
+        });
+        return;
+      }
+    } catch (e) {}
+
+    statsEl.textContent = '请先启动本地桌面客户端以读取分片文件夹';
+    container.innerHTML = '<div style="color:#f87171; text-align:center; padding:10px;">客户端未连接 (127.0.0.1:18910)</div>';
+  }
+
+  async function cleanAllFragments() {
+    if (!confirm('确定要清空全部未完成的分片临时切片吗？')) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'DELETE' });
+      if (res.ok) {
+        alert('分片文件夹已清空！');
+        loadFragmentsStatus();
+        return;
+      }
+    } catch (e) {}
+    alert('操作失败，请确认客户端已在后台启动。');
   }
 
   async function loadSettings() {
@@ -217,7 +380,7 @@
 
     clientPort = port;
     await chrome.storage.local.set({
-      settings: { serverPort: port, autoPush, minSizeKB }
+      settings: { serverPort: port, autoPush, minSizeKB, filterFragments: true, onlyLiveTabs: true }
     });
 
     settingsPanel.classList.add('hidden');
@@ -226,16 +389,42 @@
 
   async function loadAndRenderMedia() {
     const res = await chrome.storage.local.get('mediaList');
-    mediaList = res.mediaList || [];
+    // 加载时过滤掉所有切片分片
+    mediaList = (res.mediaList || []).filter((item) => !FRAGMENT_REGEX.test(item.url));
     renderList();
     updateCategoryCounts();
   }
 
+  // 核心过滤算法：
+  // 1. 过滤未知切片分片 (只抓取整个视频)
+  // 2. 页面消失自动将消失页面爬取的视频刷新掉
   function getFilteredItems() {
     return mediaList.filter((item) => {
+      // 坚决丢弃切片
+      if (FRAGMENT_REGEX.test(item.url)) {
+        return false;
+      }
+
+      // 仅显示页面还存在的网站上爬取的视频：若标签页已被关闭，立即过滤消除
+      if (item.tabId !== undefined && item.tabId !== null && item.tabId >= 0) {
+        if (!liveTabIds.has(item.tabId)) {
+          return false;
+        }
+      }
+
+      // 当前标签页 vs 全部打开标签页过滤
+      if (currentScope === 'current' && currentActiveTabId >= 0) {
+        if (item.tabId !== currentActiveTabId) {
+          return false;
+        }
+      }
+
+      // 媒体类型分类
       if (currentCategory !== 'all' && item.mediaType !== currentCategory) {
         return false;
       }
+
+      // 关键词搜索
       if (searchKeyword) {
         const title = (item.pageTitle || '').toLowerCase();
         const url = (item.url || '').toLowerCase();
@@ -243,16 +432,29 @@
           return false;
         }
       }
+
       return true;
     });
   }
 
   function updateCategoryCounts() {
-    document.getElementById('countAll').textContent = mediaList.length;
-    document.getElementById('countM3u8').textContent = mediaList.filter((i) => i.mediaType === 'm3u8').length;
-    document.getElementById('countVideo').textContent = mediaList.filter((i) => i.mediaType === 'video').length;
-    document.getElementById('countAudio').textContent = mediaList.filter((i) => i.mediaType === 'audio').length;
-    document.getElementById('countOther').textContent = mediaList.filter((i) => i.mediaType === 'other').length;
+    // 作用域下有效的视频项
+    const scopedItems = mediaList.filter((item) => {
+      if (FRAGMENT_REGEX.test(item.url)) return false;
+      if (item.tabId !== undefined && item.tabId !== null && item.tabId >= 0) {
+        if (!liveTabIds.has(item.tabId)) return false;
+      }
+      if (currentScope === 'current' && currentActiveTabId >= 0) {
+        return item.tabId === currentActiveTabId;
+      }
+      return true;
+    });
+
+    document.getElementById('countAll').textContent = scopedItems.length;
+    document.getElementById('countM3u8').textContent = scopedItems.filter((i) => i.mediaType === 'm3u8').length;
+    document.getElementById('countVideo').textContent = scopedItems.filter((i) => i.mediaType === 'video').length;
+    document.getElementById('countAudio').textContent = scopedItems.filter((i) => i.mediaType === 'audio').length;
+    document.getElementById('countOther').textContent = scopedItems.filter((i) => i.mediaType === 'other').length;
   }
 
   function updateBatchBar() {
@@ -301,13 +503,33 @@
       tagsHtml += `<span class="tag-badge tag-size">${formatSize(item.contentLength)}</span>`;
     }
     if (item.hasKey) {
-      tagsHtml += `<span class="tag-badge tag-key">加密 (KEY)</span>`;
+      tagsHtml += `<span class="tag-badge tag-key">加密 (AES-128)</span>`;
     }
     tagsHtml += `<span class="tag-badge tag-domain">${domain}</span>`;
 
     const proxyTipText = detectedProxy.proxyUrl
-      ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
-      : (detectedProxy.label ? `⚡ 当前浏览器网络环境: ${detectedProxy.label}` : '⚡ 当前浏览器代理: 跟随系统');
+      ? `⚡ 浏览器代理: ${detectedProxy.proxyUrl}`
+      : (clientEffectiveProxy ? `⚡ 本地生效代理: ${clientEffectiveProxy}` : '⚡ 代理: 直连/跟随系统');
+
+    // 动态生成代理下拉列表（优先展示当前存活的本地代理客户端，避免死端口连接拒绝）
+    let proxyOptionsHtml = `
+      <option value="auto" selected>🎯 自动匹配可用代理 (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
+      <option value="direct">⚡ 直连 (不走任何代理)</option>
+      <option value="default">💻 跟随客户端全局设置</option>
+    `;
+    if (clientDetectedProxies && clientDetectedProxies.length > 0) {
+      clientDetectedProxies.forEach((p) => {
+        proxyOptionsHtml += `<option value="${p.url}">🟢 ${p.name}</option>`;
+      });
+    } else {
+      proxyOptionsHtml += `
+        <option value="http://127.0.0.1:1080">sing-box / SOCKS5 (1080)</option>
+        <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
+        <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
+        <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
+      `;
+    }
+    proxyOptionsHtml += `<option value="custom">✏️ 手动输入代理地址...</option>`;
 
     card.innerHTML = `
       <div class="card-top">
@@ -329,7 +551,7 @@
       <div class="card-config-panel hidden">
         <div class="config-row">
           <span class="config-label">📁 保存目录:</span>
-          <input type="text" class="config-input cfg-savedir" placeholder="留空使用客户端配置 (如 D:\\Downloads)">
+          <input type="text" class="config-input cfg-savedir" placeholder="留空使用客户端配置 (如 Downloads)">
         </div>
         <div class="config-row">
           <span class="config-label">⚡ 并发线程:</span>
@@ -344,18 +566,12 @@
         <div class="config-row">
           <span class="config-label">🌐 下载代理:</span>
           <select class="config-select cfg-proxy">
-            <option value="auto">🎯 自动匹配浏览器代理</option>
-            <option value="default" selected>💻 跟随客户端全局设置</option>
-            <option value="direct">⚡ 直连 (不走任何代理)</option>
-            <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
-            <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
-            <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
-            <option value="custom">✏️ 手动输入代理地址...</option>
+            ${proxyOptionsHtml}
           </select>
         </div>
         <div class="config-row cfg-custom-proxy-row hidden">
           <span class="config-label">代理地址:</span>
-          <input type="text" class="config-input cfg-custom-proxy" placeholder="例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:10808">
+          <input type="text" class="config-input cfg-custom-proxy" placeholder="例如 http://127.0.0.1:1080 或 http://127.0.0.1:7890">
         </div>
         <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
         <button class="btn-copy-cli-inside">📋 复制 N_m3u8DL-RE 完整运行命令 (脱离客户端独立运行)</button>
@@ -408,7 +624,7 @@
       const pVal = proxySelect.value;
       let finalProxy = '';
       if (pVal === 'auto') {
-        finalProxy = detectedProxy.proxyUrl || (detectedProxy.mode === 'direct' ? 'direct' : 'default');
+        finalProxy = detectedProxy.proxyUrl || clientEffectiveProxy || (detectedProxy.mode === 'direct' ? 'direct' : 'default');
       } else if (pVal === 'custom') {
         finalProxy = customProxyInput.value.trim();
       } else {
@@ -422,8 +638,8 @@
       let proxyForCmd = '';
       if (cfg.proxy && cfg.proxy !== 'default' && cfg.proxy !== 'direct') {
         proxyForCmd = cfg.proxy;
-      } else if (cfg.proxy === 'auto' && detectedProxy.proxyUrl) {
-        proxyForCmd = detectedProxy.proxyUrl;
+      } else if (cfg.proxy === 'auto' && (detectedProxy.proxyUrl || clientEffectiveProxy)) {
+        proxyForCmd = detectedProxy.proxyUrl || clientEffectiveProxy;
       }
 
       let cmd = `N_m3u8DL-RE "${item.url}"`;
@@ -432,6 +648,7 @@
       }
       const safeTitle = (titleInput.value.trim() || item.pageTitle || 'video').replace(/[\\/*?:"<>|]/g, '_');
       cmd += ` --save-name "${safeTitle}"`;
+      cmd += ` --tmp-dir "${clientTempDir || 'Temp_Segments'}"`;
       if (cfg.threadCount) {
         cmd += ` --thread-count ${cfg.threadCount}`;
       }

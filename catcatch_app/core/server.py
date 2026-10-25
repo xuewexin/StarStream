@@ -8,9 +8,10 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
-from .config import config
+from .config import config, detect_local_active_proxies, get_temp_segments_dir
 from .task_manager import task_manager
 from .ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
+from .cache_cleaner import get_fragment_folders, clean_all_fragment_folders
 
 
 class CatCatchHTTPHandler(BaseHTTPRequestHandler):
@@ -51,8 +52,21 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 "ffmpeg_info": ff_msg,
                 "ffmpeg_path": get_ffmpeg_path(),
                 "save_dir": config.get("save_dir"),
+                "temp_segments_dir": get_temp_segments_dir(),
+                "effective_proxy": config.get_effective_proxy(),
+                "detected_proxies": detect_local_active_proxies(),
                 "total_tasks": len(tasks),
                 "active_tasks": active_count
+            })
+            return
+
+        elif path == "/api/fragments":
+            frags = get_fragment_folders()
+            self._send_json_response(200, {
+                "success": True,
+                "temp_segments_dir": get_temp_segments_dir(),
+                "count": len(frags),
+                "folders": frags
             })
             return
 
@@ -123,6 +137,20 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 self._send_json_response(200, {"success": True, "action": action})
                 return
 
+        self._send_json_response(404, {"error": "Not Found"})
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path == "/api/fragments":
+            res = clean_all_fragment_folders()
+            self._send_json_response(200, {
+                "success": True,
+                "freed_bytes": res["freed_bytes"],
+                "deleted_count": res["deleted_count"],
+                "message": f"已清空 {res['deleted_count']} 个残留分片文件夹"
+            })
+            return
         self._send_json_response(404, {"error": "Not Found"})
 
     def _process_single_task(self, item):

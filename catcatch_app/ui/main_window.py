@@ -27,6 +27,8 @@ from catcatch_app.ui.new_task_dialog import NewTaskDialog
 from catcatch_app.ui.ffmpeg_toolbox_dialog import FFmpegToolboxDialog
 from catcatch_app.ui.settings_dialog import SettingsDialog
 from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
+from catcatch_app.ui.fragments_dialog import FragmentsDialog
+from catcatch_app.ui.batch_convert_dialog import BatchConvertDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 from catcatch_app.ui.task_log_dialog import TaskLogDialog
 from catcatch_app.ui.notify_dialog import DownloadNotifyDialog
@@ -58,7 +60,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.1.0")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.2.0")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self.setStyleSheet(DARK_THEME)
@@ -205,10 +207,22 @@ class MainWindow(QMainWindow):
         self.act_open_dir.triggered.connect(self._action_open_dir)
         toolbar.addAction(self.act_open_dir)
 
+        # 临时分片文件夹管理
+        self.act_fragments = QAction(get_icon("stream", "#38bdf8", 18), "分片管理", self)
+        self.act_fragments.setToolTip("查看和整理临时分片存放文件夹 (Temp_Segments)，支持查看与删除残留切片")
+        self.act_fragments.triggered.connect(self._action_manage_fragments)
+        toolbar.addAction(self.act_fragments)
+
         # FFmpeg 工具箱
         self.act_ffmpeg = QAction(get_icon("toolbox", "#d4d4d8", 18), "FFmpeg 工具箱", self)
         self.act_ffmpeg.triggered.connect(self._action_ffmpeg_toolbox)
         toolbar.addAction(self.act_ffmpeg)
+
+        # 批量格式转换
+        self.act_batch = QAction(get_icon("refresh", "#38bdf8", 18), "批量转换", self)
+        self.act_batch.setToolTip("批量媒体格式转换中心 (支持 MP4/MKV/TS/MP3/M4A 等多格式批量互转与极速无损封装)")
+        self.act_batch.triggered.connect(self._action_batch_convert)
+        toolbar.addAction(self.act_batch)
 
         # 清理缓存
         self.act_clean = QAction(get_icon("clean", "#d4d4d8", 18), "清理缓存", self)
@@ -542,16 +556,32 @@ class MainWindow(QMainWindow):
 
         # 5. 文件大小
         tot = t.get("total_bytes", 0)
-        size_str = format_size(tot) if tot > 0 else "未知"
+        cur = t.get("downloaded_bytes", 0)
+        cur_p = t.get("cur_parts", 0)
+        tot_p = t.get("tot_parts", 0)
+        st_val = t.get("status", "waiting")
+
+        if st_val == "downloading" and cur > 0:
+            p_info = f" ({cur_p}/{tot_p})" if tot_p > 0 else ""
+            if tot > cur:
+                size_str = f"{format_size(cur)} / ~{format_size(tot)}{p_info}"
+            else:
+                size_str = f"{format_size(cur)}{p_info}"
+        elif tot > 0:
+            size_str = format_size(tot)
+        else:
+            size_str = "未知"
+
         item_size = QTableWidgetItem(size_str)
         item_size.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.table.setItem(row, 5, item_size)
 
         # 6. 下载进度条
-        prog = int(t.get("progress", 0.0))
+        prog = float(t.get("progress", 0.0))
         pbar = QProgressBar()
         pbar.setRange(0, 100)
-        pbar.setValue(prog)
+        pbar.setValue(int(prog))
+        pbar.setFormat(f"{prog:.1f}%")
         pbar.setTextVisible(True)
         self.table.setCellWidget(row, 6, pbar)
 
@@ -626,7 +656,9 @@ class MainWindow(QMainWindow):
             # 6: 进度条
             pbar = self.table.cellWidget(row, 6)
             if pbar:
-                pbar.setValue(int(task.get("progress", 0)))
+                prog = float(task.get("progress", 0.0))
+                pbar.setValue(int(prog))
+                pbar.setFormat(f"{prog:.1f}%")
             
             # 7: 实时速度
             it_spd = self.table.item(row, 7)
@@ -640,9 +672,19 @@ class MainWindow(QMainWindow):
 
             # 5: 文件大小
             tot = task.get("total_bytes", 0)
-            if tot > 0:
-                it_sz = self.table.item(row, 5)
-                if it_sz and (it_sz.text() == "未知" or it_sz.text() == ""):
+            cur = task.get("downloaded_bytes", 0)
+            cur_p = task.get("cur_parts", 0)
+            tot_p = task.get("tot_parts", 0)
+            it_sz = self.table.item(row, 5)
+            if it_sz:
+                st_val = task.get("status", "waiting")
+                if st_val == "downloading" and cur > 0:
+                    p_info = f" ({cur_p}/{tot_p})" if tot_p > 0 else ""
+                    if tot > cur:
+                        it_sz.setText(f"{format_size(cur)} / ~{format_size(tot)}{p_info}")
+                    else:
+                        it_sz.setText(f"{format_size(cur)}{p_info}")
+                elif tot > 0:
                     it_sz.setText(format_size(tot))
 
             # 2: 规格/分辨率
@@ -762,6 +804,9 @@ class MainWindow(QMainWindow):
         act_ff = menu.addAction(get_icon("toolbox", "#d4d4d8", 14), "FFmpeg 视音频处理 (转码/提取/修复)")
         act_ff.triggered.connect(self._action_ffmpeg_toolbox_for_selected)
 
+        act_batch = menu.addAction(get_icon("refresh", "#38bdf8", 14), "批量格式转换选中的媒体...")
+        act_batch.triggered.connect(self._action_batch_convert_for_selected)
+
         act_copy = menu.addAction(get_icon("copy", "#d4d4d8", 14), "复制下载链接")
         act_copy.triggered.connect(self._action_copy_url)
 
@@ -879,6 +924,20 @@ class MainWindow(QMainWindow):
         dlg = FFmpegToolboxDialog(self, preset_file=preset)
         dlg.exec_()
 
+    def _action_batch_convert(self):
+        dlg = BatchConvertDialog(self)
+        dlg.exec_()
+
+    def _action_batch_convert_for_selected(self):
+        ids = self._get_selected_task_ids()
+        selected_files = []
+        for tid in ids:
+            t = task_manager.get_task(tid)
+            if t and t.get("output_file") and os.path.exists(t.get("output_file")):
+                selected_files.append(t.get("output_file"))
+        dlg = BatchConvertDialog(self, preset_files=selected_files)
+        dlg.exec_()
+
     def _action_copy_url(self):
         ids = self._get_selected_task_ids()
         if not ids:
@@ -887,6 +946,10 @@ class MainWindow(QMainWindow):
         if task and task.get("url"):
             QApplication.clipboard().setText(task["url"])
             self.statusBar().showMessage("链接已复制", 2000)
+
+    def _action_manage_fragments(self):
+        dlg = FragmentsDialog(self)
+        dlg.exec_()
 
     def _action_clean_cache(self):
         dlg = CacheCleanDialog(self)

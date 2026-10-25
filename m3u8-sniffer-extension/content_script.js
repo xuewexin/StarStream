@@ -15,11 +15,14 @@
   }
   injectHookScript();
 
+  // 严格过滤已知切片分片
+  const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+
   // 2. 接收来自 inject.js 的深层嗅探消息
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data || event.data.source !== 'CATCATCH_INJECTOR') return;
     const payload = event.data.payload;
-    if (!payload || !payload.url || payload.url.startsWith('blob:')) return;
+    if (!payload || !payload.url || payload.url.startsWith('blob:') || FRAGMENT_REGEX.test(payload.url)) return;
 
     chrome.runtime.sendMessage({
       action: 'SNIFFED_MEDIA',

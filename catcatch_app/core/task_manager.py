@@ -223,12 +223,14 @@ class TaskManager(QObject):
         task["status"] = "downloading"
         self.task_status_changed.emit(task_id, "downloading")
 
-        def on_prog(percent, speed_str, eta_str, cur_dl, tot_dl):
+        def on_prog(percent, speed_str, eta_str, cur_dl=0, tot_dl=0, cur_parts=0, tot_parts=0):
             task["progress"] = round(percent, 1)
             task["speed"] = speed_str
             task["eta"] = eta_str
             task["downloaded_bytes"] = cur_dl
             task["total_bytes"] = tot_dl
+            task["cur_parts"] = cur_parts
+            task["tot_parts"] = tot_parts
             self.task_updated.emit(task_id, task)
 
         def on_log(line):
@@ -264,18 +266,24 @@ class TaskManager(QObject):
 
                 self.task_completed.emit(task_id, output_path)
             else:
-                task["status"] = "error"
-                task["speed"] = "失败"
-                task["eta"] = "--"
-                task["error_msg"] = message
+                if "手动取消" in message or task.get("status") == "paused":
+                    task["status"] = "paused"
+                    task["speed"] = "已暂停"
+                    task["eta"] = "--"
+                    task["error_msg"] = message
+                else:
+                    task["status"] = "error"
+                    task["speed"] = "失败"
+                    task["eta"] = "--"
+                    task["error_msg"] = message
 
-                # 智能诊断出错根因并写入 Logs/ 错误日志
-                diag_title, diag_hint, log_p = record_download_error(task, message, task.get("logs", []))
-                task["error_reason"] = diag_title
-                task["error_hint"] = diag_hint
-                task["log_file"] = log_p
+                    # 智能诊断出错根因并写入 Logs/ 错误日志
+                    diag_title, diag_hint, log_p = record_download_error(task, message, task.get("logs", []))
+                    task["error_reason"] = diag_title
+                    task["error_hint"] = diag_hint
+                    task["log_file"] = log_p
 
-                self.task_failed.emit(task_id, message)
+                    self.task_failed.emit(task_id, message)
             
             self.task_status_changed.emit(task_id, task["status"])
             self.save_tasks()

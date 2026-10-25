@@ -1,14 +1,21 @@
-// inject.js - CatCatch In-Page Deep Sniffer & DOM Hooks
+// inject.js - CatCatch In-Page Deep Sniffer & DOM Hooks (仅抓取完整视频流，坚决过滤碎片切片)
 (function () {
   'use strict';
   if (window.__CATCATCH_INJECTED__) return;
   window.__CATCATCH_INJECTED__ = true;
 
-  const MEDIA_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|ts|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
+  // 仅匹配完整音视频与流媒体清单（移除 .ts，彻底防止切片风暴）
+  const MEDIA_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
+
+  // 严格过滤已知分片与临时碎片切片特征
+  const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
   function notifyMedia(data) {
     if (!data.url || data.url.startsWith('blob:') || data.url.startsWith('data:') || data.url.startsWith('chrome:')) {
       return; // 坚决丢弃 blob: 内部内存对象，只抓取真实网络流
+    }
+    if (FRAGMENT_REGEX.test(data.url)) {
+      return; // 坚决丢弃切片分片，只抓取完整视频
     }
     try {
       window.postMessage({
@@ -31,7 +38,7 @@
   HTMLMediaElement.prototype.play = function () {
     try {
       const src = this.currentSrc || this.src;
-      if (src && !src.startsWith('blob:') && !src.startsWith('data:') && !src.startsWith('chrome:')) {
+      if (src && !src.startsWith('blob:') && !src.startsWith('data:') && !src.startsWith('chrome:') && !FRAGMENT_REGEX.test(src)) {
         const isAudio = this instanceof HTMLAudioElement || this.tagName.toLowerCase() === 'audio';
         notifyMedia({
           url: src,
@@ -53,7 +60,7 @@
       } else if (input && input.url) {
         url = input.url;
       }
-      if (url && MEDIA_REGEX.test(url) && !url.startsWith('blob:')) {
+      if (url && MEDIA_REGEX.test(url) && !FRAGMENT_REGEX.test(url) && !url.startsWith('blob:')) {
         notifyMedia({
           url: url,
           sourceType: 'fetch'
@@ -67,7 +74,7 @@
   const origOpen = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function (method, url) {
     try {
-      if (url && typeof url === 'string' && MEDIA_REGEX.test(url) && !url.startsWith('blob:')) {
+      if (url && typeof url === 'string' && MEDIA_REGEX.test(url) && !FRAGMENT_REGEX.test(url) && !url.startsWith('blob:')) {
         notifyMedia({
           url: url,
           sourceType: 'xhr'

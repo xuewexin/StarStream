@@ -73,6 +73,11 @@ class CacheCleanDialog(QDialog):
         btn_rescan.clicked.connect(self._refresh_scan)
         btn_layout.addWidget(btn_rescan)
 
+        btn_frags = QPushButton("分片文件夹管理...")
+        btn_frags.setIcon(get_icon("folder", "#a1a1aa", 16))
+        btn_frags.clicked.connect(self._open_fragments_dialog)
+        btn_layout.addWidget(btn_frags)
+
         btn_layout.addStretch()
 
         btn_cancel = QPushButton("取消")
@@ -107,6 +112,12 @@ class CacheCleanDialog(QDialog):
             self.btn_clean.setText("暂无残留缓存")
         else:
             self.btn_clean.setText("立即清理")
+
+    def _open_fragments_dialog(self):
+        from catcatch_app.ui.fragments_dialog import FragmentsDialog
+        dlg = FragmentsDialog(self)
+        dlg.exec_()
+        self._refresh_scan()
 
     def _execute_clean(self):
         del_files = self.cb_temp_files.isChecked()

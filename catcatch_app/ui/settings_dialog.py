@@ -20,7 +20,8 @@ from PyQt5.QtCore import Qt
 
 from catcatch_app.core.config import (
     config, ROOT_DIR, detect_system_proxy, normalize_proxy_url,
-    get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL
+    get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL, get_temp_segments_dir,
+    detect_local_active_proxies
 )
 from catcatch_app.core.browser_helper import (
     get_extension_dir, set_custom_extension_dir, is_valid_extension_dir
@@ -60,6 +61,21 @@ class SettingsDialog(QDialog):
         r1.addWidget(self.save_edit)
         r1.addWidget(btn_save)
         path_layout.addLayout(r1)
+
+        # 临时分片目录
+        r1_sub = QHBoxLayout()
+        r1_sub.addWidget(QLabel("分片目录:"))
+        self.temp_edit = QLineEdit()
+        btn_temp = QPushButton("浏览...")
+        btn_temp.setIcon(get_icon("folder", "#a1a1aa", 16))
+        btn_temp.clicked.connect(self._browse_temp_dir)
+        btn_open_temp = QPushButton("整理分片...")
+        btn_open_temp.setIcon(get_icon("stream", "#a1a1aa", 16))
+        btn_open_temp.clicked.connect(self._open_fragments_mgr)
+        r1_sub.addWidget(self.temp_edit)
+        r1_sub.addWidget(btn_temp)
+        r1_sub.addWidget(btn_open_temp)
+        path_layout.addLayout(r1_sub)
 
         # FFmpeg
         r2 = QHBoxLayout()
@@ -173,8 +189,12 @@ class SettingsDialog(QDialog):
         self.btn_del_proxy = QPushButton("删除选中")
         self.btn_del_proxy.setIcon(get_icon("delete", "#a1a1aa", 16))
         self.btn_del_proxy.clicked.connect(self._del_proxy)
+        self.btn_scan_proxy = QPushButton("⚡ 自动扫描本机在线代理")
+        self.btn_scan_proxy.setIcon(get_icon("refresh", "#a1a1aa", 16))
+        self.btn_scan_proxy.clicked.connect(self._auto_scan_active_proxies)
         btn_proxy_row.addWidget(self.btn_add_proxy)
         btn_proxy_row.addWidget(self.btn_del_proxy)
+        btn_proxy_row.addWidget(self.btn_scan_proxy)
         btn_proxy_row.addStretch()
         manual_layout.addLayout(btn_proxy_row)
 
@@ -268,6 +288,7 @@ class SettingsDialog(QDialog):
 
     def _load_values(self):
         self.save_edit.setText(config.get("save_dir", ""))
+        self.temp_edit.setText(config.get("temp_segments_dir", get_temp_segments_dir()))
         self.ff_edit.setText(get_ffmpeg_path())
         self.re_edit.setText(config.get("re_cli_path", ""))
         self.ext_edit.setText(get_extension_dir())
@@ -453,6 +474,59 @@ class SettingsDialog(QDialog):
         if d:
             self.save_edit.setText(d)
 
+    def _browse_temp_dir(self):
+        d = QFileDialog.getExistingDirectory(self, "选择专用分片存储目录", self.temp_edit.text())
+        if d:
+            self.temp_edit.setText(d)
+
+    def _open_fragments_mgr(self):
+        from catcatch_app.ui.fragments_dialog import FragmentsDialog
+        dlg = FragmentsDialog(self)
+        dlg.exec_()
+
+    def _auto_scan_active_proxies(self):
+        actives = detect_local_active_proxies()
+        if not actives:
+            QMessageBox.information(
+                self,
+                "代理探测结果",
+                "在常用端口 (1080, 7890, 7891, 10808, 10809, 3080) 未检测到任何已启动的本地代理服务！\n\n"
+                "请确认 Clash、v2rayN、sing-box 等代理客户端已在后台运行。"
+            )
+            return
+
+        proxies = config.get_proxies_list()
+        added_count = 0
+        new_active_pid = None
+        for a in actives:
+            exists = any(p.get("url") == a["url"] for p in proxies)
+            if not exists:
+                pid = config.add_proxy(a["name"], a["url"])
+                added_count += 1
+                if not new_active_pid:
+                    new_active_pid = pid
+            else:
+                for p in proxies:
+                    if p.get("url") == a["url"]:
+                        new_active_pid = p.get("id")
+                        break
+
+        if new_active_pid:
+            config.set("active_proxy_id", new_active_pid)
+            config.set("proxy_mode", "manual")
+            self.radio_manual.setChecked(True)
+
+        self._refresh_proxy_table()
+        self._update_proxy_ui_state()
+
+        active_names = "\n".join(f"• {a['name']}: {a['url']}" for a in actives)
+        QMessageBox.information(
+            self,
+            "探测成功",
+            f"成功探测到以下 {len(actives)} 个正在运行的本地代理客户端:\n\n{active_names}\n\n"
+            f"已自动帮您切换激活首选在线节点！"
+        )
+
     def _browse_ffmpeg(self):
         f, _ = QFileDialog.getOpenFileName(self, "选择 ffmpeg.exe", self.ff_edit.text() or ROOT_DIR, "ffmpeg.exe (ffmpeg.exe)")
         if f:
@@ -562,6 +636,7 @@ class SettingsDialog(QDialog):
 
         config.update({
             "save_dir": self.save_edit.text().strip(),
+            "temp_segments_dir": self.temp_edit.text().strip() or get_temp_segments_dir(),
             "ffmpeg_path": ff_val,
             "re_cli_path": re_val,
             "extension_dir": self.ext_edit.text().strip(),
