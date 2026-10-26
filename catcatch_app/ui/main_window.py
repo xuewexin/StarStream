@@ -16,7 +16,10 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QColor, QFont
 
-from catcatch_app.core.config import config, get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL
+from catcatch_app.core.config import (
+    config, get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL,
+    detect_local_active_proxies
+)
 from catcatch_app.core.task_manager import task_manager
 from catcatch_app.core.server import local_server
 from catcatch_app.core.ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
@@ -38,20 +41,14 @@ from catcatch_app.core.logger import get_logs_dir, get_master_error_log_path
 def parse_speed_to_bytes(spd_str):
     if not spd_str:
         return 0.0
-    m = re.search(r"([\d\.]+)\s*([KMGkmg]?B|[KMGkmg]?b)/s", str(spd_str))
+    m = re.search(r"([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:/s|ps)?", str(spd_str))
     if not m:
         return 0.0
     try:
         val = float(m.group(1))
         unit = m.group(2).upper()
-        if unit in ["GB/S", "GB"]:
-            return val * 1024 * 1024 * 1024
-        elif unit in ["MB/S", "MB"]:
-            return val * 1024 * 1024
-        elif unit in ["KB/S", "KB"]:
-            return val * 1024
-        elif "B" in unit:
-            return val
+        factors = {"": 1, "K": 1024, "M": 1024 * 1024, "G": 1024 * 1024 * 1024}
+        return val * factors.get(unit, 1)
     except Exception:
         pass
     return 0.0
@@ -60,7 +57,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.2.0")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.2.1")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self.setStyleSheet(DARK_THEME)
@@ -830,6 +827,40 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
+        # --- 针对选中任务的独立代理切换子菜单 ---
+        menu_proxy = menu.addMenu(get_icon("globe", "#38bdf8", 14), "切换下载代理节点")
+
+        act_direct = menu_proxy.addAction(get_icon("check", "#a1a1aa", 12), "直连 (不使用任何代理)")
+        act_direct.triggered.connect(lambda: self._set_proxy_for_selected(ids, "DIRECT"))
+
+        eff_p = config.get_effective_proxy()
+        eff_desc = f"跟随全局设置 ({eff_p if eff_p else '直连'})"
+        act_global = menu_proxy.addAction(get_icon("settings", "#a1a1aa", 12), eff_desc)
+        act_global.triggered.connect(lambda: self._set_proxy_for_selected(ids, "GLOBAL"))
+
+        menu_proxy.addSeparator()
+
+        proxies_list = config.get_proxies_list()
+        for p in proxies_list:
+            p_name = p.get("name", "代理")
+            p_url = p.get("url", "")
+            act_p = menu_proxy.addAction(get_icon("link", "#38bdf8", 12), f"{p_name} ({p_url})")
+            act_p.triggered.connect(lambda checked=False, u=p_url: self._set_proxy_for_selected(ids, u))
+
+        actives = detect_local_active_proxies()
+        if actives:
+            menu_proxy.addSeparator()
+            for act in actives:
+                if not any(p.get("url") == act["url"] for p in proxies_list):
+                    act_local = menu_proxy.addAction(get_icon("zap", "#22c55e", 12), f"在线: {act['name']} ({act['url']})")
+                    act_local.triggered.connect(lambda checked=False, u=act["url"]: self._set_proxy_for_selected(ids, u))
+
+        menu_proxy.addSeparator()
+        act_custom = menu_proxy.addAction(get_icon("edit", "#f59e0b", 12), "输入自定义代理地址...")
+        act_custom.triggered.connect(lambda: self._prompt_custom_proxy_for_selected(ids))
+
+        menu.addSeparator()
+
         act_open_f = menu.addAction(get_icon("video", "#d4d4d8", 14), "打开播放文件")
         act_open_f.triggered.connect(self._action_play_file)
 
@@ -911,6 +942,25 @@ class MainWindow(QMainWindow):
     def _action_pause_selected(self):
         for t_id in self._get_selected_task_ids():
             task_manager.pause_task(t_id)
+
+    def _set_proxy_for_selected(self, ids, proxy_str):
+        for t_id in ids:
+            task_manager.update_task_proxy(t_id, proxy_str, restart_if_active=True)
+        self.refresh_table()
+        proxy_desc = "直连" if proxy_str == "DIRECT" else ("跟随全局" if proxy_str == "GLOBAL" else proxy_str)
+        self.statusBar().showMessage(f"已为选中的 {len(ids)} 个任务更新代理为: {proxy_desc}", 3500)
+
+    def _prompt_custom_proxy_for_selected(self, ids):
+        if not ids:
+            return
+        from PyQt5.QtWidgets import QInputDialog
+        text, ok = QInputDialog.getText(
+            self, "自定义下载代理",
+            "请输入 HTTP / SOCKS5 代理地址 (例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:10808):",
+            text="http://127.0.0.1:1080"
+        )
+        if ok and text.strip():
+            self._set_proxy_for_selected(ids, text.strip())
 
     def _action_delete_selected(self):
         ids = self._get_selected_task_ids()

@@ -49,12 +49,20 @@ class StreamDownloadTask:
         self._is_cancelled = True
         if self.process:
             try:
-                self.process.terminate()
-                time.sleep(0.3)
-                if self.process.poll() is None:
-                    self.process.kill()
+                if os.name == 'nt':
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                else:
+                    self.process.terminate()
             except Exception:
-                pass
+                try:
+                    self.process.kill()
+                except Exception:
+                    pass
 
     def _run(self):
         # 优先使用 N_m3u8DL-RE
@@ -104,8 +112,15 @@ class StreamDownloadTask:
         self.output_file = os.path.join(save_dir, f"{save_name}.mp4")
 
         # 代理检测与自适应防断机制
-        proxy = self.task_data.get("proxy") or config.get_effective_proxy()
-        if proxy and proxy not in ["none", "direct"]:
+        task_p = (self.task_data.get("proxy") or "").strip()
+        if task_p.upper() in ["DIRECT", "NONE"]:
+            proxy = ""
+        elif task_p.upper() == "GLOBAL" or not task_p:
+            proxy = config.get_effective_proxy()
+        else:
+            proxy = task_p
+
+        if proxy and proxy.lower() not in ["none", "direct"]:
             is_alive, check_msg = is_proxy_alive(proxy)
             if not is_alive:
                 if self.on_log:
@@ -135,6 +150,9 @@ class StreamDownloadTask:
             cmd.extend(["--tmp-dir", task_tmp_dir])
             # 必须始终强制传递 --auto-select，彻底防止非控制台环境下因交互提示而崩溃
             cmd.append("--auto-select")
+            cmd.append("--no-ansi-color")
+            cmd.extend(["--download-retry-count", "3"])
+            cmd.extend(["--http-request-timeout", "15"])
 
             if not self.task_data.get("del_after_done", config.get("del_tmp_files", True)):
                 cmd.extend(["--del-after-done", "false"])
@@ -156,7 +174,7 @@ class StreamDownloadTask:
 
             if proxy:
                 cmd.extend(["--custom-proxy", proxy])
-            elif config.get("proxy_mode", "none") == "none":
+            elif config.get("proxy_mode", "none") == "none" or task_p.upper() in ["DIRECT", "NONE"]:
                 cmd.extend(["--use-system-proxy", "false"])
 
             base_url = self.task_data.get("baseUrl")
@@ -203,12 +221,14 @@ class StreamDownloadTask:
                 creationflags=creationflags
             )
 
-            # 正则匹配连续输出进度（适配 N_m3u8DL-RE 重定向无换行连续流与 V3 换行模式）
+            ansi_pattern = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+            
+            # 正则匹配连续输出进度（适配 N_m3u8DL-RE 与 V3 换行模式）
             # 兼容: 0/1636 0.00% -0.00Bps --:--:--
             # 兼容: 50/1636 3.05% 2.34MB/s 00:05:12
-            # 兼容: 1288/1288 100.00%1.95GB - 00:00:00
+            # 兼容: 1288/1288 100.00% 1.95GB - 00:00:00
             re_progress = re.compile(
-                r"(\d+)\s*/\s*(\d+)\s+([\d\.]+)%\s*([-\d\.]+\s*[a-zA-Z/]+)?(?:\s*-?\s*([0-9:]+|--:--:--))?",
+                r"(\d+)\s*/\s*(\d+)\s+([\d\.]+)%(?:\s+([-\d\.]+\s*(?:[KMGTPkmgtp]?[iI]?[bB](?:ps|/s)?)))?(?:\s+-?\s*((?:\d{1,2}:)?\d{1,2}:\d{2}|--:--:--))?",
                 re.I
             )
             pct_pattern = re.compile(r"(\d+(?:\.\d+)?)%")
@@ -226,24 +246,29 @@ class StreamDownloadTask:
                     return f"{m2.group(1)} {m2.group(2).upper()}/s"
                 return s
 
+            def parse_speed_to_bps(raw):
+                if not raw:
+                    return 0
+                s = raw.lstrip("-").strip()
+                m = re.match(r"^([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:ps|/s)?$", s, re.I)
+                if not m:
+                    return 0
+                val = float(m.group(1))
+                unit = m.group(2).upper()
+                factors = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
+                return int(val * factors.get(unit, 1))
+
             def clean_eta_str(raw):
                 if not raw or raw == "--:--:--":
                     return ""
                 s = raw.strip()
-                if s.isdigit():
-                    sec = int(s)
-                    return f"{sec//3600:02d}:{(sec%3600)//60:02d}:{sec%60:02d}"
-                return s
-
-            def parse_size_to_bytes(s):
-                if not s:
-                    return 0
-                m = re.match(r"^([\d\.]+)\s*([KMGTkmgt]?B)$", s.strip(), re.I)
-                if not m:
-                    return 0
-                val, unit = float(m.group(1)), m.group(2).upper()
-                factors = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4}
-                return int(val * factors.get(unit, 1))
+                if ":" in s:
+                    parts = s.split(":")
+                    if len(parts) == 2:
+                        return f"00:{int(parts[0]):02d}:{int(parts[1]):02d}"
+                    elif len(parts) == 3:
+                        return f"{int(parts[0]):02d}:{int(parts[1]):02d}:{int(parts[2]):02d}"
+                return ""
 
             buffer = ""
             recent_lines = []
@@ -256,6 +281,7 @@ class StreamDownloadTask:
             cur_parts = 0
             tot_parts = 0
             percent = 0.0
+            smooth_bps = 0.0
             speed_str = ""
             eta_str = ""
 
@@ -265,110 +291,130 @@ class StreamDownloadTask:
                 chunk = self.process.stdout.read(64)
                 if not chunk:
                     if buffer.strip() and self.on_log:
-                        self.on_log(buffer.strip())
-                        recent_lines.append(buffer.strip())
+                        tail_line = ansi_pattern.sub('', buffer).strip()
+                        if tail_line:
+                            self.on_log(tail_line)
+                            recent_lines.append(tail_line)
                     break
                 buffer += chunk
 
-                # 优先匹配 RE 连续流输出进度
-                matched_progress = False
-                matches = list(re_progress.finditer(buffer))
-                if matches:
-                    matched_progress = True
-                    last_m = matches[-1]
-                    cur_parts = int(last_m.group(1))
-                    tot_parts = int(last_m.group(2))
-                    percent = float(last_m.group(3))
-                    raw_sp = (last_m.group(4) or "").strip()
-                    eta_str = clean_eta_str(last_m.group(5) or "")
-
-                    # 解析速度或已下载大小
-                    if "/" in raw_sp or "ps" in raw_sp.lower():
-                        speed_str = clean_speed_str(raw_sp)
+                # 关键: 按 \r 和 \n 分割完整行，未收尾的片段留在 buffer 中，绝不发生中途截断
+                last_delim = max(buffer.rfind('\r'), buffer.rfind('\n'))
+                if last_delim == -1:
+                    if len(buffer) > 4096:
+                        lines_to_proc = [buffer]
+                        buffer = ""
                     else:
-                        sz_from_raw = parse_size_to_bytes(raw_sp)
-                        if sz_from_raw > 0:
-                            cur_bytes = sz_from_raw
+                        continue
+                else:
+                    complete_block = buffer[:last_delim + 1]
+                    buffer = buffer[last_delim + 1:]
+                    lines_to_proc = re.split(r'[\r\n]+', complete_block)
 
-                    # 定期采样分片临时目录的物理文件大小，获得高精度真实字节与实速
-                    now = time.time()
-                    dt = now - last_sample_time
-                    if dt >= 0.8:
-                        disk_sz = 0
-                        try:
-                            if os.path.exists(task_tmp_dir):
-                                disk_sz = sum(f.stat().st_size for f in os.scandir(task_tmp_dir) if f.is_file())
-                        except Exception:
-                            pass
+                for raw_line in lines_to_proc:
+                    line = ansi_pattern.sub('', raw_line).strip()
+                    if not line:
+                        continue
 
-                        if disk_sz > 0:
-                            cur_bytes = max(cur_bytes, disk_sz)
+                    # 优先检测是否为分片进度行
+                    m = re_progress.search(line)
+                    if m:
+                        cur_parts = int(m.group(1))
+                        tot_parts = int(m.group(2))
+                        percent = float(m.group(3))
+                        raw_sp = (m.group(4) or "").strip()
+                        raw_eta = (m.group(5) or "").strip()
 
-                        if last_disk_bytes > 0 and cur_bytes >= last_disk_bytes and dt > 0:
-                            calc_bps = (cur_bytes - last_disk_bytes) / dt
-                            if calc_bps > 1024 and (not speed_str or speed_str == "-0.00Bps"):
-                                speed_str = f"{format_size(calc_bps)}/s"
+                        # 解析下载器上报的瞬时速度
+                        re_bps = parse_speed_to_bps(raw_sp)
+                        if re_bps > 1024:
+                            if smooth_bps <= 0:
+                                smooth_bps = float(re_bps)
+                            else:
+                                smooth_bps = 0.5 * re_bps + 0.5 * smooth_bps
 
-                        last_disk_bytes = cur_bytes
-                        last_sample_time = now
+                        # 采样物理分片缓存目录，获取真实落盘字节并计算精准平滑实测网速
+                        now = time.time()
+                        dt = now - last_sample_time
+                        if dt >= 0.8:
+                            disk_sz = 0
+                            try:
+                                if os.path.exists(task_tmp_dir):
+                                    with os.scandir(task_tmp_dir) as entries:
+                                        disk_sz = sum(e.stat().st_size for e in entries if e.is_file())
+                            except Exception:
+                                pass
 
-                    # 估算总大小
-                    if cur_bytes > 0:
-                        if tot_parts > 0 and cur_parts > 0:
-                            total_est_bytes = int(cur_bytes * tot_parts / cur_parts)
-                        elif percent > 0:
-                            total_est_bytes = int(cur_bytes / (percent / 100.0))
+                            if disk_sz > 0:
+                                cur_bytes = max(cur_bytes, disk_sz)
 
-                    if self.on_progress:
-                        self.on_progress(percent, speed_str, eta_str, cur_bytes, total_est_bytes, cur_parts, tot_parts)
+                            if last_disk_bytes > 0 and cur_bytes >= last_disk_bytes and dt > 0:
+                                disk_bps = (cur_bytes - last_disk_bytes) / dt
+                                if disk_bps > 1024:
+                                    if smooth_bps <= 0:
+                                        smooth_bps = disk_bps
+                                    else:
+                                        smooth_bps = 0.6 * disk_bps + 0.4 * smooth_bps
 
-                    # 定时同步进度日志到日志面板（每隔 2.5 秒或进度前进），防止用户误以为卡死
-                    if now - last_log_time >= 2.5 or (percent - last_logged_pct >= 5.0 and percent > 0):
-                        last_log_time = now
-                        last_logged_pct = percent
-                        sp_disp = f" | 速度: {speed_str}" if speed_str else ""
-                        eta_disp = f" | 剩余: {eta_str}" if eta_str else ""
-                        sz_disp = f" | 已下: {format_size(cur_bytes)}" if cur_bytes > 0 else ""
-                        p_line = f"[下载中] 已完成分片: {cur_parts}/{tot_parts} ({percent:.1f}%){sz_disp}{sp_disp}{eta_disp}"
-                        recent_lines.append(p_line)
+                            last_disk_bytes = cur_bytes
+                            last_sample_time = now
+
+                        # 格式化最终展示的速度
+                        if smooth_bps > 1024:
+                            speed_str = f"{format_size(smooth_bps)}/s"
+                        elif raw_sp:
+                            speed_str = clean_speed_str(raw_sp)
+                        else:
+                            speed_str = "0.00 B/s"
+
+                        # 估算总大小
+                        if cur_bytes > 0:
+                            if tot_parts > 0 and cur_parts > 0:
+                                total_est_bytes = int((cur_bytes / cur_parts) * tot_parts)
+                            elif percent > 0:
+                                total_est_bytes = int(cur_bytes / (percent / 100.0))
+
+                        # 动态平滑计算剩余时间，避免原生下载器单片波动导致的忽长忽短
+                        if smooth_bps > 1024 and total_est_bytes > cur_bytes:
+                            rem_bytes = total_est_bytes - cur_bytes
+                            rem_sec = int(rem_bytes / smooth_bps)
+                            if 0 <= rem_sec < 86400 * 7:
+                                eta_str = f"{rem_sec // 3600:02d}:{(rem_sec % 3600) // 60:02d}:{rem_sec % 60:02d}"
+                            else:
+                                eta_str = clean_eta_str(raw_eta)
+                        else:
+                            eta_str = clean_eta_str(raw_eta)
+
+                        if self.on_progress:
+                            self.on_progress(percent, speed_str, eta_str, cur_bytes, total_est_bytes, cur_parts, tot_parts)
+
+                        # 定时同步进度日志到日志面板（每隔 2.5 秒或进度前进），防止用户误以为卡死
+                        if now - last_log_time >= 2.5 or (percent - last_logged_pct >= 5.0 and percent > 0):
+                            last_log_time = now
+                            last_logged_pct = percent
+                            sp_disp = f" | 速度: {speed_str}" if speed_str else ""
+                            eta_disp = f" | 剩余: {eta_str}" if eta_str else ""
+                            sz_disp = f" | 已下: {format_size(cur_bytes)}" if cur_bytes > 0 else ""
+                            p_line = f"[下载中] 已完成分片: {cur_parts}/{tot_parts} ({percent:.1f}%){sz_disp}{sp_disp}{eta_disp}"
+                            recent_lines.append(p_line)
+                            if len(recent_lines) > 100:
+                                recent_lines.pop(0)
+                            if self.on_log:
+                                self.on_log(p_line)
+                    else:
+                        # 其它常规输出行（如初始化探测、流选择、转码、提示等）
+                        recent_lines.append(line)
                         if len(recent_lines) > 100:
                             recent_lines.pop(0)
                         if self.on_log:
-                            self.on_log(p_line)
+                            self.on_log(line)
 
-                    # 截断已处理的数据
-                    buffer = buffer[last_m.end():]
-
-                # 处理常规换行日志（启动探测、流选择等信息）
-                while '\r' in buffer or '\n' in buffer:
-                    idx_r = buffer.find('\r')
-                    idx_n = buffer.find('\n')
-                    if idx_r != -1 and (idx_n == -1 or idx_r < idx_n):
-                        line = buffer[:idx_r]
-                        buffer = buffer[idx_r + 1:]
-                    else:
-                        line = buffer[:idx_n]
-                        buffer = buffer[idx_n + 1:]
-
-                    line = line.strip()
-                    if not line:
-                        continue
-                    recent_lines.append(line)
-                    if len(recent_lines) > 100:
-                        recent_lines.pop(0)
-                    if self.on_log:
-                        self.on_log(line)
-
-                    if not matched_progress:
                         pct_match = pct_pattern.search(line)
                         spd_match = spd_pattern.search(line)
                         if (pct_match or spd_match) and self.on_progress:
                             pct_val = float(pct_match.group(1)) if pct_match else 0.0
                             spd_val = clean_speed_str(spd_match.group(1)) if spd_match else ""
                             self.on_progress(pct_val, spd_val, "", cur_bytes, total_est_bytes, cur_parts, tot_parts)
-
-                if len(buffer) > 2048:
-                    buffer = buffer[-512:]
 
             self.process.stdout.close()
             ret = self.process.wait()

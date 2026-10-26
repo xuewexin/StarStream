@@ -99,7 +99,14 @@ class FileDownloadTask:
         if self.on_log:
             self.on_log(f"正在探测远程资源信息: {url}")
 
-        proxy = self.task_data.get("proxy") or config.get_effective_proxy()
+        task_p = (self.task_data.get("proxy") or "").strip()
+        if task_p.upper() in ["DIRECT", "NONE"]:
+            proxy = None
+        elif task_p.upper() == "GLOBAL" or not task_p:
+            proxy = config.get_effective_proxy() or None
+        else:
+            proxy = task_p
+
         if proxy and proxy not in ["none", "direct"]:
             is_alive, check_msg = is_proxy_alive(proxy)
             if not is_alive:

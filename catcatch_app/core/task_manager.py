@@ -9,7 +9,10 @@ import uuid
 import threading
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from .config import config, APP_DIR, TASKS_FILE, build_save_name, format_resolution, format_duration
+from .config import (
+    config, APP_DIR, TASKS_FILE, build_save_name,
+    clean_filename, format_resolution, format_duration
+)
 from .download_stream import StreamDownloadTask
 from .download_file import FileDownloadTask, format_size
 from .ffmpeg_engine import probe_media_info
@@ -31,7 +34,7 @@ class TaskManager(QObject):
         super().__init__()
         self._tasks = []
         self._active_workers = {}  # task_id -> task_instance
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.load_tasks()
 
     def load_tasks(self):
@@ -51,8 +54,7 @@ class TaskManager(QObject):
 
     def save_tasks(self):
         try:
-            with open(TASKS_DB_FILE, "w", encoding="utf-8") as f:
-                # 过滤只保留前 200 条
+            with self._lock:
                 saved_list = []
                 for t in self._tasks[:200]:
                     copy_t = dict(t)
@@ -62,6 +64,8 @@ class TaskManager(QObject):
                     else:
                         copy_t.pop("logs", None)
                     saved_list.append(copy_t)
+
+            with open(TASKS_DB_FILE, "w", encoding="utf-8") as f:
                 json.dump(saved_list, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"[TaskManager] 保存历史任务失败: {e}")
@@ -91,6 +95,11 @@ class TaskManager(QObject):
         save_name = task_info.get("save_name")
         if not save_name:
             save_name = build_save_name(raw_title, res_formatted, dur_formatted)
+        save_name = clean_filename(save_name)
+        if len(save_name) > 100:
+            save_name = save_name[:100].strip()
+        if not save_name:
+            save_name = "video"
 
         blob_err = "blob: 为浏览器临时内存对象，非网络地址。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！"
         task = {
@@ -160,21 +169,50 @@ class TaskManager(QObject):
         task = self.get_task(task_id)
         if not task:
             return
-        if task["status"] in ["downloading", "waiting"]:
+        if task.get("status") in ["downloading", "waiting"]:
             return
+
+        # 彻底终结并移除旧残留 worker，防止多进程文件竞争与挂死
+        old_worker = self._active_workers.pop(task_id, None)
+        if old_worker:
+            try:
+                old_worker.cancel()
+            except Exception:
+                pass
+
         task["status"] = "waiting"
         task["error_msg"] = ""
+        task["speed"] = ""
+        task["eta"] = ""
         self.task_status_changed.emit(task_id, "waiting")
         self._schedule_next()
+
+    def update_task_proxy(self, task_id, new_proxy, restart_if_active=False):
+        """为指定任务动态切换代理配置，支持自动重新下载"""
+        task = self.get_task(task_id)
+        if not task:
+            return False
+        
+        task["proxy"] = new_proxy.strip()
+        self.save_tasks()
+        self.task_updated.emit(task_id, task)
+
+        if restart_if_active or task.get("status") in ["error", "paused", "waiting"]:
+            if task.get("status") == "downloading":
+                self.pause_task(task_id)
+            self.start_task(task_id)
+        return True
 
     def pause_task(self, task_id):
         task = self.get_task(task_id)
         if not task:
             return
-        worker = self._active_workers.get(task_id)
+        worker = self._active_workers.pop(task_id, None)
         if worker:
-            worker.cancel()
-            self._active_workers.pop(task_id, None)
+            try:
+                worker.cancel()
+            except Exception:
+                pass
 
         task["status"] = "paused"
         task["speed"] = ""
@@ -205,21 +243,32 @@ class TaskManager(QObject):
 
     def _schedule_next(self):
         max_concurrent = int(config.get("max_concurrent_tasks", 3))
+        to_start = []
         with self._lock:
             active_count = len(self._active_workers)
-            if active_count >= max_concurrent:
-                return
+            if active_count < max_concurrent:
+                # 寻找 waiting 状态任务
+                for t in self._tasks:
+                    if t["status"] == "waiting" and t["id"] not in self._active_workers:
+                        to_start.append(t)
+                        active_count += 1
+                        if active_count >= max_concurrent:
+                            break
 
-            # 寻找 waiting 状态任务
-            for t in self._tasks:
-                if t["status"] == "waiting" and t["id"] not in self._active_workers:
-                    self._start_worker(t)
-                    active_count += 1
-                    if active_count >= max_concurrent:
-                        break
+        # 关键: 移至锁外部触发任务启动与 Qt 状态更新，彻底消除重入死锁
+        for t in to_start:
+            self._start_worker(t)
 
     def _start_worker(self, task):
         task_id = task["id"]
+        # 确保清理旧 worker
+        old_w = self._active_workers.pop(task_id, None)
+        if old_w:
+            try:
+                old_w.cancel()
+            except Exception:
+                pass
+
         task["status"] = "downloading"
         self.task_status_changed.emit(task_id, "downloading")
 
