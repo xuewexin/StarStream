@@ -223,16 +223,20 @@ class StreamDownloadTask:
 
             ansi_pattern = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
             
-            # 正则匹配连续输出进度（适配 N_m3u8DL-RE 与 V3 换行模式）
-            # 兼容: 0/1636 0.00% -0.00Bps --:--:--
-            # 兼容: 50/1636 3.05% 2.34MB/s 00:05:12
-            # 兼容: 1288/1288 100.00% 1.95GB - 00:00:00
-            re_progress = re.compile(
-                r"(\d+)\s*/\s*(\d+)\s+([\d\.]+)%(?:\s+([-\d\.]+\s*(?:[KMGTPkmgtp]?[iI]?[bB](?:ps|/s)?)))?(?:\s+-?\s*((?:\d{1,2}:)?\d{1,2}:\d{2}|--:--:--))?",
-                re.I
-            )
+            # 头部: 匹配已完成分片数/总分片数与进度百分比
+            re_head = re.compile(r"(\d+)\s*/\s*(\d+)\s+([\d\.]+)%", re.I)
+
+            # 实时下载速度: 必须包含 /s 或 ps 速率单位，绝不能将纯文件大小 (如 1.60GB) 误识别为速度
+            re_spd = re.compile(r"([-\d\.]+\s*(?:[KMGTPkmgtp]?[iI]?[bB](?:/s|ps)|kbps|mbps|gbps|bps))", re.I)
+
+            # 已下载文件大小: 匹配 1.60GB, 1.95GB, 500MB 等纯大小格式，且不带 /s 或 ps
+            re_sz = re.compile(r"\b(\d+(?:\.\d+)?\s*(?:[KMGTPkmgtp]?[iI]?B))\b(?!\s*(?:/s|ps))", re.I)
+
+            # 剩余时间: 必须为合法的 HH:MM:SS 或 MM:SS 时间格式
+            re_eta = re.compile(r"((?:\d{1,2}:)?\d{1,2}:\d{2}|--:--:--)")
+
             pct_pattern = re.compile(r"(\d+(?:\.\d+)?)%")
-            spd_pattern = re.compile(r"([\d\.]+\s*(?:KB|MB|GB|B|kbps|mbps|gbps|Bps|KBps|MBps|GBps)/s?)", re.I)
+            spd_pattern = re.compile(r"([\d\.]+\s*(?:[KMGTPkmgtp]?[iI]?[bB](?:/s|ps)|kbps|mbps|gbps|bps))", re.I)
 
             def clean_speed_str(raw):
                 if not raw:
@@ -250,12 +254,27 @@ class StreamDownloadTask:
                 if not raw:
                     return 0
                 s = raw.lstrip("-").strip()
-                m = re.match(r"^([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:ps|/s)?$", s, re.I)
+                # 速度必须强制具有时间分母 (/s 或 ps)
+                m = re.match(r"^([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:/s|ps)$", s, re.I)
                 if not m:
                     return 0
                 val = float(m.group(1))
                 unit = m.group(2).upper()
                 factors = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
+                return int(val * factors.get(unit, 1))
+
+            def parse_size_to_bytes(s):
+                if not s:
+                    return 0
+                m = re.match(r"^([\d\.]+)\s*([KMGTkmgt]?i?B)$", s.strip(), re.I)
+                if not m:
+                    return 0
+                val = float(m.group(1))
+                unit = m.group(2).upper()
+                factors = {
+                    "B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3, "TB": 1024**4,
+                    "KIB": 1024, "MIB": 1024**2, "GIB": 1024**3
+                }
                 return int(val * factors.get(unit, 1))
 
             def clean_eta_str(raw):
@@ -317,15 +336,28 @@ class StreamDownloadTask:
                         continue
 
                     # 优先检测是否为分片进度行
-                    m = re_progress.search(line)
-                    if m:
-                        cur_parts = int(m.group(1))
-                        tot_parts = int(m.group(2))
-                        percent = float(m.group(3))
-                        raw_sp = (m.group(4) or "").strip()
-                        raw_eta = (m.group(5) or "").strip()
+                    m_head = re_head.search(line)
+                    if m_head:
+                        cur_parts = int(m_head.group(1))
+                        tot_parts = int(m_head.group(2))
+                        percent = float(m_head.group(3))
+                        tail = line[m_head.end():]
 
-                        # 解析下载器上报的瞬时速度
+                        m_sz = re_sz.search(tail)
+                        m_spd = re_spd.search(tail)
+                        m_eta = re_eta.search(tail)
+
+                        raw_sz = (m_sz.group(1) or "").strip() if m_sz else ""
+                        raw_sp = (m_spd.group(1) or "").strip() if m_spd else ""
+                        raw_eta = (m_eta.group(1) or "").strip() if m_eta else ""
+
+                        # 1. 解析已下载文件大小 (如 1.60GB)，绝不误判为速度
+                        if raw_sz:
+                            sz_val = parse_size_to_bytes(raw_sz)
+                            if sz_val > 0:
+                                cur_bytes = max(cur_bytes, sz_val)
+
+                        # 2. 解析下载器上报的真实瞬时速度 (必须带 /s 或 ps)
                         re_bps = parse_speed_to_bps(raw_sp)
                         if re_bps > 1024:
                             if smooth_bps <= 0:
@@ -333,7 +365,7 @@ class StreamDownloadTask:
                             else:
                                 smooth_bps = 0.5 * re_bps + 0.5 * smooth_bps
 
-                        # 采样物理分片缓存目录，获取真实落盘字节并计算精准平滑实测网速
+                        # 3. 采样物理分片缓存目录，获取真实落盘字节并计算精准平滑实测网速
                         now = time.time()
                         dt = now - last_sample_time
                         if dt >= 0.8:
@@ -359,7 +391,7 @@ class StreamDownloadTask:
                             last_disk_bytes = cur_bytes
                             last_sample_time = now
 
-                        # 格式化最终展示的速度
+                        # 4. 格式化最终展示的速度
                         if smooth_bps > 1024:
                             speed_str = f"{format_size(smooth_bps)}/s"
                         elif raw_sp:
@@ -367,14 +399,14 @@ class StreamDownloadTask:
                         else:
                             speed_str = "0.00 B/s"
 
-                        # 估算总大小
+                        # 5. 估算总大小
                         if cur_bytes > 0:
                             if tot_parts > 0 and cur_parts > 0:
                                 total_est_bytes = int((cur_bytes / cur_parts) * tot_parts)
                             elif percent > 0:
                                 total_est_bytes = int(cur_bytes / (percent / 100.0))
 
-                        # 动态平滑计算剩余时间，避免原生下载器单片波动导致的忽长忽短
+                        # 6. 动态平滑计算剩余时间，避免原生下载器单片波动导致的忽长忽短
                         if smooth_bps > 1024 and total_est_bytes > cur_bytes:
                             rem_bytes = total_est_bytes - cur_bytes
                             rem_sec = int(rem_bytes / smooth_bps)
