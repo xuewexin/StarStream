@@ -1,6 +1,7 @@
 """
 CatCatch Downloader - New Task Dialog (新建下载任务)
 采用矢量图标、无 Emoji 设计，支持为单个任务快速指定独立代理节点
+内置全网视频一键解析能力 (Bilibili, 抖音无水印, 快手, 小红书, 通用HTML5视频)
 """
 import os
 import re
@@ -9,11 +10,32 @@ from PyQt5.QtWidgets import (
     QPushButton, QComboBox, QFileDialog, QSpinBox, QGroupBox,
     QApplication, QMessageBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 
 from catcatch_app.core.config import config
 from catcatch_app.core.task_manager import task_manager
+from catcatch_app.core.video_parser import parse_video_url
 from catcatch_app.ui.icons import get_icon, get_app_icon
+
+
+class VideoParseWorker(QThread):
+    finished = pyqtSignal(dict)
+    failed = pyqtSignal(str)
+
+    def __init__(self, url, proxy=""):
+        super().__init__()
+        self.url = url
+        self.proxy = proxy
+
+    def run(self):
+        try:
+            res = parse_video_url(self.url, proxy=self.proxy)
+            if res.get("success"):
+                self.finished.emit(res)
+            else:
+                self.failed.emit(res.get("error") or "未能从该地址解析出有效视频")
+        except Exception as e:
+            self.failed.emit(str(e))
 
 
 class NewTaskDialog(QDialog):
@@ -21,9 +43,10 @@ class NewTaskDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("新建下载任务 - 星流下载器")
         self.setWindowIcon(get_app_icon())
-        self.setMinimumWidth(580)
+        self.setMinimumWidth(620)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
+        self._parse_worker = None
         self._init_ui(initial_url, initial_title)
         self._check_clipboard(initial_url)
 
@@ -31,14 +54,27 @@ class NewTaskDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
 
-        # 1. 链接输入
+        # 1. 链接输入与全网一键解析
         url_layout = QVBoxLayout()
-        url_label = QLabel("下载链接 (URL / M3U8 / MPD / 视音频直链):")
+        url_label = QLabel("下载链接 (URL / M3U8 / MPD / 视音频直链 / 网页视频分享文本):")
+        url_row = QHBoxLayout()
         self.url_edit = QLineEdit(initial_url)
-        self.url_edit.setPlaceholderText("https://...")
+        self.url_edit.setPlaceholderText("可粘贴视频直链、M3U8、或 B站 / 抖音 / 快手 / 小红书等网页分享链接...")
         self.url_edit.textChanged.connect(self._on_url_changed)
+
+        self.parse_btn = QPushButton("⚡ 全网一键解析")
+        self.parse_btn.setIcon(get_icon("zap", "#38bdf8", 14))
+        self.parse_btn.setToolTip("一键逆向解析目标网页，提取真实原画 MP4 直链或 M3U8 清单")
+        self.parse_btn.clicked.connect(self._trigger_parse)
+
+        url_row.addWidget(self.url_edit, 1)
+        url_row.addWidget(self.parse_btn)
         url_layout.addWidget(url_label)
-        url_layout.addWidget(self.url_edit)
+        url_layout.addLayout(url_row)
+
+        self.parse_status_lbl = QLabel("")
+        self.parse_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; margin-top: 2px;")
+        url_layout.addWidget(self.parse_status_lbl)
         layout.addLayout(url_layout)
 
         # 2. 文件名与格式类型
@@ -150,8 +186,55 @@ class NewTaskDialog(QDialog):
             return
         clipboard = QApplication.clipboard()
         text = clipboard.text().strip()
-        if text.startswith("http://") or text.startswith("https://"):
+        if text.startswith("http://") or text.startswith("https://") or "v.douyin.com" in text or "b23.tv" in text:
             self.url_edit.setText(text)
+            if any(k in text for k in ["bilibili.com", "b23.tv", "douyin.com", "kuaishou.com", "xiaohongshu.com"]):
+                self._trigger_parse()
+
+    def _trigger_parse(self):
+        raw_text = self.url_edit.text().strip()
+        if not raw_text:
+            self.parse_status_lbl.setText("请输入要解析的视频链接或分享文本")
+            return
+
+        proxy_val = self.proxy_combo.currentData()
+        eff_p = config.get_effective_proxy() if proxy_val == "__DEFAULT__" else (str(proxy_val) if proxy_val not in ["__NONE__", "__SYSTEM__"] else "")
+
+        self.parse_btn.setEnabled(False)
+        self.parse_status_lbl.setText("⚡ 正在从目标站点深度逆向提取视频流直链，请稍候...")
+        self.parse_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
+
+        self._parse_worker = VideoParseWorker(raw_text, proxy=eff_p)
+        self._parse_worker.finished.connect(self._on_parse_success)
+        self._parse_worker.failed.connect(self._on_parse_failed)
+        self._parse_worker.start()
+
+    def _on_parse_success(self, res):
+        self.parse_btn.setEnabled(True)
+        self.url_edit.setText(res.get("url", ""))
+        
+        title = res.get("title", "")
+        if title:
+            self.name_edit.setText(title)
+
+        mtype = res.get("media_type", "video")
+        if mtype == "m3u8":
+            self.type_combo.setCurrentIndex(1)
+        elif mtype == "video":
+            self.type_combo.setCurrentIndex(2)
+
+        hdrs = res.get("headers", {})
+        if "Referer" in hdrs:
+            self.ref_edit.setText(hdrs["Referer"])
+
+        res_desc = res.get("resolution") or "自适应"
+        self.parse_status_lbl.setText(f"✓ 解析成功！已提取 [{res_desc}] 视频直链: {title[:36]}")
+        self.parse_status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
+
+    def _on_parse_failed(self, err_msg):
+        self.parse_btn.setEnabled(True)
+        self.parse_status_lbl.setText(f"解析提示: {err_msg} (已保留原链接，可直接尝试下载)")
+        self.parse_status_lbl.setStyleSheet("color: #f59e0b; font-size: 11px;")
 
     def _on_url_changed(self, text):
         text = text.strip()
@@ -176,54 +259,57 @@ class NewTaskDialog(QDialog):
             self.path_edit.setText(selected)
 
     def _start_download(self):
-        url = self.url_edit.text().strip()
-        if not url:
-            QMessageBox.warning(self, "提示", "请输入有效的下载链接！")
-            return
+        try:
+            url = self.url_edit.text().strip()
+            if not url:
+                QMessageBox.warning(self, "提示", "请输入有效的下载链接！")
+                return
 
-        name = self.name_edit.text().strip() or "video"
-        save_dir = self.path_edit.text().strip() or config.get("save_dir")
-        
-        type_idx = self.type_combo.currentIndex()
-        media_type = ""
-        if type_idx == 1:
-            media_type = "m3u8"
-        elif type_idx == 2:
-            media_type = "video"
-        elif type_idx == 3:
-            media_type = "audio"
-        elif type_idx == 4:
-            media_type = "file"
+            name = self.name_edit.text().strip() or "video"
+            save_dir = self.path_edit.text().strip() or config.get("save_dir")
+            
+            type_idx = self.type_combo.currentIndex()
+            media_type = ""
+            if type_idx == 1:
+                media_type = "m3u8"
+            elif type_idx == 2:
+                media_type = "video"
+            elif type_idx == 3:
+                media_type = "audio"
+            elif type_idx == 4:
+                media_type = "file"
 
-        headers = {}
-        if self.ref_edit.text().strip():
-            headers["Referer"] = self.ref_edit.text().strip()
-        if self.cookie_edit.text().strip():
-            headers["Cookie"] = self.cookie_edit.text().strip()
+            headers = {}
+            if self.ref_edit.text().strip():
+                headers["Referer"] = self.ref_edit.text().strip()
+            if self.cookie_edit.text().strip():
+                headers["Cookie"] = self.cookie_edit.text().strip()
 
-        # 解析代理选择
-        proxy_val = self.proxy_combo.currentData()
-        final_proxy = ""
-        if proxy_val == "__DEFAULT__":
-            final_proxy = config.get_effective_proxy()
-        elif proxy_val == "__NONE__":
+            # 解析代理选择
+            proxy_val = self.proxy_combo.currentData()
             final_proxy = ""
-        elif proxy_val == "__SYSTEM__":
-            from catcatch_app.core.config import detect_system_proxy
-            final_proxy = detect_system_proxy()
-        else:
-            final_proxy = str(proxy_val)
+            if proxy_val == "__DEFAULT__":
+                final_proxy = config.get_effective_proxy()
+            elif proxy_val == "__NONE__":
+                final_proxy = ""
+            elif proxy_val == "__SYSTEM__":
+                from catcatch_app.core.config import detect_system_proxy
+                final_proxy = detect_system_proxy()
+            else:
+                final_proxy = str(proxy_val)
 
-        task_info = {
-            "url": url,
-            "title": name,
-            "save_name": name,
-            "save_dir": save_dir,
-            "media_type": media_type,
-            "headers": headers,
-            "thread_count": self.thread_spin.value(),
-            "proxy": final_proxy
-        }
+            task_info = {
+                "url": url,
+                "title": name,
+                "save_name": name,
+                "save_dir": save_dir,
+                "media_type": media_type,
+                "headers": headers,
+                "thread_count": self.thread_spin.value(),
+                "proxy": final_proxy
+            }
 
-        task_manager.add_task(task_info, auto_start=True)
-        self.accept()
+            task_manager.add_task(task_info, auto_start=True)
+            self.accept()
+        except Exception as e:
+            QMessageBox.critical(self, "添加任务失败", f"创建下载任务时发生异常:\n{e}")

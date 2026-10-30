@@ -1,7 +1,8 @@
 """
-CatCatch Downloader - Embedded HTTP IPC Server
+CatCatch Downloader - Embedded HTTP IPC & Mobile WebUI Server
 提供本地 RESTful API 服务，与浏览器插件无缝双向互通
-默认监听: 127.0.0.1:18910
+支持手机局域网无线连接、扫码推流与远程任务控制
+默认监听: 0.0.0.0:18910
 """
 import json
 import threading
@@ -14,9 +15,173 @@ from .ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
 from .cache_cleaner import get_fragment_folders, clean_all_fragment_folders
 
 
+MOBILE_HTML = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>星流 (StarStream) - 手机无线推流工作台</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body { background: #090a0f; color: #f4f4f5; padding: 16px; min-height: 100vh; }
+.header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; border-bottom: 1px solid #27272a; margin-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo-icon { width: 34px; height: 34px; background: linear-gradient(135deg, #38bdf8, #818cf8); border-radius: 9px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff; font-size: 18px; box-shadow: 0 2px 8px rgba(56, 189, 248, 0.4); }
+.brand-name { font-size: 19px; font-weight: 700; background: linear-gradient(135deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.badge { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 6px #22c55e; }
+.card { background: #18181b; border: 1px solid #27272a; border-radius: 14px; padding: 18px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.card-title { font-size: 15px; font-weight: 600; color: #e4e4e7; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.input-group { margin-bottom: 12px; }
+.input-label { display: block; font-size: 12px; color: #a1a1aa; margin-bottom: 6px; }
+input[type="text"] { width: 100%; background: #090a0f; border: 1px solid #3f3f46; border-radius: 8px; padding: 12px 14px; color: #fff; font-size: 14px; outline: none; transition: border 0.2s; }
+input[type="text"]:focus { border-color: #38bdf8; }
+.btn { width: 100%; padding: 13px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn-primary { background: linear-gradient(135deg, #3875f6, #6366f1); color: #fff; box-shadow: 0 4px 12px rgba(56, 117, 246, 0.3); }
+.btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+.toast { display: none; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 10px; text-align: center; }
+.toast.success { display: block; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+.toast.error { display: block; background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+.task-item { background: #121316; border: 1px solid #27272a; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+.task-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+.task-title { font-size: 14px; font-weight: 600; color: #f4f4f5; max-width: 75%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.st-downloading { background: rgba(56, 117, 246, 0.2); color: #60a5fa; }
+.st-completed { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.st-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+.st-waiting { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+.st-paused { background: rgba(161, 161, 170, 0.2); color: #a1a1aa; }
+.progress-bar-bg { width: 100%; height: 6px; background: #27272a; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); border-radius: 3px; transition: width 0.3s; }
+.task-meta { display: flex; justify-content: space-between; font-size: 12px; color: #a1a1aa; }
+.empty-tip { text-align: center; color: #71717a; font-size: 13px; padding: 20px 0; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <div class="logo-icon">★</div>
+    <div class="brand-name">星流 StarStream</div>
+  </div>
+  <div class="badge"><div class="dot"></div>电脑在线</div>
+</div>
+
+<div class="card">
+  <div class="card-title">📱 手机无线推流到电脑下载</div>
+  <div class="input-group">
+    <label class="input-label">视频地址 (支持 B站、抖音、快手、小红书、M3U8直链):</label>
+    <input type="text" id="urlInput" placeholder="长按粘贴视频分享链接或网页地址...">
+  </div>
+  <div class="input-group">
+    <label class="input-label">保存名称 (选填，留空将自动联网解析标题):</label>
+    <input type="text" id="nameInput" placeholder="默认自动解析">
+  </div>
+  <button class="btn btn-primary" id="pushBtn" onclick="pushTask()">🚀 立即推送到电脑下载</button>
+  <div class="toast" id="toastMsg"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">🖥️ 电脑实时任务状态 (<span id="taskCount">0</span>)</div>
+  <div id="taskList">
+    <div class="empty-tip">正在同步电脑端任务...</div>
+  </div>
+</div>
+
+<script>
+async function pushTask() {
+  const url = document.getElementById('urlInput').value.trim();
+  const name = document.getElementById('nameInput').value.trim();
+  const btn = document.getElementById('pushBtn');
+  if (!url) {
+    showToast('请输入有效的视频链接！', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.innerText = '正在推送到电脑...';
+  try {
+    const resp = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url, title: name || 'video' })
+    });
+    const res = await resp.json();
+    if (res.success) {
+      showToast('✓ 已成功推送到电脑！正在自动开启解析与下载', 'success');
+      document.getElementById('urlInput').value = '';
+      document.getElementById('nameInput').value = '';
+      loadTasks();
+    } else {
+      showToast(res.error || '推送失败，请检查链接', 'error');
+    }
+  } catch (e) {
+    showToast('连接电脑失败: ' + e, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = '🚀 立即推送到电脑下载';
+  }
+}
+
+function showToast(text, type) {
+  const t = document.getElementById('toastMsg');
+  t.innerText = text;
+  t.className = 'toast ' + type;
+  setTimeout(() => { t.className = 'toast'; }, 5000);
+}
+
+async function loadTasks() {
+  try {
+    const resp = await fetch('/api/tasks');
+    const res = await resp.json();
+    if (res.success) {
+      const tasks = res.tasks || [];
+      document.getElementById('taskCount').innerText = tasks.length;
+      renderTasks(tasks);
+    }
+  } catch (e) {}
+}
+
+function renderTasks(tasks) {
+  const container = document.getElementById('taskList');
+  if (!tasks || tasks.length === 0) {
+    container.innerHTML = '<div class="empty-tip">暂无下载任务</div>';
+    return;
+  }
+  let html = '';
+  for (const t of tasks.slice(0, 20)) {
+    const prog = (t.progress || 0).toFixed(1);
+    const speed = t.speed || (t.status === 'downloading' ? '计算中...' : '');
+    const stClass = 'st-' + (t.status || 'waiting');
+    const stText = { downloading: '下载中', completed: '已完成', error: '失败', paused: '已暂停', waiting: '排队中' }[t.status] || t.status;
+    html += `
+      <div class="task-item">
+        <div class="task-header">
+          <div class="task-title" title="${t.title || 'video'}">${t.title || t.save_name || 'video'}</div>
+          <span class="status-tag ${stClass}">${stText}</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width: ${prog}%"></div>
+        </div>
+        <div class="task-meta">
+          <span>进度: ${prog}%</span>
+          <span>${speed ? '速度: ' + speed : ''}</span>
+        </div>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+loadTasks();
+setInterval(loadTasks, 2000);
+</script>
+</body>
+</html>
+"""
+
+
 class CatCatchHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # 屏蔽默认标准输出刷屏，避免干扰
+        # 屏蔽默认标准输出刷屏，避免干扰控制台
         return
 
     def _send_cors_headers(self):
@@ -31,6 +196,13 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
+    def _send_html_response(self, code, html_text):
+        self.send_response(code)
+        self._send_cors_headers()
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(html_text.encode("utf-8"))
+
     def do_OPTIONS(self):
         self.send_response(200)
         self._send_cors_headers()
@@ -39,25 +211,17 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
+        accept = self.headers.get("Accept", "")
 
-        if path == "/api/status" or path == "/":
-            ff_ok, ff_msg = is_ffmpeg_available()
-            tasks = task_manager.get_all_tasks()
-            active_count = sum(1 for t in tasks if t["status"] == "downloading")
-            self._send_json_response(200, {
-                "status": "ok",
-                "app": "StarStream Downloader",
-                "version": "2.3.0",
-                "ffmpeg_available": ff_ok,
-                "ffmpeg_info": ff_msg,
-                "ffmpeg_path": get_ffmpeg_path(),
-                "save_dir": config.get("save_dir"),
-                "temp_segments_dir": get_temp_segments_dir(),
-                "effective_proxy": config.get_effective_proxy(),
-                "detected_proxies": detect_local_active_proxies(),
-                "total_tasks": len(tasks),
-                "active_tasks": active_count
-            })
+        if path in ["/", "/web"]:
+            if "application/json" in accept and "text/html" not in accept:
+                self._send_status_json()
+            else:
+                self._send_html_response(200, MOBILE_HTML)
+            return
+
+        elif path == "/api/status":
+            self._send_status_json()
             return
 
         elif path == "/api/fragments":
@@ -79,6 +243,25 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             return
 
         self._send_json_response(404, {"error": "Not Found"})
+
+    def _send_status_json(self):
+        ff_ok, ff_msg = is_ffmpeg_available()
+        tasks = task_manager.get_all_tasks()
+        active_count = sum(1 for t in tasks if t["status"] == "downloading")
+        self._send_json_response(200, {
+            "status": "ok",
+            "app": "StarStream Downloader",
+            "version": "3.0.0",
+            "ffmpeg_available": ff_ok,
+            "ffmpeg_info": ff_msg,
+            "ffmpeg_path": get_ffmpeg_path(),
+            "save_dir": config.get("save_dir"),
+            "temp_segments_dir": get_temp_segments_dir(),
+            "effective_proxy": config.get_effective_proxy(),
+            "detected_proxies": detect_local_active_proxies(),
+            "total_tasks": len(tasks),
+            "active_tasks": active_count
+        })
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -172,6 +355,22 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         if "cookie" in item and "Cookie" not in headers:
             headers["Cookie"] = item["cookie"]
 
+        # 智能全网逆向解析: 若为主流短视频平台分享链接，自动在后台提取无水印直链
+        if any(d in url.lower() for d in ["douyin.com", "bilibili.com", "b23.tv", "kuaishou.com", "xiaohongshu.com"]):
+            try:
+                from .video_parser import parse_video_url
+                p_res = parse_video_url(url)
+                if p_res.get("success"):
+                    url = p_res["url"]
+                    if p_res.get("title") and (not title or title == "video"):
+                        title = p_res["title"]
+                    if p_res.get("media_type"):
+                        media_type = p_res["media_type"]
+                    if p_res.get("headers"):
+                        headers.update(p_res["headers"])
+            except Exception as e:
+                print(f"[Server] 视频解析引擎跳过: {e}")
+
         # 优先级规则：
         # 1. 保存路径：优先使用插件显式传递的 save_dir/saveDir，若未设置则使用 exe 客户端当前配置 config.get("save_dir")
         custom_save_dir = (item.get("saveDir") or item.get("save_dir") or "").strip()
@@ -203,14 +402,15 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             "duration": item.get("duration", 0),
             "media_type": media_type,
             "save_dir": save_dir,
-            "save_name": item.get("saveName", "") or item.get("save_name", ""),
+            "save_name": title,
             "headers": headers,
-            "format": item.get("format", "mp4"),
+            "thread_count": thread_count,
             "proxy": final_proxy,
-            "thread_count": thread_count
+            "format": item.get("format", "mp4")
         }
-        auto_start = config.get("auto_start_tasks", True)
-        return task_manager.add_task(task_info, auto_start=auto_start)
+
+        task_id = task_manager.add_task(task_info, auto_start=True)
+        return task_id
 
 
 class ReusableHTTPServer(HTTPServer):
@@ -225,7 +425,8 @@ class LocalServer:
         self.is_running = False
 
     def start(self):
-        host = config.get("server_host", "127.0.0.1")
+        # 默认监听 0.0.0.0，使手机在同一 WiFi 局域网下可直接扫码推流访问
+        host = config.get("server_host", "0.0.0.0")
         port = int(config.get("server_port", 18910))
 
         try:
@@ -236,8 +437,17 @@ class LocalServer:
             self._thread.start()
             return True
         except Exception as e:
-            self.is_running = False
-            return False
+            # 兜底回退尝试 127.0.0.1
+            try:
+                self.server = ReusableHTTPServer(("127.0.0.1", port), CatCatchHTTPHandler)
+                self.server.timeout = 0.5
+                self.is_running = True
+                self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+                self._thread.start()
+                return True
+            except Exception:
+                self.is_running = False
+                return False
 
     def stop(self):
         if self.server:
@@ -246,8 +456,8 @@ class LocalServer:
                 self.server.server_close()
             except Exception:
                 pass
+            self.server = None
             self.is_running = False
 
 
-# 单例服务端
 local_server = LocalServer()

@@ -143,6 +143,15 @@ class StreamDownloadTask:
         task_tmp_dir = os.path.join(temp_segments_dir, f".tmp_{task_id}")
         os.makedirs(task_tmp_dir, exist_ok=True)
 
+        # 清理此前失败留下的 0 字节或破损同名输出文件，防止后台 FFmpeg 陷入等待覆盖提示卡死
+        for tc in [os.path.join(save_dir, f"{save_name}.mp4"), os.path.join(save_dir, f"{save_name}.mkv"), os.path.join(save_dir, f"{save_name}.ts")]:
+            if os.path.exists(tc):
+                try:
+                    if os.path.getsize(tc) < 1024 * 1024:
+                        os.remove(tc)
+                except Exception:
+                    pass
+
         if is_re:
             cmd.extend(["--save-dir", save_dir])
             cmd.extend(["--save-name", save_name])
@@ -226,11 +235,11 @@ class StreamDownloadTask:
             # 头部: 匹配已完成分片数/总分片数与进度百分比
             re_head = re.compile(r"(\d+)\s*/\s*(\d+)\s+([\d\.]+)%", re.I)
 
-            # 实时下载速度: 必须包含 /s 或 ps 速率单位，绝不能将纯文件大小 (如 1.60GB) 误识别为速度
+            # 实时下载速度: 必须包含明确的速率单位 (/s, ps, bps)，绝不能将纯文件大小误识别为速度
             re_spd = re.compile(r"([-\d\.]+\s*(?:[KMGTPkmgtp]?[iI]?[bB](?:/s|ps)|kbps|mbps|gbps|bps))", re.I)
 
-            # 已下载文件大小: 匹配 1.60GB, 1.95GB, 500MB 等纯大小格式，且不带 /s 或 ps
-            re_sz = re.compile(r"\b(\d+(?:\.\d+)?\s*(?:[KMGTPkmgtp]?[iI]?B))\b(?!\s*(?:/s|ps))", re.I)
+            # 已下载文件大小: 匹配 1.60GB, 1.95GB, 500MB 等纯大小格式，且不带 /s 或 ps 或 bps
+            re_sz = re.compile(r"\b(\d+(?:\.\d+)?\s*(?:[KMGTPkmgtp]?[iI]?B))\b(?!\s*(?:/s|ps|bps))", re.I)
 
             # 剩余时间: 必须为合法的 HH:MM:SS 或 MM:SS 时间格式
             re_eta = re.compile(r"((?:\d{1,2}:)?\d{1,2}:\d{2}|--:--:--)")
@@ -242,22 +251,56 @@ class StreamDownloadTask:
                 if not raw:
                     return ""
                 s = raw.lstrip("-").strip()
+                # 严密检查: 必须含有 /s, ps 或 bps，否则绝非下载速率！
+                if not re.search(r'(?:/s|ps|bps)', s, re.I):
+                    return ""
                 m = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)ps$", s, re.I)
                 if m:
                     return f"{m.group(1)} {m.group(2).upper()}/s"
-                m2 = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)/?s?$", s, re.I)
+                m2 = re.match(r"^([\d\.]+)\s*([KMGkmg]?B)/s$", s, re.I)
                 if m2:
                     return f"{m2.group(1)} {m2.group(2).upper()}/s"
+                m3 = re.match(r"^([\d\.]+)\s*(kbps|mbps|gbps|bps)$", s, re.I)
+                if m3:
+                    val = float(m3.group(1))
+                    unit = m3.group(2).lower()
+                    if unit == "kbps":
+                        b_val = val / 8 * 1024
+                    elif unit == "mbps":
+                        b_val = val / 8 * 1024 * 1024
+                    elif unit == "gbps":
+                        b_val = val / 8 * 1024 * 1024 * 1024
+                    else:
+                        b_val = val / 8
+                    return f"{format_size(b_val)}/s"
                 return s
 
             def parse_speed_to_bps(raw):
                 if not raw:
                     return 0
                 s = raw.lstrip("-").strip()
+                if not re.search(r'(?:/s|ps|bps)', s, re.I):
+                    return 0
                 # 速度必须强制具有时间分母 (/s 或 ps)
                 m = re.match(r"^([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:/s|ps)$", s, re.I)
-                if not m:
-                    return 0
+                if m:
+                    val = float(m.group(1))
+                    unit = m.group(2).upper()
+                    factors = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
+                    return int(val * factors.get(unit, 1))
+                m2 = re.match(r"^([\d\.]+)\s*(kbps|mbps|gbps|bps)$", s, re.I)
+                if m2:
+                    val = float(m2.group(1))
+                    unit = m2.group(2).lower()
+                    if unit == "kbps":
+                        return int(val / 8 * 1024)
+                    elif unit == "mbps":
+                        return int(val / 8 * 1024 * 1024)
+                    elif unit == "gbps":
+                        return int(val / 8 * 1024 * 1024 * 1024)
+                    else:
+                        return int(val / 8)
+                return 0
                 val = float(m.group(1))
                 unit = m.group(2).upper()
                 factors = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
@@ -357,15 +400,15 @@ class StreamDownloadTask:
                             if sz_val > 0:
                                 cur_bytes = max(cur_bytes, sz_val)
 
-                        # 2. 解析下载器上报的真实瞬时速度 (必须带 /s 或 ps)
+                        # 2. 解析下载器上报的真实瞬时速度 (必须包含明确速率分母 /s, ps, bps)
                         re_bps = parse_speed_to_bps(raw_sp)
-                        if re_bps > 1024:
+                        if re_bps > 0:
                             if smooth_bps <= 0:
                                 smooth_bps = float(re_bps)
                             else:
-                                smooth_bps = 0.5 * re_bps + 0.5 * smooth_bps
+                                smooth_bps = 0.7 * re_bps + 0.3 * smooth_bps
 
-                        # 3. 采样物理分片缓存目录，获取真实落盘字节并计算精准平滑实测网速
+                        # 3. 采样物理分片缓存目录
                         now = time.time()
                         dt = now - last_sample_time
                         if dt >= 0.8:
@@ -380,15 +423,16 @@ class StreamDownloadTask:
                             if disk_sz > 0:
                                 cur_bytes = max(cur_bytes, disk_sz)
 
-                            if last_disk_bytes > 0 and cur_bytes >= last_disk_bytes and dt > 0:
-                                disk_bps = (cur_bytes - last_disk_bytes) / dt
+                            # 关键: 仅在下载器未上报有效瞬时速率时，才使用物理落盘差值计算速率作为兜底，且绝不与 raw_sz 混合计算！
+                            if re_bps <= 0 and last_disk_bytes > 0 and disk_sz >= last_disk_bytes and dt > 0:
+                                disk_bps = (disk_sz - last_disk_bytes) / dt
                                 if disk_bps > 1024:
                                     if smooth_bps <= 0:
                                         smooth_bps = disk_bps
                                     else:
                                         smooth_bps = 0.6 * disk_bps + 0.4 * smooth_bps
 
-                            last_disk_bytes = cur_bytes
+                            last_disk_bytes = disk_sz
                             last_sample_time = now
 
                         # 4. 格式化最终展示的速度

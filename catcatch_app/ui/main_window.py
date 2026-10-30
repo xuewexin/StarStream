@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QToolBar, QAction, QStatusBar, QLabel, QLineEdit, QMenu,
     QMessageBox, QHeaderView, QProgressBar, QSystemTrayIcon,
     QApplication, QPushButton, QDialog, QFileDialog, QToolButton,
-    QSlider, QInputDialog
+    QSlider, QInputDialog, QCheckBox
 )
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPixmap
@@ -36,29 +36,51 @@ from catcatch_app.ui.batch_convert_dialog import BatchConvertDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 from catcatch_app.ui.task_log_dialog import TaskLogDialog
 from catcatch_app.ui.notify_dialog import DownloadNotifyDialog
+from catcatch_app.ui.floating_widget import FloatingWidget
+from catcatch_app.ui.shutdown_dialog import ShutdownDialog
+from catcatch_app.ui.mobile_connect_dialog import MobileConnectDialog
+from catcatch_app.core.preview_engine import play_task_preview
 from catcatch_app.core.logger import get_logs_dir, get_master_error_log_path
 
 
 def parse_speed_to_bytes(spd_str):
     if not spd_str:
         return 0.0
-    m = re.search(r"([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:/s|ps)?", str(spd_str))
-    if not m:
+    s = str(spd_str).strip()
+    # 严格校验: 必须明确含有速率时间分母 /s, ps 或 bps，绝不可将纯文件大小 (如 1.60GB) 算作速率！
+    if not re.search(r"(?:/s|ps|bps)", s, re.I):
         return 0.0
-    try:
-        val = float(m.group(1))
-        unit = m.group(2).upper()
-        factors = {"": 1, "K": 1024, "M": 1024 * 1024, "G": 1024 * 1024 * 1024}
-        return val * factors.get(unit, 1)
-    except Exception:
-        pass
+    m = re.search(r"([\d\.]+)\s*([KMGkmg]?)(?:i?[Bb])(?:/s|ps)", s, re.I)
+    if m:
+        try:
+            val = float(m.group(1))
+            unit = m.group(2).upper()
+            factors = {"": 1, "K": 1024, "M": 1024 * 1024, "G": 1024 * 1024 * 1024}
+            return val * factors.get(unit, 1)
+        except Exception:
+            return 0.0
+    m2 = re.search(r"([\d\.]+)\s*(kbps|mbps|gbps|bps)", s, re.I)
+    if m2:
+        try:
+            val = float(m2.group(1))
+            unit = m2.group(2).lower()
+            if unit == "kbps":
+                return val / 8 * 1024
+            elif unit == "mbps":
+                return val / 8 * 1024 * 1024
+            elif unit == "gbps":
+                return val / 8 * 1024 * 1024 * 1024
+            return val / 8
+        except Exception:
+            return 0.0
+    return 0.0
     return 0.0
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.3.0")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.0.0 旗舰版")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self._cached_bg_pixmap = None
@@ -73,6 +95,13 @@ class MainWindow(QMainWindow):
         self.apply_theme()
 
         self.refresh_table()
+
+        # 初始化桌面极简悬浮小窗与手机扫码推流
+        self.floating_widget = FloatingWidget(self)
+        self.floating_widget.request_show_main.connect(self._restore_from_floating)
+        self.floating_widget.request_new_task_url.connect(self._on_floating_new_task)
+        if config.get("show_floating_widget", False):
+            self.floating_widget.show()
 
         # 启动后异步刷新底层引擎与代理状态，避免主线程初始化网络阻塞卡死
         QTimer.singleShot(0, self._async_init_status)
@@ -176,6 +205,14 @@ class MainWindow(QMainWindow):
         self.status_bar.addWidget(self.lbl_stats)
 
         self.status_bar.addPermanentWidget(QLabel())
+
+        # 计划电源管理: 全部完成后自动关机
+        self.chk_auto_shutdown = QCheckBox("全部完成后自动关机")
+        self.chk_auto_shutdown.setStyleSheet("color: #a1a1aa; font-size: 12px; margin-right: 14px;")
+        self.chk_auto_shutdown.setChecked(config.get("auto_shutdown_on_finish", False))
+        self.chk_auto_shutdown.toggled.connect(lambda v: config.set("auto_shutdown_on_finish", v))
+        self.status_bar.addPermanentWidget(self.chk_auto_shutdown)
+
         self.lbl_global_speed = QLabel("0.00 KB/s")
         self.lbl_global_speed.setStyleSheet("color: #3875f6; font-weight: 600; font-size: 13px; margin-right: 12px;")
         self.status_bar.addPermanentWidget(self.lbl_global_speed)
@@ -247,6 +284,18 @@ class MainWindow(QMainWindow):
         self.act_ext.setToolTip("查看星流媒体嗅探器在 Chrome / Edge 等浏览器中的安装与配置教学")
         self.act_ext.triggered.connect(self._action_extension_tutorial)
         toolbar.addAction(self.act_ext)
+
+        # 桌面极简悬浮小窗
+        self.act_floating = QAction(get_icon("monitor", "#38bdf8", 18), "桌面悬浮窗", self)
+        self.act_floating.setToolTip("开启/关闭桌面极简下载悬浮小窗 (支持拖拽链接直接下载)")
+        self.act_floating.triggered.connect(self._toggle_floating_widget)
+        toolbar.addAction(self.act_floating)
+
+        # 手机无线推流
+        self.act_mobile = QAction(get_icon("phone", "#22c55e", 18), "手机扫码推流", self)
+        self.act_mobile.setToolTip("显示手机局域网扫码推流二维码与控制台网页")
+        self.act_mobile.triggered.connect(self._action_show_mobile_connect)
+        toolbar.addAction(self.act_mobile)
 
         # 视频下载免责声明
         self.act_disclaimer = QAction(get_icon("info", "#d4d4d8", 18), "免责声明", self)
@@ -784,6 +833,17 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 print(f"[Notifier] 弹窗展示异常: {e}")
 
+        # 检查是否全部下载完成并触发计划关机
+        if hasattr(self, "chk_auto_shutdown") and self.chk_auto_shutdown.isChecked():
+            all_ts = task_manager.get_all_tasks()
+            active_or_waiting = [t for t in all_ts if t.get("status") in ["downloading", "waiting"]]
+            if not active_or_waiting:
+                try:
+                    sd = ShutdownDialog(self)
+                    sd.exec_()
+                except Exception as e:
+                    print(f"[AutoShutdown] 触发异常: {e}")
+
     def _on_task_failed(self, task_id, error_msg):
         self.refresh_table()
         task = task_manager.get_task(task_id)
@@ -821,13 +881,20 @@ class MainWindow(QMainWindow):
 
         total_speed_bytes = sum(parse_speed_to_bytes(t.get("speed", "")) for t in downloading_tasks)
         if total_speed_bytes > 0:
-            self.lbl_global_speed.setText(f"总下载速度: {format_size(total_speed_bytes)}/s")
+            sp_display = f"总下载速度: {format_size(total_speed_bytes)}/s"
+            self.lbl_global_speed.setText(sp_display)
         else:
             speeds = [t.get("speed", "") for t in downloading_tasks if t.get("speed")]
             if speeds:
-                self.lbl_global_speed.setText(f"总下载速度: {' + '.join(speeds[:2])}")
+                sp_display = f"总下载速度: {' + '.join(speeds[:2])}"
+                self.lbl_global_speed.setText(sp_display)
             else:
+                sp_display = "0.00 KB/s"
                 self.lbl_global_speed.setText("0.00 KB/s")
+
+        # 同步悬浮窗实时网速与任务统计
+        if hasattr(self, "floating_widget") and self.floating_widget.isVisible():
+            self.floating_widget.update_stats(sp_display.replace("总下载速度: ", ""), active_count, total_tasks)
 
     def _show_context_menu(self, pos):
         ids = self._get_selected_task_ids()
@@ -877,6 +944,12 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
+        # --- 边下边播实时画面预览 (针对下载中/有临时分片未完成的任务) ---
+        act_preview = menu.addAction(get_icon("play", "#38bdf8", 14), "边下边播 (实时画面快速预览)")
+        act_preview.triggered.connect(self._action_preview_selected)
+
+        menu.addSeparator()
+
         act_open_f = menu.addAction(get_icon("video", "#d4d4d8", 14), "打开播放文件")
         act_open_f.triggered.connect(self._action_play_file)
 
@@ -919,8 +992,50 @@ class MainWindow(QMainWindow):
                     out_p = task["output_file"]
                     if os.path.exists(out_p):
                         os.startfile(out_p)
+                elif task.get("status") == "downloading":
+                    ok, msg = play_task_preview(t_id)
+                    if not ok:
+                        self._show_task_log(task)
                 else:
                     self._show_task_log(task)
+
+    def _restore_from_floating(self):
+        self.showNormal()
+        self.activateWindow()
+
+    def _on_floating_new_task(self, url):
+        self.showNormal()
+        self.activateWindow()
+        dlg = NewTaskDialog(self, initial_url=url)
+        dlg.exec_()
+
+    def _toggle_floating_widget(self):
+        if self.floating_widget.isVisible():
+            self.floating_widget.hide()
+            config.set("show_floating_widget", False)
+            self.statusBar().showMessage("桌面悬浮窗已隐藏", 2000)
+        else:
+            self.floating_widget.show()
+            config.set("show_floating_widget", True)
+            self.statusBar().showMessage("桌面悬浮窗已开启 (支持拖拽链接快速下载)", 3000)
+
+    def _action_show_mobile_connect(self):
+        dlg = MobileConnectDialog(self)
+        dlg.exec_()
+
+    def _action_preview_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task_id = ids[0]
+        ok, msg = play_task_preview(task_id)
+        if ok:
+            self.statusBar().showMessage(f"已在默认播放器中启动即时画面预览: {msg}", 4000)
+        else:
+            QMessageBox.information(
+                self, "边下边播提示",
+                f"暂时无法生成即时画面预览:\n{msg}\n\n建议等待几秒钟、分片有更多落盘后再试。"
+            )
 
     def _action_view_task_log(self):
         ids = self._get_selected_task_ids()
@@ -1151,6 +1266,10 @@ class MainWindow(QMainWindow):
             self.act_view_errors.setIcon(get_icon("log", accent, 18))
         if hasattr(self, "act_ext"):
             self.act_ext.setIcon(get_icon("extension", accent, 18))
+        if hasattr(self, "act_floating"):
+            self.act_floating.setIcon(get_icon("monitor", accent, 18))
+        if hasattr(self, "act_mobile"):
+            self.act_mobile.setIcon(get_icon("phone", "#22c55e", 18))
         if hasattr(self, "act_disclaimer"):
             self.act_disclaimer.setIcon(get_icon("info", btn_icon_col, 18))
         if hasattr(self, "btn_theme"):

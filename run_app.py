@@ -92,7 +92,7 @@ def check_single_instance():
                 if length > 0:
                     buff = ctypes.create_unicode_buffer(length + 1)
                     user32.GetWindowTextW(hwnd, buff, length + 1)
-                    if "星流媒体下载器" in buff.value:
+                    if "星流" in buff.value or "StarStream" in buff.value:
                         found_hwnds.append(hwnd)
                 return True
 
