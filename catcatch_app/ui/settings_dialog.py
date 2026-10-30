@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QComboBox, QFileDialog, QSpinBox, QCheckBox,
     QGroupBox, QMessageBox, QRadioButton, QButtonGroup,
-    QTableWidget, QTableWidgetItem, QHeaderView, QWidget, QInputDialog
+    QTableWidget, QTableWidgetItem, QHeaderView, QWidget, QInputDialog,
+    QSlider
 )
 from PyQt5.QtCore import Qt
 
@@ -28,6 +29,7 @@ from catcatch_app.core.browser_helper import (
 )
 from catcatch_app.core.ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.ui.styles import THEMES
 from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 
@@ -273,6 +275,51 @@ class SettingsDialog(QDialog):
 
         layout.addWidget(media_group)
 
+        # 5. 外观与个性化 (多主题与背景壁纸)
+        theme_group = QGroupBox("外观与个性化设置")
+        theme_layout = QVBoxLayout(theme_group)
+
+        t_row = QHBoxLayout()
+        t_row.addWidget(QLabel("界面主题风格:"))
+        self.theme_combo = QComboBox()
+        for k, v in THEMES.items():
+            self.theme_combo.addItem(f"{v['name']}", k)
+        t_row.addWidget(self.theme_combo, 1)
+        theme_layout.addLayout(t_row)
+
+        bg_row = QHBoxLayout()
+        bg_row.addWidget(QLabel("自定义背景壁纸:"))
+        self.bg_edit = QLineEdit()
+        self.bg_edit.setPlaceholderText("留空为纯色主题，支持选择任意本地图片 (JPG/PNG/WebP/BMP)")
+        btn_browse_bg = QPushButton("浏览图片...")
+        btn_browse_bg.setIcon(get_icon("image", "#a1a1aa", 16))
+        btn_browse_bg.clicked.connect(self._browse_bg_image)
+        btn_clear_bg = QPushButton("清除壁纸")
+        btn_clear_bg.setIcon(get_icon("clean", "#a1a1aa", 16))
+        btn_clear_bg.clicked.connect(self._clear_bg_image)
+        bg_row.addWidget(self.bg_edit, 1)
+        bg_row.addWidget(btn_browse_bg)
+        bg_row.addWidget(btn_clear_bg)
+        theme_layout.addLayout(bg_row)
+
+        op_row = QHBoxLayout()
+        op_row.addWidget(QLabel("壁纸遮罩浓度:"))
+        self.opacity_slider = QSlider(Qt.Horizontal)
+        self.opacity_slider.setRange(10, 90)
+        self.opacity_slider.setValue(45)
+        self.lbl_opacity_val = QLabel("45%")
+        self.lbl_opacity_val.setFixedWidth(40)
+        self.opacity_slider.valueChanged.connect(lambda val: self.lbl_opacity_val.setText(f"{val}%"))
+        op_row.addWidget(self.opacity_slider, 1)
+        op_row.addWidget(self.lbl_opacity_val)
+        theme_layout.addLayout(op_row)
+
+        lbl_theme_hint = QLabel("💡 提示：设置自定义背景后，界面表格与面板将自动开启高透毛玻璃效果；遮罩浓度越高，文字辨识度越高。")
+        lbl_theme_hint.setStyleSheet("color: #71717a; font-size: 11px;")
+        theme_layout.addWidget(lbl_theme_hint)
+
+        layout.addWidget(theme_group)
+
         # 底部操作按钮
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
@@ -327,6 +374,27 @@ class SettingsDialog(QDialog):
         self.notify_cb.setChecked(config.get("notify_on_complete", True))
         self.auto_convert_mp4_cb.setChecked(config.get("auto_convert_mp4", True))
         self.attach_metadata_cb.setChecked(config.get("attach_metadata", True))
+
+        cur_theme = config.get("theme", "dark")
+        idx = self.theme_combo.findData(cur_theme)
+        if idx >= 0:
+            self.theme_combo.setCurrentIndex(idx)
+        self.bg_edit.setText(config.get("custom_background_image", ""))
+        op_pct = int(config.get("background_opacity", 0.45) * 100)
+        op_pct = max(10, min(90, op_pct))
+        self.opacity_slider.setValue(op_pct)
+        self.lbl_opacity_val.setText(f"{op_pct}%")
+
+    def _browse_bg_image(self):
+        f, _ = QFileDialog.getOpenFileName(
+            self, "选择自定义背景图片", "",
+            "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp);;所有文件 (*.*)"
+        )
+        if f:
+            self.bg_edit.setText(f)
+
+    def _clear_bg_image(self):
+        self.bg_edit.setText("")
 
     def _update_proxy_ui_state(self):
         is_manual = self.radio_manual.isChecked()
@@ -650,8 +718,13 @@ class SettingsDialog(QDialog):
             "notify_on_error": self.notify_cb.isChecked(),
             "auto_convert_mp4": self.auto_convert_mp4_cb.isChecked(),
             "attach_metadata": self.attach_metadata_cb.isChecked(),
-            "server_port": self.port_spin.value()
+            "server_port": self.port_spin.value(),
+            "theme": self.theme_combo.currentData() or "dark",
+            "custom_background_image": self.bg_edit.text().strip(),
+            "background_opacity": self.opacity_slider.value() / 100.0,
         })
+        if self.parent() and hasattr(self.parent(), "apply_theme"):
+            self.parent().apply_theme()
         self.accept()
 
     def _open_clean_dialog(self):

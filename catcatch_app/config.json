@@ -34,6 +34,8 @@
   "attach_metadata": true,
   "stream_engine": "RE",
   "theme": "dark",
+  "custom_background_image": "",
+  "background_opacity": 0.45,
   "close_to_tray": true,
   "notify_on_complete": true,
   "notify_on_error": true,

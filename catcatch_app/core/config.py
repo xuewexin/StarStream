@@ -60,6 +60,8 @@ DEFAULT_CONFIG = {
     
     # 界面设置
     "theme": "dark",
+    "custom_background_image": "",
+    "background_opacity": 0.45,
     "close_to_tray": True,
     "notify_on_complete": True,
     "notify_on_error": True,

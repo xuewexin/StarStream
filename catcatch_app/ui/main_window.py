@@ -11,10 +11,11 @@ from PyQt5.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QTableWidget, QTableWidgetItem,
     QToolBar, QAction, QStatusBar, QLabel, QLineEdit, QMenu,
     QMessageBox, QHeaderView, QProgressBar, QSystemTrayIcon,
-    QApplication, QPushButton, QDialog, QFileDialog
+    QApplication, QPushButton, QDialog, QFileDialog, QToolButton,
+    QSlider, QInputDialog
 )
 from PyQt5.QtCore import Qt, QTimer
-from PyQt5.QtGui import QIcon, QColor, QFont
+from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPixmap
 
 from catcatch_app.core.config import (
     config, get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL,
@@ -24,7 +25,7 @@ from catcatch_app.core.task_manager import task_manager
 from catcatch_app.core.server import local_server
 from catcatch_app.core.ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
 from catcatch_app.core.download_file import format_size
-from catcatch_app.ui.styles import DARK_THEME
+from catcatch_app.ui.styles import DARK_THEME, THEMES, get_theme_stylesheet
 from catcatch_app.ui.icons import get_icon, get_app_icon
 from catcatch_app.ui.new_task_dialog import NewTaskDialog
 from catcatch_app.ui.ffmpeg_toolbox_dialog import FFmpegToolboxDialog
@@ -57,10 +58,10 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.2.1")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v2.3.0")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
-        self.setStyleSheet(DARK_THEME)
+        self._cached_bg_pixmap = None
 
         self.current_category = "all"
         self.search_keyword = ""
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
         self._init_ui()
         self._init_tray()
         self._connect_signals()
+        self.apply_theme()
 
         self.refresh_table()
 
@@ -90,6 +92,7 @@ class MainWindow(QMainWindow):
 
         # 2. 中央主体分栏
         central_widget = QWidget()
+        central_widget.setObjectName("centralWidget")
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -106,6 +109,7 @@ class MainWindow(QMainWindow):
 
         # 右侧任务表格区域
         right_container = QWidget()
+        right_container.setObjectName("rightContainer")
         right_layout = QVBoxLayout(right_container)
         right_layout.setContentsMargins(8, 8, 8, 8)
         right_layout.setSpacing(6)
@@ -249,6 +253,18 @@ class MainWindow(QMainWindow):
         self.act_disclaimer.setToolTip("查看视频下载合法合规使用与免责声明")
         self.act_disclaimer.triggered.connect(self._action_show_disclaimer)
         toolbar.addAction(self.act_disclaimer)
+
+        toolbar.addSeparator()
+
+        # 主题皮肤与背景壁纸
+        self.btn_theme = QToolButton(self)
+        self.btn_theme.setIcon(get_icon("palette", "#38bdf8", 18))
+        self.btn_theme.setText("主题皮肤")
+        self.btn_theme.setToolTip("快速切换界面主题风格与自定义背景壁纸")
+        self.btn_theme.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.btn_theme.setPopupMode(QToolButton.InstantPopup)
+        self.btn_theme.setMenu(self._create_theme_menu())
+        toolbar.addWidget(self.btn_theme)
 
         toolbar.addSeparator()
 
@@ -1065,3 +1081,141 @@ class MainWindow(QMainWindow):
             "3. 本软件不托管、不提供亦不转播任何媒体资源，因用户违规下载使用而引发的任何版权纠纷与法律责任，均由使用者独立承担，开发者不承担任何直接或连带责任。\n"
             "4. 若测试下载的音视频涉及版权争议，请在下载后 24 小时内自觉删除。"
         )
+
+    def paintEvent(self, event):
+        bg_path = config.get("custom_background_image", "")
+        if bg_path and os.path.exists(bg_path):
+            painter = QPainter(self)
+            pix = getattr(self, "_cached_bg_pixmap", None)
+            if pix is None:
+                pix = QPixmap(bg_path)
+                self._cached_bg_pixmap = pix
+
+            if pix and not pix.isNull():
+                scaled = pix.scaled(self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+                x = (self.width() - scaled.width()) // 2
+                y = (self.height() - scaled.height()) // 2
+                painter.drawPixmap(x, y, scaled)
+
+                opacity = float(config.get("background_opacity", 0.45))
+                opacity = max(0.05, min(0.95, opacity))
+                theme_name = config.get("theme", "dark")
+                is_light = (theme_name == "light")
+                mask_rgb = (255, 255, 255) if is_light else (0, 0, 0)
+                mask_color = QColor(*mask_rgb, int(opacity * 255))
+                painter.fillRect(self.rect(), mask_color)
+            painter.end()
+        super().paintEvent(event)
+
+    def apply_theme(self, theme_key=None):
+        if theme_key:
+            config.set("theme", theme_key)
+
+        qss = get_theme_stylesheet()
+        self.setStyleSheet(qss)
+        app = QApplication.instance()
+        if app:
+            app.setStyleSheet(qss)
+
+        self._cached_bg_pixmap = None
+        self._update_toolbar_icons()
+        if hasattr(self, "btn_theme"):
+            self.btn_theme.setMenu(self._create_theme_menu())
+        self.update()
+
+    def _update_toolbar_icons(self):
+        cur_theme = THEMES.get(config.get("theme", "dark"), THEMES["dark"])
+        accent = cur_theme["accent"]
+        btn_icon_col = "#475569" if cur_theme["is_light"] else "#d4d4d8"
+        text_col = cur_theme["text"]
+
+        if hasattr(self, "act_new"):
+            self.act_new.setIcon(get_icon("add", text_col, 18))
+        if hasattr(self, "act_start"):
+            self.act_start.setIcon(get_icon("play", accent, 18))
+        if hasattr(self, "act_pause"):
+            self.act_pause.setIcon(get_icon("pause", btn_icon_col, 18))
+        if hasattr(self, "act_delete"):
+            self.act_delete.setIcon(get_icon("delete", "#f87171", 18))
+        if hasattr(self, "act_open_dir"):
+            self.act_open_dir.setIcon(get_icon("folder", btn_icon_col, 18))
+        if hasattr(self, "act_fragments"):
+            self.act_fragments.setIcon(get_icon("stream", accent, 18))
+        if hasattr(self, "act_ffmpeg"):
+            self.act_ffmpeg.setIcon(get_icon("toolbox", btn_icon_col, 18))
+        if hasattr(self, "act_batch"):
+            self.act_batch.setIcon(get_icon("refresh", accent, 18))
+        if hasattr(self, "act_clean"):
+            self.act_clean.setIcon(get_icon("clean", btn_icon_col, 18))
+        if hasattr(self, "act_view_errors"):
+            self.act_view_errors.setIcon(get_icon("log", accent, 18))
+        if hasattr(self, "act_ext"):
+            self.act_ext.setIcon(get_icon("extension", accent, 18))
+        if hasattr(self, "act_disclaimer"):
+            self.act_disclaimer.setIcon(get_icon("info", btn_icon_col, 18))
+        if hasattr(self, "btn_theme"):
+            self.btn_theme.setIcon(get_icon("palette", accent, 18))
+        if hasattr(self, "act_settings"):
+            self.act_settings.setIcon(get_icon("settings", btn_icon_col, 18))
+
+    def _create_theme_menu(self):
+        menu = QMenu(self)
+        cur_theme_id = config.get("theme", "dark")
+
+        # 1. 预设多主题选择
+        for k, v in THEMES.items():
+            prefix = "✓ " if k == cur_theme_id else "   "
+            act = menu.addAction(get_icon("palette", v["accent"], 14), f"{prefix}{v['name']}")
+            act.triggered.connect(lambda checked=False, tid=k: self._on_theme_selected(tid))
+
+        menu.addSeparator()
+
+        # 2. 自定义背景壁纸选项
+        has_bg = bool(config.get("custom_background_image") and os.path.exists(config.get("custom_background_image")))
+        act_set_bg = menu.addAction(get_icon("image", "#38bdf8", 14), "设置自定义背景图片...")
+        act_set_bg.triggered.connect(self._action_set_custom_background)
+
+        act_op = menu.addAction(get_icon("settings", "#a1a1aa", 14), "调节背景遮罩透明度...")
+        act_op.triggered.connect(self._action_adjust_background_opacity)
+
+        if has_bg:
+            act_clear_bg = menu.addAction(get_icon("delete", "#f87171", 14), "清除自定义背景图片")
+            act_clear_bg.triggered.connect(self._action_clear_custom_background)
+
+        menu.addSeparator()
+        act_more = menu.addAction(get_icon("settings", "#a1a1aa", 14), "外观与个性化设置中心...")
+        act_more.triggered.connect(self._action_settings)
+
+        return menu
+
+    def _on_theme_selected(self, theme_id):
+        self.apply_theme(theme_id)
+        theme_name = THEMES.get(theme_id, {}).get("name", theme_id)
+        self.statusBar().showMessage(f"已切换主题为: {theme_name}", 3000)
+
+    def _action_set_custom_background(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择自定义背景图片", "",
+            "图片文件 (*.jpg *.jpeg *.png *.webp *.bmp);;所有文件 (*.*)"
+        )
+        if file_path:
+            config.set("custom_background_image", file_path)
+            self.apply_theme()
+            self.statusBar().showMessage("已成功设置自定义背景图片！已自动应用通透毛玻璃视觉效果", 4000)
+
+    def _action_clear_custom_background(self):
+        config.set("custom_background_image", "")
+        self.apply_theme()
+        self.statusBar().showMessage("已清除自定义背景，恢复为纯净主题风格", 3000)
+
+    def _action_adjust_background_opacity(self):
+        cur_op = int(config.get("background_opacity", 0.45) * 100)
+        val, ok = QInputDialog.getInt(
+            self, "调节背景遮罩浓度",
+            "请输入背景遮罩浓度百分比 (10% - 90%)：\n(数值越低背景越通透，数值越高文字越清晰)",
+            value=cur_op, min=10, max=90, step=5
+        )
+        if ok:
+            config.set("background_opacity", val / 100.0)
+            self.apply_theme()
+            self.statusBar().showMessage(f"背景遮罩浓度已更新为: {val}%", 3000)
