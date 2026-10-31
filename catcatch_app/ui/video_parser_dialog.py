@@ -4,6 +4,7 @@ CatCatch Downloader - Universal Video Parser Workbench (全网短视频一键提
 """
 import os
 import re
+import webbrowser
 import urllib.request
 from io import BytesIO
 from PyQt5.QtWidgets import (
@@ -132,9 +133,28 @@ class VideoParserDialog(QDialog):
         """)
         self.parse_btn.clicked.connect(self._start_parse)
 
+        self.browser_btn = QPushButton("🌐 在浏览器中打开并嗅探")
+        self.browser_btn.setToolTip("在系统默认浏览器中打开该视频页面，由星流媒体嗅探器插件直接捕获最高画质无水印直链")
+        self.browser_btn.setStyleSheet("""
+            QPushButton {
+                background: #1e293b;
+                color: #38bdf8;
+                border: 1px solid #0284c7;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background: #0369a1;
+                color: #ffffff;
+            }
+        """)
+        self.browser_btn.clicked.connect(self._open_in_browser)
+
         action_row.addWidget(paste_btn)
         action_row.addWidget(clear_btn)
         action_row.addStretch()
+        action_row.addWidget(self.browser_btn)
         action_row.addWidget(self.parse_btn)
         in_layout.addLayout(action_row)
 
@@ -290,11 +310,26 @@ class VideoParserDialog(QDialog):
         self.status_lbl.setText("✓ 提取成功！已为您获取最高画质直链，可一键添加到下载队列。")
         self.status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
 
+    def _open_in_browser(self):
+        text = self.input_edit.toPlainText().strip()
+        m = re.search(r'https?://[^\s<>"]+', text)
+        url = m.group(0) if m else text
+        if not url.startswith("http"):
+            QMessageBox.warning(self, "提示", "请在上方输入框输入或粘贴有效的网页链接！")
+            return
+        webbrowser.open(url)
+        self.status_lbl.setText("🌐 已在浏览器中打开页面！星流浏览器插件已在后台待命，播放视频即可自动抓取无水印直链。")
+        self.status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
+
     def _on_parse_failed(self, msg):
         self.parse_btn.setEnabled(True)
         self.pbar.hide()
-        self.status_lbl.setText(f"解析提示: {msg}")
-        self.status_lbl.setStyleSheet("color: #f87171; font-size: 11px;")
+        if "安全防护" in msg or "风控" in msg or "浏览器" in msg:
+            self.status_lbl.setText(f"提示: {msg}")
+            self.status_lbl.setStyleSheet("color: #fbbf24; font-size: 11px; font-weight: 500;")
+        else:
+            self.status_lbl.setText(f"解析提示: {msg} (若目标平台有严格反爬机制，推荐点击上方【在浏览器中打开并嗅探】)")
+            self.status_lbl.setStyleSheet("color: #f87171; font-size: 11px;")
 
     def _load_cover(self, url):
         def _fetch():

@@ -45,6 +45,7 @@ def parse_video_url(url: str, proxy: str = "") -> dict:
         proxies = {"http": proxy, "https": proxy}
 
     session = requests.Session()
+    session.trust_env = False  # 禁用环境变量中可能损坏的 SOCKS 代理，保证国内域名直连通畅
     session.headers.update(headers)
     if proxies:
         session.proxies.update(proxies)
@@ -100,7 +101,7 @@ def parse_video_url(url: str, proxy: str = "") -> dict:
 
 
 def _parse_douyin(url, session):
-    """解析抖音无水印视频直链"""
+    """解析抖音无水印视频直链 (多引擎协同: 静态提取 -> 移动端接口 -> yt-dlp -> 浏览器嗅探直达)"""
     try:
         # 跟随短链重定向
         resp = session.get(url, allow_redirects=True, timeout=8)
@@ -111,16 +112,17 @@ def _parse_douyin(url, session):
         if not m_vid:
             m_vid = re.search(r'item_ids=(\d+)', final_url)
 
-        # 优先从网页 HTML 中提取 RENDER_DATA 或 loaderData
         html = resp.text
         m_title = re.search(r'<title>([^<]+)</title>', html)
         title = m_title.group(1).replace(" - 抖音", "").strip() if m_title else "抖音视频"
         title = re.sub(r'[\r\n\t]+', ' ', title).strip()
 
-        # 匹配 play_addr 直链
+        # 引擎 1: 从网页源码直接正则匹配视频直链
         m_play = re.search(r'"play_addr":\{"uri":"[^"]*","url_list":\["([^"]+)"', html)
         if not m_play:
             m_play = re.search(r'playAddr":\[\{"src":"([^"]+)"', html)
+        if not m_play:
+            m_play = re.search(r'"(https://[^\s"\'<>]+\.douyinvod\.com/[^\s"\'<>]+)"', html)
 
         if m_play:
             raw_video_url = m_play.group(1).replace("\\u0026", "&").replace("playwm", "play")
@@ -135,34 +137,82 @@ def _parse_douyin(url, session):
                 "error": ""
             }
 
-        # 备选：通过移动端官方接口取无水印地址
+        # 引擎 2: 尝试移动端官方分享接口
         if m_vid:
             vid = m_vid.group(1)
             api_url = f"https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids={vid}"
             headers_mob = {
                 "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148"
             }
-            api_resp = session.get(api_url, headers=headers_mob, timeout=8)
-            data = api_resp.json()
-            item = data.get("item_list", [])[0]
-            desc = item.get("desc") or "抖音无水印视频"
-            play_addr = item.get("video", {}).get("play_addr", {}).get("url_list", [])[0]
-            clean_url = play_addr.replace("playwm", "play")
-            return {
-                "success": True,
-                "title": desc,
-                "url": clean_url,
-                "media_type": "video",
-                "duration": int(item.get("duration", 0) / 1000),
-                "resolution": "高清",
-                "headers": {"User-Agent": headers_mob["User-Agent"]},
-                "error": ""
-            }
+            try:
+                api_resp = session.get(api_url, headers=headers_mob, timeout=6)
+                if api_resp.status_code == 200 and api_resp.text.strip():
+                    data = api_resp.json()
+                    item_list = data.get("item_list", [])
+                    if item_list:
+                        item = item_list[0]
+                        desc = item.get("desc") or title
+                        play_addr = item.get("video", {}).get("play_addr", {}).get("url_list", [])
+                        if play_addr:
+                            clean_url = play_addr[0].replace("playwm", "play")
+                            return {
+                                "success": True,
+                                "title": desc,
+                                "url": clean_url,
+                                "media_type": "video",
+                                "duration": int(item.get("duration", 0) / 1000),
+                                "resolution": "高清",
+                                "headers": {"User-Agent": headers_mob["User-Agent"]},
+                                "error": ""
+                            }
+            except Exception:
+                pass
 
-        return _parse_generic_web(final_url, session)
+        # 引擎 3: 尝试调用本地 yt-dlp 解析引擎
+        try:
+            import yt_dlp
+            ydl_opts = {
+                'quiet': True,
+                'no_warnings': True,
+                'skip_download': True,
+                'extract_flat': False,
+                'socket_timeout': 6
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(final_url, download=False)
+                if info and info.get('url'):
+                    return {
+                        "success": True,
+                        "title": info.get("title") or title,
+                        "url": info.get("url"),
+                        "media_type": "video",
+                        "duration": int(info.get("duration") or 0),
+                        "resolution": "1080P",
+                        "headers": info.get("http_headers", {}),
+                        "error": ""
+                    }
+        except Exception:
+            pass
+
+        # 引擎 4: 针对强风控平台的市面大厂最佳解决方案 (指引浏览器自动嗅探)
+        return {
+            "success": False,
+            "title": title,
+            "url": final_url,
+            "target_browser_url": final_url,
+            "need_browser": True,
+            "error": "该视频触发了抖音动态JS安全防护(Argus/VMP)。请点击右侧【在浏览器中打开并嗅探】，星流浏览器插件将全自动无水印捕获并极速下载！"
+        }
 
     except Exception as e:
-        return {"success": False, "title": "", "url": "", "error": f"抖音解析失败: {e}"}
+        return {
+            "success": False,
+            "title": "",
+            "url": url,
+            "target_browser_url": url,
+            "need_browser": True,
+            "error": f"抖音解析异常: {e}。建议直接点击【在浏览器中打开并嗅探】"
+        }
 
 
 def _parse_bilibili(url, session):

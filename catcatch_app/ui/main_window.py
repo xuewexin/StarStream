@@ -81,7 +81,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.1.0 旗舰版")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.1.1 旗舰版")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self._cached_bg_pixmap = None
@@ -101,6 +101,9 @@ class MainWindow(QMainWindow):
         self.floating_widget = FloatingWidget(self)
         self.floating_widget.request_show_main.connect(self._restore_from_floating)
         self.floating_widget.request_new_task_url.connect(self._on_floating_new_task)
+        self.floating_widget.request_open_batch_convert.connect(self._action_batch_convert)
+        self.floating_widget.request_open_ffmpeg_toolbox.connect(self._action_ffmpeg_toolbox)
+        self.floating_widget.request_open_video_parser.connect(self._action_open_video_parser)
         if config.get("show_floating_widget", False):
             self.floating_widget.show()
 
@@ -135,6 +138,7 @@ class MainWindow(QMainWindow):
         self.tree.setFixedWidth(220)
         self._build_tree_nodes()
         self.tree.itemClicked.connect(self._on_tree_item_clicked)
+        self.tree.itemDoubleClicked.connect(self._on_tree_item_clicked)
         splitter.addWidget(self.tree)
 
         # 右侧任务表格区域
@@ -221,6 +225,7 @@ class MainWindow(QMainWindow):
     def _create_toolbar(self):
         toolbar = QToolBar("主操作栏")
         toolbar.setMovable(False)
+        toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(toolbar)
 
         # 新建
@@ -385,13 +390,13 @@ class MainWindow(QMainWindow):
         tools_root.setIcon(0, get_icon("toolbox", "#71717a", 16))
         tools_root.setExpanded(True)
 
-        self.node_parser = QTreeWidgetItem(tools_root, ["⚡ 短视频提取工作台", "tool_parser"])
+        self.node_parser = QTreeWidgetItem(tools_root, ["短视频提取工作台", "tool_parser"])
         self.node_parser.setIcon(0, get_icon("zap", "#f59e0b", 16))
 
-        self.node_batch = QTreeWidgetItem(tools_root, ["🔄 批量格式转换", "tool_batch"])
+        self.node_batch = QTreeWidgetItem(tools_root, ["批量格式转换", "tool_batch"])
         self.node_batch.setIcon(0, get_icon("refresh", "#38bdf8", 16))
 
-        self.node_ffmpeg = QTreeWidgetItem(tools_root, ["🛠️ FFmpeg 工具箱", "tool_ffmpeg"])
+        self.node_ffmpeg = QTreeWidgetItem(tools_root, ["FFmpeg 工具箱", "tool_ffmpeg"])
         self.node_ffmpeg.setIcon(0, get_icon("toolbox", "#d4d4d8", 16))
 
         self.tree.setCurrentItem(self.node_all)
@@ -1223,15 +1228,9 @@ class MainWindow(QMainWindow):
             self.refresh_table()
 
     def _action_show_disclaimer(self):
-        QMessageBox.information(
-            self,
-            "免责声明 - 星流媒体下载器",
-            "【星流媒体下载器 (StarStream Pro) 免责声明】\n\n"
-            "1. 本软件仅供计算机网络协议研究、技术交流以及个人合法离线备份之用。\n"
-            "2. 请使用者自觉遵守国家法律法规，充分尊重原创作者与版权所有方的合法权益。严禁将下载内容用于商业盈利、非法分发或侵权盗版活动！\n"
-            "3. 本软件不托管、不提供亦不转播任何媒体资源，因用户违规下载使用而引发的任何版权纠纷与法律责任，均由使用者独立承担，开发者不承担任何直接或连带责任。\n"
-            "4. 若测试下载的音视频涉及版权争议，请在下载后 24 小时内自觉删除。"
-        )
+        from catcatch_app.ui.disclaimer_dialog import DisclaimerDialog
+        dlg = DisclaimerDialog(self)
+        dlg.exec_()
 
     def paintEvent(self, event):
         bg_path = config.get("custom_background_image", "")
