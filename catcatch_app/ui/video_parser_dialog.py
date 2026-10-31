@@ -375,6 +375,7 @@ class VideoParserDialog(QDialog):
             "save_name": title,
             "save_dir": config.get("save_dir"),
             "media_type": media_type,
+            "format": "mp4",
             "headers": headers,
             "thread_count": config.get("max_threads_per_task", 16),
             "proxy": config.get_effective_proxy()

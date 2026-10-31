@@ -35,25 +35,27 @@ def get_requests_session(proxy=None):
 
 
 def check_auto_convert_mp4(file_path, on_log=None):
-    if not config.get("auto_convert_mp4", True) or not file_path:
+    if not config.get("auto_convert_mp4", True) or not file_path or not os.path.exists(file_path):
         return file_path
     ext = os.path.splitext(file_path)[1].lower()
-    if ext in [".ts", ".flv", ".webm", ".mkv"]:
+    if ext in [".ts", ".flv", ".webm", ".mkv", ".mov", ".avi"]:
         mp4_path = os.path.splitext(file_path)[0] + ".mp4"
         ff_exe = get_ffmpeg_path()
         if ff_exe:
             if on_log:
-                on_log(f"检测到 {ext} 格式，正在自动调用内置 FFmpeg 转封装为标准 MP4...")
+                on_log(f"检测到 {ext} 容器，正在自动调用内置 FFmpeg 转封装为标准 MP4 (支持极速秒播)...")
             try:
                 cmd = [ff_exe, "-y", "-i", file_path, "-c", "copy", "-movflags", "+faststart", mp4_path]
                 flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, timeout=60)
+                res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, timeout=120)
                 if res.returncode == 0 and os.path.exists(mp4_path) and os.path.getsize(mp4_path) > 0:
                     if config.get("del_tmp_files", True):
                         try:
                             os.remove(file_path)
                         except Exception:
                             pass
+                    if on_log:
+                        on_log(f"自动转封装成功: {os.path.basename(mp4_path)}")
                     return mp4_path
             except Exception as e:
                 if on_log:
@@ -152,6 +154,40 @@ class FileDownloadTask:
                 final_filename = f"video_{int(time.time())}.{ext}"
 
         final_filename = re.sub(r'[\\/*?:"<>|]', '_', final_filename).strip()
+
+        # 确保短视频/直链文件具备标准音视频扩展名
+        base_name, existing_ext = os.path.splitext(final_filename)
+        valid_media_exts = {".mp4", ".flv", ".webm", ".mkv", ".ts", ".mov", ".m4a", ".mp3", ".aac", ".avi"}
+        if existing_ext.lower() not in valid_media_exts:
+            detected_ext = ""
+            url_path_ext = os.path.splitext(urlparse(url).path)[1].lower()
+            if url_path_ext in valid_media_exts:
+                detected_ext = url_path_ext
+            elif 'head_resp' in locals() and head_resp is not None and getattr(head_resp, "headers", None):
+                ct = head_resp.headers.get("Content-Type", "").lower()
+                if "video/mp4" in ct:
+                    detected_ext = ".mp4"
+                elif "video/webm" in ct:
+                    detected_ext = ".webm"
+                elif "video/x-flv" in ct:
+                    detected_ext = ".flv"
+                elif "video/quicktime" in ct:
+                    detected_ext = ".mov"
+                elif "video/mp2t" in ct:
+                    detected_ext = ".ts"
+                elif "audio/mpeg" in ct or "audio/mp3" in ct:
+                    detected_ext = ".mp3"
+                elif "audio/" in ct:
+                    detected_ext = ".m4a"
+
+            if not detected_ext:
+                fmt = str(self.task_data.get("format", "mp4")).strip().lower()
+                detected_ext = f".{fmt}" if not fmt.startswith(".") else fmt
+                if detected_ext not in valid_media_exts:
+                    detected_ext = ".mp4"
+
+            final_filename = f"{final_filename}{detected_ext}"
+
         self.output_file = os.path.join(save_dir, final_filename)
 
         if self.on_log:

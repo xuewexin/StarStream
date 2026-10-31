@@ -140,6 +140,16 @@ class SettingsDialog(QDialog):
         path_layout.addLayout(r4)
 
         core_layout.addWidget(path_group)
+
+        # 媒体格式与自动转码 (FFmpeg)
+        media_group = QGroupBox("媒体格式与自动转码 (FFmpeg 引擎)")
+        media_layout = QVBoxLayout(media_group)
+        self.auto_convert_mp4_cb = QCheckBox("自动将下载的视频/短视频/流媒体转封装为标准 MP4 格式 (集成 FFmpeg + faststart 极速起播)")
+        self.attach_metadata_cb = QCheckBox("保存文件名自动附带媒体规格信息 (格式: 视频名称 [分辨率] [时长].mp4)")
+        media_layout.addWidget(self.auto_convert_mp4_cb)
+        media_layout.addWidget(self.attach_metadata_cb)
+        core_layout.addWidget(media_group)
+
         core_layout.addStretch()
 
         # ==================== Tab 1: 网络与多节点代理 ====================
@@ -269,13 +279,8 @@ class SettingsDialog(QDialog):
         p_layout.addLayout(c_row)
         perf_layout.addWidget(perf_group)
 
-        media_group = QGroupBox("媒体处理与扩展管理")
-        media_layout = QVBoxLayout(media_group)
-
-        self.auto_convert_mp4_cb = QCheckBox("自动将下载的视频/流媒体转为标准 MP4 格式 (集成 FFmpeg + faststart 极速起播)")
-        self.attach_metadata_cb = QCheckBox("保存文件名自动附带媒体规格信息 (格式: 视频名称 [分辨率] [时长].mp4)")
-        media_layout.addWidget(self.auto_convert_mp4_cb)
-        media_layout.addWidget(self.attach_metadata_cb)
+        ext_group = QGroupBox("磁盘缓存与嗅探扩展")
+        ext_layout = QVBoxLayout(ext_group)
 
         cache_row = QHBoxLayout()
         cache_row.addWidget(QLabel("磁盘缓存与临时碎片:"))
@@ -284,7 +289,7 @@ class SettingsDialog(QDialog):
         btn_clean_cache.clicked.connect(self._open_clean_dialog)
         cache_row.addWidget(btn_clean_cache)
         cache_row.addStretch()
-        media_layout.addLayout(cache_row)
+        ext_layout.addLayout(cache_row)
 
         ext_row = QHBoxLayout()
         ext_row.addWidget(QLabel("星流嗅探扩展目录:"))
@@ -299,9 +304,9 @@ class SettingsDialog(QDialog):
         ext_row.addWidget(self.ext_edit, 1)
         ext_row.addWidget(btn_browse_ext)
         ext_row.addWidget(btn_ext)
-        media_layout.addLayout(ext_row)
+        ext_layout.addLayout(ext_row)
 
-        perf_layout.addWidget(media_group)
+        perf_layout.addWidget(ext_group)
         perf_layout.addStretch()
 
         # ==================== Tab 3: 外观与壁纸 ====================
@@ -356,9 +361,9 @@ class SettingsDialog(QDialog):
         theme_layout.addStretch()
 
         # 添加到 QTabWidget
-        self.tab_widget.addTab(tab_core, get_icon("folder", "#38bdf8", 16), "核心与路径")
+        self.tab_widget.addTab(tab_core, get_icon("folder", "#38bdf8", 16), "核心与媒体格式")
         self.tab_widget.addTab(tab_proxy, get_icon("globe", "#38bdf8", 16), "网络与多节点代理")
-        self.tab_widget.addTab(tab_perf, get_icon("settings", "#38bdf8", 16), "并发与扩展")
+        self.tab_widget.addTab(tab_perf, get_icon("settings", "#38bdf8", 16), "并发与扩展管理")
         self.tab_widget.addTab(tab_theme, get_icon("palette", "#38bdf8", 16), "外观与壁纸")
 
         if 0 <= initial_tab < self.tab_widget.count():
