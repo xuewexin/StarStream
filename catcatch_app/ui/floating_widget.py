@@ -42,7 +42,7 @@ class FloatingDashboardPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.SubWindow
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setFixedWidth(360)
@@ -379,7 +379,7 @@ class FloatingWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.SubWindow
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
         )
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAcceptDrops(True)
@@ -1010,9 +1010,15 @@ class FloatingWidget(QWidget):
         menu.addSeparator()
 
         act_hide = menu.addAction(get_icon("delete", "#f87171", 14), "关闭桌面悬浮窗")
-        act_hide.triggered.connect(self.hide)
+        act_hide.triggered.connect(self._action_close_floating)
 
         menu.exec_(event.globalPos())
+
+    def _action_close_floating(self):
+        self.hide()
+        if hasattr(self, "_dashboard") and self._dashboard.isVisible():
+            self._dashboard.hide()
+        config.set("show_floating_widget", False)
 
     def _set_skin(self, skin_name):
         self.skin = skin_name

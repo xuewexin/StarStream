@@ -98,8 +98,8 @@ class MainWindow(QMainWindow):
 
         self.refresh_table()
 
-        # 初始化桌面极简悬浮小窗与手机扫码推流
-        self.floating_widget = FloatingWidget(self)
+        # 初始化桌面极简悬浮小窗与手机扫码推流 (悬浮窗独立顶层，主窗口隐藏/最小化到托盘时依然常驻桌面)
+        self.floating_widget = FloatingWidget(None)
         self.floating_widget.request_show_main.connect(self._restore_from_floating)
         self.floating_widget.request_new_task_url.connect(self._on_floating_new_task)
         self.floating_widget.request_open_batch_convert.connect(self._action_batch_convert)
@@ -468,6 +468,13 @@ class MainWindow(QMainWindow):
 
     def quit_app(self):
         """安全彻底退出应用，确保保存所有状态并释放端口"""
+        try:
+            if hasattr(self, 'floating_widget') and self.floating_widget:
+                if hasattr(self.floating_widget, '_dashboard') and self.floating_widget._dashboard:
+                    self.floating_widget._dashboard.close()
+                self.floating_widget.close()
+        except Exception:
+            pass
         try:
             local_server.stop()
         except Exception:
@@ -1073,13 +1080,16 @@ class MainWindow(QMainWindow):
 
     def _restore_from_floating(self):
         self.showNormal()
+        self.raise_()
         self.activateWindow()
 
     def _on_floating_new_task(self, url):
-        self.showNormal()
-        self.activateWindow()
-        dlg = NewTaskDialog(self, initial_url=url)
-        dlg.exec_()
+        dlg = NewTaskDialog(None if self.isHidden() else self, initial_url=url)
+        if dlg.exec_():
+            if not self.isHidden():
+                self.showNormal()
+                self.raise_()
+                self.activateWindow()
 
     def _toggle_floating_widget(self):
         if self.floating_widget.isVisible():
@@ -1135,7 +1145,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "打开日志提示", f"无法直接打开错误日志文件:\n{e}\n\n日志路径:\n{log_p}")
 
     def _action_open_video_parser(self):
-        dlg = VideoParserDialog(self)
+        dlg = VideoParserDialog(None if self.isHidden() else self)
         dlg.exec_()
         self.refresh_table()
 
@@ -1220,7 +1230,7 @@ class MainWindow(QMainWindow):
         dlg.exec_()
 
     def _action_batch_convert(self):
-        dlg = BatchConvertDialog(self)
+        dlg = BatchConvertDialog(None if self.isHidden() else self)
         dlg.exec_()
 
     def _action_batch_convert_for_selected(self):
