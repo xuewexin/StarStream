@@ -35,6 +35,7 @@ from catcatch_app.ui.fragments_dialog import FragmentsDialog
 from catcatch_app.ui.batch_convert_dialog import BatchConvertDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 from catcatch_app.ui.task_log_dialog import TaskLogDialog
+from catcatch_app.ui.video_parser_dialog import VideoParserDialog
 from catcatch_app.ui.notify_dialog import DownloadNotifyDialog
 from catcatch_app.ui.floating_widget import FloatingWidget
 from catcatch_app.ui.shutdown_dialog import ShutdownDialog
@@ -80,7 +81,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.0.0 旗舰版")
+        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.1.0 旗舰版")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self._cached_bg_pixmap = None
@@ -228,6 +229,12 @@ class MainWindow(QMainWindow):
         self.act_new.triggered.connect(self._action_new_task)
         toolbar.addAction(self.act_new)
 
+        # 全网短视频提取工作台
+        self.act_parser = QAction(get_icon("zap", "#f59e0b", 18), "短视频提取", self)
+        self.act_parser.setToolTip("全网主流短视频无水印解析提取 (抖音/快手/B站4K/小红书/网页视频等)")
+        self.act_parser.triggered.connect(self._action_open_video_parser)
+        toolbar.addAction(self.act_parser)
+
         toolbar.addSeparator()
 
         # 开始 / 暂停 / 删除
@@ -372,6 +379,20 @@ class MainWindow(QMainWindow):
 
         self.node_file = QTreeWidgetItem(type_root, ["常规文件", "file"])
         self.node_file.setIcon(0, get_icon("file", "#a1a1aa", 16))
+
+        # 便捷工具大项
+        tools_root = QTreeWidgetItem(self.tree, ["常用工具"])
+        tools_root.setIcon(0, get_icon("toolbox", "#71717a", 16))
+        tools_root.setExpanded(True)
+
+        self.node_parser = QTreeWidgetItem(tools_root, ["⚡ 短视频提取工作台", "tool_parser"])
+        self.node_parser.setIcon(0, get_icon("zap", "#f59e0b", 16))
+
+        self.node_batch = QTreeWidgetItem(tools_root, ["🔄 批量格式转换", "tool_batch"])
+        self.node_batch.setIcon(0, get_icon("refresh", "#38bdf8", 16))
+
+        self.node_ffmpeg = QTreeWidgetItem(tools_root, ["🛠️ FFmpeg 工具箱", "tool_ffmpeg"])
+        self.node_ffmpeg.setIcon(0, get_icon("toolbox", "#d4d4d8", 16))
 
         self.tree.setCurrentItem(self.node_all)
 
@@ -568,9 +589,19 @@ class MainWindow(QMainWindow):
 
     def _on_tree_item_clicked(self, item, col):
         code = item.text(1)
-        if code:
-            self.current_category = code
-            self.refresh_table()
+        if not code:
+            return
+        if code == "tool_parser":
+            self._action_open_video_parser()
+            return
+        elif code == "tool_batch":
+            self._action_batch_convert()
+            return
+        elif code == "tool_ffmpeg":
+            self._action_ffmpeg_toolbox()
+            return
+        self.current_category = code
+        self.refresh_table()
 
     def _on_search_text_changed(self, text):
         self.search_keyword = text.strip().lower()
@@ -1061,6 +1092,11 @@ class MainWindow(QMainWindow):
             os.startfile(log_p)
         except Exception as e:
             QMessageBox.warning(self, "打开日志提示", f"无法直接打开错误日志文件:\n{e}\n\n日志路径:\n{log_p}")
+
+    def _action_open_video_parser(self):
+        dlg = VideoParserDialog(self)
+        dlg.exec_()
+        self.refresh_table()
 
     def _action_new_task(self):
         dlg = NewTaskDialog(self)

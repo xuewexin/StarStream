@@ -7,6 +7,9 @@
   // 仅匹配完整音视频与流媒体清单（移除 .ts，彻底防止切片风暴）
   const MEDIA_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
 
+  // 针对抖音/快手/B站/小红书等短视频无后缀 CDN 流的智能识别正则
+  const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com)/i;
+
   // 严格过滤已知分片与临时碎片切片特征
   const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
@@ -49,6 +52,28 @@
     } catch (e) {}
     return origPlay.apply(this, arguments);
   };
+
+  // Hook src setter (很多现代前端如 React/Vue 通过 el.src = url 动态赋值)
+  const origSrcDesc = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
+  if (origSrcDesc && origSrcDesc.set) {
+    Object.defineProperty(HTMLMediaElement.prototype, 'src', {
+      set: function (val) {
+        if (val && typeof val === 'string' && !val.startsWith('blob:') && !val.startsWith('data:') && !FRAGMENT_REGEX.test(val)) {
+          if (MEDIA_REGEX.test(val) || SHORT_VIDEO_CDN_REGEX.test(val)) {
+            const isAudio = this instanceof HTMLAudioElement || this.tagName.toLowerCase() === 'audio';
+            notifyMedia({
+              url: val,
+              mediaType: isAudio ? 'audio' : 'video',
+              sourceType: 'src_setter'
+            });
+          }
+        }
+        return origSrcDesc.set.call(this, val);
+      },
+      get: origSrcDesc.get,
+      configurable: true
+    });
+  }
 
   // 2. Hook Fetch (捕获动态加载的 m3u8 / mpd / mp4 清单)
   const origFetch = window.fetch;

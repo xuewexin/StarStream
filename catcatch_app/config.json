@@ -39,5 +39,6 @@
   "close_to_tray": true,
   "notify_on_complete": true,
   "notify_on_error": true,
-  "auto_start_tasks": true
+  "auto_start_tasks": true,
+  "floating_skin": "custom_mascot"
 }

@@ -18,6 +18,29 @@
   // 严格过滤已知切片分片
   const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
+  // 标题清理与播放器名字剔除助手
+  function isPlayerOrGenericTitle(title) {
+    if (!title) return true;
+    const t = title.trim().toLowerCase();
+    const generic = [
+      'dplayer', 'ckplayer', 'artplayer', 'xgplayer', 'aliplayer', 'player',
+      'video', 'iframe', 'play', 'mp4', 'm3u8', 'media', '播放器', '视频播放',
+      '无标题', 'untitled', 'index', 'default'
+    ];
+    return generic.includes(t) || generic.some(g => t === `${g}.html` || t === `${g}.php`);
+  }
+
+  function cleanVideoTitle(raw, fallbackTabTitle) {
+    let title = (raw || '').trim();
+    if (isPlayerOrGenericTitle(title) && fallbackTabTitle && !isPlayerOrGenericTitle(fallbackTabTitle)) {
+      title = fallbackTabTitle.trim();
+    }
+    // 移除末尾播放器标识与盗版影视网站后缀
+    title = title.replace(/\s*[-_—|]\s*(DPlayer|ckplayer|Artplayer|xgplayer|Aliplayer|网页播放器|H5播放器)\s*$/i, '');
+    title = title.replace(/\s*[-_—|]\s*(在线播放|在线观看|高清在线|免费在线|完整版在线|高清播放).*$/i, '');
+    return title.trim() || fallbackTabTitle || '网页视频';
+  }
+
   // 2. 接收来自 inject.js 的深层嗅探消息
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data || event.data.source !== 'CATCATCH_INJECTOR') return;
@@ -156,28 +179,42 @@
 
   async function resolveRealMediaUrl(mediaEl) {
     const rawSrc = mediaEl.currentSrc || mediaEl.src || '';
-    // 如果不是 blob:，且为标准网络链接，直接使用
-    if (rawSrc && !rawSrc.startsWith('blob:') && (rawSrc.startsWith('http://') || rawSrc.startsWith('https://'))) {
-      return { url: rawSrc, mediaType: 'video', format: 'MP4' };
+    let directMedia = null;
+    if (rawSrc && !rawSrc.startsWith('blob:') && (rawSrc.startsWith('http://') || rawSrc.startsWith('https://')) && !FRAGMENT_REGEX.test(rawSrc)) {
+      directMedia = { url: rawSrc, mediaType: 'video', format: 'MP4' };
     }
 
-    // 若为 blob: 协议（MediaSource 流），向 background 获取该页面真实嗅探到的网络流 (如 m3u8 / mpd)
+    // 若为 blob: 协议（MediaSource 流）或需要获取标签页元数据，向 background 查询
     return new Promise((resolve) => {
       chrome.runtime.sendMessage({
         action: 'GET_MEDIA_FOR_TAB',
         pageUrl: window.location.href
       }, (res) => {
+        const tabTitle = (res && res.tabTitle) || '';
         if (res && res.media && res.media.length > 0) {
-          // 优先选择流媒体 (m3u8 > mpd > video)
-          const m3u8Item = res.media.find(i => i.mediaType === 'm3u8');
-          const chosen = m3u8Item || res.media[0];
+          // 智能过滤广告切片: 过滤标记为 isAd 的流
+          const nonAds = res.media.filter((i) => !i.isAd);
+          const pool = nonAds.length > 0 ? nonAds : res.media;
+          // 按正片标记优先、流媒体优先、时长从长到短排序 (防止抓到片头小广告)
+          pool.sort((a, b) => {
+            if (a.isFeature && !b.isFeature) return -1;
+            if (!a.isFeature && b.isFeature) return 1;
+            if (a.mediaType === 'm3u8' && b.mediaType !== 'm3u8') return -1;
+            if (a.mediaType !== 'm3u8' && b.mediaType === 'm3u8') return 1;
+            return (b.duration || 0) - (a.duration || 0);
+          });
+          const chosen = pool[0];
           resolve({
             url: chosen.url,
             mediaType: chosen.mediaType || 'm3u8',
             format: (chosen.mediaType || 'm3u8').toUpperCase(),
             resolution: chosen.resolution || '',
-            duration: chosen.duration || 0
+            duration: chosen.duration || 0,
+            tabTitle: tabTitle || chosen.pageTitle || ''
           });
+        } else if (directMedia) {
+          directMedia.tabTitle = tabTitle;
+          resolve(directMedia);
         } else {
           resolve(null);
         }
@@ -192,7 +229,7 @@
       return;
     }
 
-    const title = document.title || '网页视频';
+    let currentTitle = cleanVideoTitle(document.title);
     const rect = anchorBtn.getBoundingClientRect();
 
     const panel = document.createElement('div');
@@ -201,7 +238,7 @@
     panel.style.right = `${window.innerWidth - (window.scrollX + rect.right)}px`;
 
     panel.innerHTML = `
-      <div class="catcatch-panel-title" title="${title}">${title}</div>
+      <div class="catcatch-panel-title" title="${currentTitle}">${currentTitle}</div>
       <div id="catcatchPanelContent" class="catcatch-panel-info">正在定位真实视频流...</div>
       <div class="catcatch-config-row" style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:#a1a1aa;">
         <span>下载代理:</span>
@@ -241,6 +278,16 @@
       return;
     }
 
+    // 智能修正标题: 若在 iframe 中且原标题为 DPlayer 等通用播放器名，替换为主网页真实标题
+    if (mediaInfo.tabTitle) {
+      currentTitle = cleanVideoTitle(document.title, mediaInfo.tabTitle);
+      const titleEl = panel.querySelector('.catcatch-panel-title');
+      if (titleEl) {
+        titleEl.textContent = currentTitle;
+        titleEl.title = currentTitle;
+      }
+    }
+
     const durSec = Math.floor(mediaEl.duration || 0);
     const durStr = durSec > 0 ? `${Math.floor(durSec / 60)}分${durSec % 60}秒` : '';
     const resStr = mediaInfo.resolution || ((mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '高清流');
@@ -257,7 +304,7 @@
 
     copyCmdBtn.addEventListener('click', () => {
       const pChoice = proxySelect.value;
-      const safeTitle = (title || 'video').replace(/[\\/*?:"<>|]/g, '_');
+      const safeTitle = (currentTitle || 'video').replace(/[\\/*?:"<>|]/g, '_');
       let cmd = `N_m3u8DL-RE "${mediaInfo.url}" --save-name "${safeTitle}" --auto-select -M format=mp4`;
       if (pChoice && pChoice !== 'default' && pChoice !== 'direct' && pChoice !== 'auto') {
         cmd += ` --custom-proxy "${pChoice}"`;
@@ -277,8 +324,8 @@
       const pVal = proxySelect.value;
       const taskData = {
         url: mediaInfo.url,
-        title: title,
-        saveName: title,
+        title: currentTitle,
+        saveName: currentTitle,
         mediaType: mediaInfo.mediaType,
         resolution: mediaInfo.resolution || resStr || '',
         duration: mediaInfo.duration || durSec || 0,
@@ -353,9 +400,79 @@
     }
   }, { passive: true });
 
+  // 4. 针对主流短视频平台 (抖音/B站/快手/小红书) 的全自动嗅探与智能解析
+  function initShortVideoAutoSniffer() {
+    const host = window.location.hostname.toLowerCase();
+    const isDouyin = host.includes('douyin.com') || host.includes('iesdouyin.com');
+    const isBili = host.includes('bilibili.com');
+    const isKwai = host.includes('kuaishou.com') || host.includes('kwai.com');
+    const isXhs = host.includes('xiaohongshu.com');
+
+    if (!isDouyin && !isBili && !isKwai && !isXhs) return;
+
+    const seenUrls = new Set();
+
+    function scanShortVideoElements() {
+      const videos = document.querySelectorAll('video');
+      videos.forEach((v) => {
+        const src = v.currentSrc || v.src || '';
+        if (!src || src.startsWith('blob:') || seenUrls.has(src) || FRAGMENT_REGEX.test(src)) return;
+
+        seenUrls.add(src);
+
+        // 提取精准标题
+        let title = '';
+        if (isDouyin) {
+          const titleEl = document.querySelector('.title, .desc, [data-e2e="video-desc"], h1');
+          if (titleEl && titleEl.textContent) title = titleEl.textContent.trim();
+        } else if (isBili) {
+          const titleEl = document.querySelector('.video-title, h1.tit, .bpx-player-top-left');
+          if (titleEl && titleEl.textContent) title = titleEl.textContent.trim();
+        } else if (isKwai) {
+          const titleEl = document.querySelector('.video-info-title, .caption, h1');
+          if (titleEl && titleEl.textContent) title = titleEl.textContent.trim();
+        } else if (isXhs) {
+          const titleEl = document.querySelector('.note-content .title, .title, #detail-title');
+          if (titleEl && titleEl.textContent) title = titleEl.textContent.trim();
+        }
+
+        if (!title) {
+          title = cleanVideoTitle(document.title);
+        }
+
+        chrome.runtime.sendMessage({
+          action: 'SNIFFED_MEDIA',
+          data: {
+            url: src,
+            title: title,
+            pageUrl: window.location.href,
+            mediaType: 'video',
+            sourceType: 'short_video_auto'
+          }
+        }).catch(() => {});
+      });
+    }
+
+    // 初始扫描 + 定时轮询 + 动态 DOM 监听
+    scanShortVideoElements();
+    setInterval(scanShortVideoElements, 1500);
+
+    const observer = new MutationObserver(() => {
+      scanShortVideoElements();
+    });
+    observer.observe(document.body || document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initFloatingDownloadBar);
+    document.addEventListener('DOMContentLoaded', () => {
+      initFloatingDownloadBar();
+      initShortVideoAutoSniffer();
+    });
   } else {
     initFloatingDownloadBar();
+    initShortVideoAutoSniffer();
   }
 })();

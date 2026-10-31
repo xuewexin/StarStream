@@ -162,6 +162,13 @@
       renderList();
     });
 
+    const filterAdsCheckbox = document.getElementById('filterAdsCheckbox');
+    if (filterAdsCheckbox) {
+      filterAdsCheckbox.addEventListener('change', () => {
+        renderList();
+      });
+    }
+
     selectAllCheckbox.addEventListener('change', (e) => {
       const checked = e.target.checked;
       const visibleItems = getFilteredItems();
@@ -424,6 +431,12 @@
         return false;
       }
 
+      // 智能广告切片过滤
+      const filterAdsEl = document.getElementById('filterAdsCheckbox');
+      if (filterAdsEl && filterAdsEl.checked && item.isAd) {
+        return false;
+      }
+
       // 关键词搜索
       if (searchKeyword) {
         const title = (item.pageTitle || '').toLowerCase();
@@ -491,6 +504,11 @@
     const title = item.pageTitle || '未命名媒体';
 
     let tagsHtml = `<span class="tag-badge tag-type">${item.mediaType.toUpperCase()}</span>`;
+    if (item.isAd) {
+      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似前贴片广告切片'}">⚠️ 疑似广告${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
+    } else if (item.isFeature) {
+      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">⭐ 正片</span>`;
+    }
     if (item.resolution) {
       tagsHtml += `<span class="tag-badge tag-res">${item.resolution}</span>`;
     }

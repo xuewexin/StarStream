@@ -6,8 +6,14 @@ const LOCAL_SERVER_URL = "http://127.0.0.1:18910";
 // 支持的完整视音频与流媒体扩展名正则 (已彻底移除 .ts，杜绝几秒一段的切片风暴)
 const MEDIA_EXT_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
 
+// 针对抖音/快手/B站/小红书等短视频无后缀 CDN 流的智能识别正则
+const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
+
 // 严格过滤已知分片与切片特征 (过滤 .ts/.m4s 切片、Range 分段、init.mp4 初始化段)
 const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+
+// 常见广告切片流与推广联盟正则识别
+const AD_URL_REGEX = /((\/|\b)(ad|ads|adv|advert|union|guanggao|tyad|googleads|doubleclick|popads|vpaid|preroll|midroll|postroll|alicdn.*\/ad\/|gdt.*\/ad\/)(\/|\.|\?|$))|(\b(adjump|ad_video|video_ad|unionad)\b)/i;
 
 // 黑名单过滤（过滤广告、统计追踪）
 const BLACKLIST_REGEX = /(google-analytics|cnzz|stat|beacon|doubleclick|clarity\.ms|hm\.baidu\.com|sentry\.io|segment\.ts\?)/i;
@@ -50,7 +56,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
     if (FRAGMENT_REGEX.test(url)) return; // 严格过滤分片
-    if (!MEDIA_EXT_REGEX.test(url)) return;
+    if (!MEDIA_EXT_REGEX.test(url) && !SHORT_VIDEO_CDN_REGEX.test(url)) return;
 
     captureMediaRequest(details, null);
   },
@@ -93,9 +99,9 @@ chrome.webRequest.onHeadersReceived.addListener(
     const isCompleteMedia =
       (contentType.startsWith("video/") || contentType.startsWith("audio/")) &&
       !FRAGMENT_REGEX.test(url) &&
-      (MEDIA_EXT_REGEX.test(url) || contentLength > 1024 * 1024);
+      (MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url) || contentLength > 1024 * 1024);
 
-    if (isMasterStream || isCompleteMedia || MEDIA_EXT_REGEX.test(url)) {
+    if (isMasterStream || isCompleteMedia || MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url)) {
       captureMediaRequest(details, {
         contentType,
         contentLength,
@@ -164,6 +170,7 @@ async function captureMediaRequest(details, respInfo) {
     baseUrl = url.substring(0, url.lastIndexOf("/") + 1);
   }
 
+  const isAdByUrl = AD_URL_REGEX.test(url);
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     url: url,
@@ -182,7 +189,10 @@ async function captureMediaRequest(details, respInfo) {
     duration: 0,
     resolution: "",
     hasKey: false,
-    keyUrl: ""
+    keyUrl: "",
+    isAd: isAdByUrl,
+    adReason: isAdByUrl ? "URL匹配广告特征" : "",
+    isFeature: false
   };
 
   storageQueue = storageQueue.then(() => insertIntoStorage(entry)).catch(() => {});
@@ -367,6 +377,29 @@ async function parseM3u8Metadata(entry) {
         item.hasKey = true;
         item.keyUrl = keyUrl;
       }
+
+      // 广告识别 1: 时长在 5~45 秒且带广告特征或小于 25 秒
+      if (item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
+        item.isAd = true;
+        item.adReason = `疑似片头广告切片 (${item.duration}秒)`;
+      }
+
+      // 广告识别 2: 同标签页动态对比判定 (若存在 >= 5 分钟的主流，短于 60 秒的判定为广告切片)
+      const tabStreams = mediaList.filter((it) => it.tabId === item.tabId && it.duration > 0);
+      const maxDur = Math.max(...tabStreams.map((it) => it.duration), 0);
+      if (maxDur >= 300) {
+        tabStreams.forEach((it) => {
+          if (it.duration <= 60 && it.duration < maxDur / 4) {
+            it.isAd = true;
+            it.adReason = `同页面对比判定为广告切片 (${it.duration}秒 vs 正片 ${Math.round(maxDur / 60)}分钟)`;
+            it.isFeature = false;
+          } else if (it.duration === maxDur) {
+            it.isFeature = true;
+            it.isAd = false;
+          }
+        });
+      }
+
       await chrome.storage.local.set({ mediaList });
     }
   }
@@ -380,13 +413,23 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "GET_MEDIA_FOR_TAB") {
-    purgeClosedTabsMedia().then((mediaList) => {
+    purgeClosedTabsMedia().then(async (mediaList) => {
       const tabId = sender.tab ? sender.tab.id : -1;
-      const targetUrl = req.pageUrl || (sender.tab ? sender.tab.url : "");
+      let topTab = null;
+      if (tabId >= 0) {
+        try {
+          topTab = await chrome.tabs.get(tabId);
+        } catch (e) {}
+      }
+      const targetUrl = req.pageUrl || (topTab ? topTab.url : (sender.tab ? sender.tab.url : ""));
       const matched = mediaList.filter(
         (it) => !it.url.startsWith("blob:") && (it.tabId === tabId || (targetUrl && it.pageUrl === targetUrl))
       );
-      sendResponse({ media: matched });
+      sendResponse({
+        media: matched,
+        tabTitle: topTab ? topTab.title : (sender.tab ? sender.tab.title : ""),
+        tabUrl: topTab ? topTab.url : (sender.tab ? sender.tab.url : "")
+      });
     });
     return true;
   }

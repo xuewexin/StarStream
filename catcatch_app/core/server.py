@@ -6,6 +6,7 @@ CatCatch Downloader - Embedded HTTP IPC & Mobile WebUI Server
 """
 import json
 import threading
+import socketserver
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -54,6 +55,11 @@ input[type="text"]:focus { border-color: #38bdf8; }
 .progress-bar-bg { width: 100%; height: 6px; background: #27272a; border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
 .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #38bdf8, #818cf8); border-radius: 3px; transition: width 0.3s; }
 .task-meta { display: flex; justify-content: space-between; font-size: 12px; color: #a1a1aa; }
+.task-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; }
+.btn-mini { padding: 4px 10px; font-size: 11px; border-radius: 5px; border: 1px solid #3f3f46; background: #27272a; color: #e4e4e7; cursor: pointer; }
+.btn-mini:active { transform: scale(0.96); }
+.btn-mini.primary { background: rgba(56, 117, 246, 0.25); border-color: #3875f6; color: #60a5fa; }
+.btn-mini.danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); color: #f87171; }
 .empty-tip { text-align: center; color: #71717a; font-size: 13px; padding: 20px 0; }
 </style>
 </head>
@@ -63,7 +69,7 @@ input[type="text"]:focus { border-color: #38bdf8; }
     <div class="logo-icon">★</div>
     <div class="brand-name">星流 StarStream</div>
   </div>
-  <div class="badge"><div class="dot"></div>电脑在线</div>
+  <div class="badge"><div class="dot"></div>电脑极速互联</div>
 </div>
 
 <div class="card">
@@ -121,6 +127,17 @@ async function pushTask() {
   }
 }
 
+async function taskAction(id, action) {
+  try {
+    await fetch('/api/tasks/' + id + '/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action })
+    });
+    loadTasks();
+  } catch (e) {}
+}
+
 function showToast(text, type) {
   const t = document.getElementById('toastMsg');
   t.innerText = text;
@@ -128,16 +145,39 @@ function showToast(text, type) {
   setTimeout(() => { t.className = 'toast'; }, 5000);
 }
 
+let pollTimer = null;
+let isDocumentVisible = true;
+
+document.addEventListener('visibilitychange', () => {
+  isDocumentVisible = !document.hidden;
+  if (isDocumentVisible) {
+    loadTasks();
+  }
+});
+
+function scheduleNextPoll(intervalMs) {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = setTimeout(loadTasks, intervalMs);
+}
+
 async function loadTasks() {
+  if (!isDocumentVisible) {
+    scheduleNextPoll(3000);
+    return;
+  }
   try {
-    const resp = await fetch('/api/tasks');
+    const resp = await fetch('/api/mobile/tasks');
     const res = await resp.json();
     if (res.success) {
       const tasks = res.tasks || [];
-      document.getElementById('taskCount').innerText = tasks.length;
+      document.getElementById('taskCount').innerText = res.total !== undefined ? res.total : tasks.length;
       renderTasks(tasks);
+      const hasActive = tasks.some(t => t.status === 'downloading');
+      scheduleNextPoll(hasActive ? 1500 : 4000);
+      return;
     }
   } catch (e) {}
+  scheduleNextPoll(4000);
 }
 
 function renderTasks(tasks) {
@@ -147,7 +187,7 @@ function renderTasks(tasks) {
     return;
   }
   let html = '';
-  for (const t of tasks.slice(0, 20)) {
+  for (const t of tasks.slice(0, 25)) {
     const prog = (t.progress || 0).toFixed(1);
     const speed = t.speed || (t.status === 'downloading' ? '计算中...' : '');
     const stClass = 'st-' + (t.status || 'waiting');
@@ -165,6 +205,13 @@ function renderTasks(tasks) {
           <span>进度: ${prog}%</span>
           <span>${speed ? '速度: ' + speed : ''}</span>
         </div>
+        <div class="task-actions">
+          ${t.status === 'downloading'
+            ? `<button class="btn-mini" onclick="taskAction('${t.id}', 'pause')">⏸ 暂停</button>`
+            : (t.status === 'paused' || t.status === 'error' ? `<button class="btn-mini primary" onclick="taskAction('${t.id}', 'start')">▶ 开始</button>` : '')
+          }
+          <button class="btn-mini danger" onclick="taskAction('${t.id}', 'delete')">🗑️ 删除</button>
+        </div>
       </div>
     `;
   }
@@ -172,7 +219,6 @@ function renderTasks(tasks) {
 }
 
 loadTasks();
-setInterval(loadTasks, 2000);
 </script>
 </body>
 </html>
@@ -234,6 +280,26 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/mobile/tasks":
+            # 专为移动端无线扫码推流设计的超轻量级精简接口 (过滤庞大日志文本，解决手机 WiFi 轮询卡顿)
+            tasks = task_manager.get_all_tasks()
+            lite_tasks = []
+            for t in tasks[:30]:
+                lite_tasks.append({
+                    "id": t.get("id"),
+                    "title": t.get("title") or t.get("save_name") or "video",
+                    "status": t.get("status", "waiting"),
+                    "progress": round(float(t.get("progress") or 0.0), 1),
+                    "speed": t.get("speed") or "",
+                    "media_type": t.get("media_type") or "m3u8"
+                })
+            self._send_json_response(200, {
+                "success": True,
+                "tasks": lite_tasks,
+                "total": len(tasks)
+            })
+            return
+
         elif path == "/api/tasks":
             tasks = task_manager.get_all_tasks()
             self._send_json_response(200, {
@@ -251,7 +317,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self._send_json_response(200, {
             "status": "ok",
             "app": "StarStream Downloader",
-            "version": "3.0.0",
+            "version": "3.1.0",
             "ffmpeg_available": ff_ok,
             "ffmpeg_info": ff_msg,
             "ffmpeg_path": get_ffmpeg_path(),
@@ -413,7 +479,8 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         return task_id
 
 
-class ReusableHTTPServer(HTTPServer):
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
+    """多线程并发 HTTP 服务，彻底根除单线程阻塞导致局域网手机/插件通信卡死问题"""
     allow_reuse_address = True
     daemon_threads = True
 
@@ -430,7 +497,7 @@ class LocalServer:
         port = int(config.get("server_port", 18910))
 
         try:
-            self.server = ReusableHTTPServer((host, port), CatCatchHTTPHandler)
+            self.server = ThreadedHTTPServer((host, port), CatCatchHTTPHandler)
             self.server.timeout = 0.5
             self.is_running = True
             self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -439,7 +506,7 @@ class LocalServer:
         except Exception as e:
             # 兜底回退尝试 127.0.0.1
             try:
-                self.server = ReusableHTTPServer(("127.0.0.1", port), CatCatchHTTPHandler)
+                self.server = ThreadedHTTPServer(("127.0.0.1", port), CatCatchHTTPHandler)
                 self.server.timeout = 0.5
                 self.is_running = True
                 self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
