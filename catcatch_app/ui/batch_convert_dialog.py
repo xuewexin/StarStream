@@ -711,7 +711,7 @@ class BatchConvertDialog(QDialog):
         QMessageBox.information(
             self,
             "批量转换完成",
-            f"🎉 批量格式转换已全部执行完成！\n\n• 成功: {succ_cnt} 个\n• 失败: {fail_cnt} 个\n\n您可点击下方【打开输出目录】立即查阅文件。"
+            f"批量格式转换已全部执行完成！\n\n• 成功: {succ_cnt} 个\n• 失败: {fail_cnt} 个\n\n您可点击下方【打开输出目录】立即查阅文件。"
         )
 
     def _cancel_batch(self):

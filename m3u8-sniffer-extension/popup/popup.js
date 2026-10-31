@@ -402,26 +402,74 @@
     updateCategoryCounts();
   }
 
-  // 核心过滤算法：
-  // 1. 过滤未知切片分片 (只抓取整个视频)
-  // 2. 页面消失自动将消失页面爬取的视频刷新掉
+  function getResolutionScore(res) {
+    if (!res) return 0;
+    const s = String(res).toUpperCase();
+    if (s.includes('4K') || s.includes('2160')) return 2160;
+    if (s.includes('2K') || s.includes('1440')) return 1440;
+    if (s.includes('1080')) return 1080;
+    if (s.includes('720')) return 720;
+    if (s.includes('480')) return 480;
+    if (s.includes('360')) return 360;
+    const m = s.match(/(\d{3,4})[xX*](\d{3,4})/);
+    if (m) {
+      return Math.min(parseInt(m[1]), parseInt(m[2]));
+    }
+    return 0;
+  }
+
+  function compareMediaItems(a, b) {
+    // 1. 过滤广告/非正片
+    if (a.isFeature && !b.isFeature) return -1;
+    if (!a.isFeature && b.isFeature) return 1;
+    if (!a.isAd && b.isAd) return -1;
+    if (a.isAd && !b.isAd) return 1;
+
+    // 2. 时长降序 (时长越长越排在前面)
+    const durA = Number(a.duration || 0);
+    const durB = Number(b.duration || 0);
+    if (Math.abs(durA - durB) > 3) {
+      return durB - durA;
+    }
+
+    // 3. 画质/分辨率降序
+    const resA = getResolutionScore(a.resolution);
+    const resB = getResolutionScore(b.resolution);
+    if (resA !== resB) {
+      return resB - resA;
+    }
+
+    // 4. M3U8 格式优先
+    if (a.mediaType === 'm3u8' && b.mediaType !== 'm3u8') return -1;
+    if (a.mediaType !== 'm3u8' && b.mediaType === 'm3u8') return 1;
+
+    // 5. 大小降序
+    const sizeA = Number(a.contentLength || a.size || 0);
+    const sizeB = Number(b.contentLength || b.size || 0);
+    if (sizeA !== sizeB) return sizeB - sizeA;
+
+    return (b.timestamp || 0) - (a.timestamp || 0);
+  }
+
+  // 核心过滤与排序算法：
+  // 1. 仅展示当前页面抓取的视频
+  // 2. 严格按 时长-画质 降序排列展示
+  // 3. 过滤已知切片分片
   function getFilteredItems() {
-    return mediaList.filter((item) => {
+    const list = mediaList.filter((item) => {
       // 坚决丢弃切片
       if (FRAGMENT_REGEX.test(item.url)) {
+        return false;
+      }
+
+      // 仅展示当前页面抓取的视频
+      if (currentActiveTabId >= 0 && item.tabId !== currentActiveTabId) {
         return false;
       }
 
       // 仅显示页面还存在的网站上爬取的视频：若标签页已被关闭，立即过滤消除
       if (item.tabId !== undefined && item.tabId !== null && item.tabId >= 0) {
         if (!liveTabIds.has(item.tabId)) {
-          return false;
-        }
-      }
-
-      // 当前标签页 vs 全部打开标签页过滤
-      if (currentScope === 'current' && currentActiveTabId >= 0) {
-        if (item.tabId !== currentActiveTabId) {
           return false;
         }
       }
@@ -448,17 +496,21 @@
 
       return true;
     });
+
+    // 按照 时长-画质 降序排列
+    list.sort(compareMediaItems);
+    return list;
   }
 
   function updateCategoryCounts() {
-    // 作用域下有效的视频项
+    // 当前页面下有效的视频项
     const scopedItems = mediaList.filter((item) => {
       if (FRAGMENT_REGEX.test(item.url)) return false;
+      if (currentActiveTabId >= 0 && item.tabId !== currentActiveTabId) {
+        return false;
+      }
       if (item.tabId !== undefined && item.tabId !== null && item.tabId >= 0) {
         if (!liveTabIds.has(item.tabId)) return false;
-      }
-      if (currentScope === 'current' && currentActiveTabId >= 0) {
-        return item.tabId === currentActiveTabId;
       }
       return true;
     });

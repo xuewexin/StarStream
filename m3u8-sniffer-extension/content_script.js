@@ -177,6 +177,22 @@
     resetAutoHideTimer(3500);
   }
 
+  function getResolutionScore(res) {
+    if (!res) return 0;
+    const s = String(res).toUpperCase();
+    if (s.includes('4K') || s.includes('2160')) return 2160;
+    if (s.includes('2K') || s.includes('1440')) return 1440;
+    if (s.includes('1080')) return 1080;
+    if (s.includes('720')) return 720;
+    if (s.includes('480')) return 480;
+    if (s.includes('360')) return 360;
+    const m = s.match(/(\d{3,4})[xX*](\d{3,4})/);
+    if (m) {
+      return Math.min(parseInt(m[1]), parseInt(m[2]));
+    }
+    return 0;
+  }
+
   async function resolveRealMediaUrl(mediaEl) {
     const rawSrc = mediaEl.currentSrc || mediaEl.src || '';
     let directMedia = null;
@@ -195,13 +211,32 @@
           // 智能过滤广告切片: 过滤标记为 isAd 的流
           const nonAds = res.media.filter((i) => !i.isAd);
           const pool = nonAds.length > 0 ? nonAds : res.media;
-          // 按正片标记优先、流媒体优先、时长从长到短排序 (防止抓到片头小广告)
+          // 默认获取画质最高和时长最长的正片
           pool.sort((a, b) => {
             if (a.isFeature && !b.isFeature) return -1;
             if (!a.isFeature && b.isFeature) return 1;
+            if (!a.isAd && b.isAd) return -1;
+            if (a.isAd && !b.isAd) return 1;
+
+            // 1. 时长最长降序
+            const durA = Number(a.duration || 0);
+            const durB = Number(b.duration || 0);
+            if (Math.abs(durA - durB) > 3) {
+              return durB - durA;
+            }
+
+            // 2. 画质最高降序
+            const resA = getResolutionScore(a.resolution);
+            const resB = getResolutionScore(b.resolution);
+            if (resA !== resB) {
+              return resB - resA;
+            }
+
+            // 3. 流媒体格式优先
             if (a.mediaType === 'm3u8' && b.mediaType !== 'm3u8') return -1;
             if (a.mediaType !== 'm3u8' && b.mediaType === 'm3u8') return 1;
-            return (b.duration || 0) - (a.duration || 0);
+
+            return (b.contentLength || 0) - (a.contentLength || 0);
           });
           const chosen = pool[0];
           resolve({
@@ -243,8 +278,8 @@
       <div class="catcatch-config-row" style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:#a1a1aa;">
         <span>下载代理:</span>
         <select id="catcatchProxySelect" style="flex:1;background:#27272a;color:#f4f4f5;border:1px solid #3f3f46;border-radius:4px;padding:3px 6px;font-size:11px;outline:none;">
-          <option value="auto">🎯 自动匹配浏览器代理</option>
-          <option value="default" selected>💻 跟随客户端全局设置</option>
+          <option value="auto" selected>🎯 自动匹配浏览器代理</option>
+          <option value="default">💻 跟随客户端全局设置</option>
           <option value="direct">⚡ 直连 (不走任何代理)</option>
           <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
           <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
@@ -322,6 +357,25 @@
       pushBtn.disabled = true;
 
       const pVal = proxySelect.value;
+      let finalProxy = pVal;
+
+      if (pVal === 'auto') {
+        try {
+          const proxyInfo = await new Promise((res) => {
+            chrome.runtime.sendMessage({ action: 'DETECT_BROWSER_PROXY' }, res);
+          });
+          if (proxyInfo && proxyInfo.proxyUrl) {
+            finalProxy = proxyInfo.proxyUrl;
+          } else if (proxyInfo && proxyInfo.mode === 'direct') {
+            finalProxy = 'none';
+          } else {
+            finalProxy = 'system';
+          }
+        } catch (e) {
+          finalProxy = 'auto';
+        }
+      }
+
       const taskData = {
         url: mediaInfo.url,
         title: currentTitle,
@@ -329,7 +383,7 @@
         mediaType: mediaInfo.mediaType,
         resolution: mediaInfo.resolution || resStr || '',
         duration: mediaInfo.duration || durSec || 0,
-        proxy: pVal,
+        proxy: finalProxy,
         headers: {
           Referer: window.location.href,
           'User-Agent': navigator.userAgent

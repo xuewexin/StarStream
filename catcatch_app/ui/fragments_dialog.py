@@ -41,9 +41,14 @@ class FragmentsDialog(QDialog):
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(6)
 
-        title_lbl = QLabel("📁 专用分片存储文件夹 (Temp_Segments)")
+        title_row = QHBoxLayout()
+        title_icon = QLabel()
+        title_icon.setPixmap(get_icon("folder", "#38bdf8", 18).pixmap(18, 18))
+        title_lbl = QLabel("专用分片存储文件夹 (Temp_Segments)")
         title_lbl.setStyleSheet("font-size: 15px; font-weight: bold; color: #38bdf8;")
-        top_layout.addWidget(title_lbl)
+        title_row.addWidget(title_icon)
+        title_row.addWidget(title_lbl, 1)
+        top_layout.addLayout(title_row)
 
         dir_row = QHBoxLayout()
         self.lbl_path = QLabel(get_temp_segments_dir())

@@ -526,6 +526,26 @@ function detectBrowserProxy() {
 
 async function pushTaskToLocalClient(taskData) {
   try {
+    const browserProxy = await detectBrowserProxy();
+    const fillProxy = (item) => {
+      if (!item.proxy || item.proxy === 'auto') {
+        if (browserProxy && browserProxy.proxyUrl) {
+          item.proxy = browserProxy.proxyUrl;
+        } else if (browserProxy && browserProxy.mode === 'direct') {
+          item.proxy = 'none';
+        } else {
+          item.proxy = 'system';
+        }
+      }
+    };
+    if (Array.isArray(taskData)) {
+      taskData.forEach(fillProxy);
+    } else if (taskData && typeof taskData === 'object') {
+      fillProxy(taskData);
+    }
+  } catch (e) {}
+
+  try {
     const resp = await fetch(`${LOCAL_SERVER_URL}/api/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

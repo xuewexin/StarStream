@@ -76,8 +76,8 @@ class ExtensionTutorialDialog(QDialog):
         s1_layout.setSpacing(8)
 
         s1_desc = QLabel(
-            "⚠️ 注意：Chromium 安全沙箱禁止任何外部程序直接强制跳转内部设置页。\n"
-            "👉 点击下方按钮后，软件已自动为您复制扩展页地址，并在浏览器中打开引导页；请直接在浏览器顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！"
+            "注意：Chromium 安全沙箱禁止任何外部程序直接强制跳转内部设置页。\n"
+            "点击下方按钮后，软件已自动为您复制扩展页地址，并在浏览器中打开引导页；请直接在浏览器顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！"
         )
         s1_desc.setStyleSheet("color: #facc15; font-size: 12px; line-height: 1.4; background-color: #1a1805; padding: 8px; border-radius: 4px; border: 1px solid #854d0e;")
         s1_layout.addWidget(s1_desc)
@@ -85,13 +85,13 @@ class ExtensionTutorialDialog(QDialog):
         btn_row1 = QHBoxLayout()
         btn_row1.setSpacing(8)
 
-        btn_edge = QPushButton("🚀 打开 Edge 扩展页面")
+        btn_edge = QPushButton("打开 Edge 扩展页面")
         btn_edge.setIcon(get_icon("globe", "#ffffff", 16))
         btn_edge.setStyleSheet("background-color: #0284c7; color: #ffffff; font-weight: 600; padding: 6px 12px;")
         btn_edge.clicked.connect(self._open_edge)
         btn_row1.addWidget(btn_edge)
 
-        btn_chrome = QPushButton("🚀 打开 Chrome 扩展页面")
+        btn_chrome = QPushButton("打开 Chrome 扩展页面")
         btn_chrome.setIcon(get_icon("globe", "#ffffff", 16))
         btn_chrome.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: 600; padding: 6px 12px;")
         btn_chrome.clicked.connect(self._open_chrome)
@@ -101,12 +101,14 @@ class ExtensionTutorialDialog(QDialog):
 
         copy_row = QHBoxLayout()
         copy_row.setSpacing(8)
-        btn_cp_edge = QPushButton("📋 复制 edge://extensions 地址")
+        btn_cp_edge = QPushButton("复制 edge://extensions 地址")
+        btn_cp_edge.setIcon(get_icon("copy", "#a1a1aa", 14))
         btn_cp_edge.setStyleSheet("background-color: #1e293b; color: #94a3b8; font-size: 11px; padding: 4px 8px;")
         btn_cp_edge.clicked.connect(lambda: self._copy_text("edge://extensions", "已复制 Edge 扩展页地址: edge://extensions\n请在浏览器地址栏按 Ctrl+V 粘贴并回车！"))
         copy_row.addWidget(btn_cp_edge)
 
-        btn_cp_chrome = QPushButton("📋 复制 chrome://extensions 地址")
+        btn_cp_chrome = QPushButton("复制 chrome://extensions 地址")
+        btn_cp_chrome.setIcon(get_icon("copy", "#a1a1aa", 14))
         btn_cp_chrome.setStyleSheet("background-color: #1e293b; color: #94a3b8; font-size: 11px; padding: 4px 8px;")
         btn_cp_chrome.clicked.connect(lambda: self._copy_text("chrome://extensions", "已复制 Chrome 扩展页地址: chrome://extensions\n请在浏览器地址栏按 Ctrl+V 粘贴并回车！"))
         copy_row.addWidget(btn_cp_chrome)
@@ -171,17 +173,17 @@ class ExtensionTutorialDialog(QDialog):
         action_row = QHBoxLayout()
         action_row.setSpacing(10)
 
-        btn_copy = QPushButton("📋 一键复制扩展目录绝对路径")
+        btn_copy = QPushButton("一键复制扩展目录绝对路径")
         btn_copy.setIcon(get_icon("copy", "#a1a1aa", 16))
         btn_copy.clicked.connect(self._copy_path)
         action_row.addWidget(btn_copy)
 
-        btn_rescan = QPushButton("🔄 重新扫描全盘")
+        btn_rescan = QPushButton("重新扫描全盘")
         btn_rescan.setIcon(get_icon("refresh", "#a1a1aa", 16))
         btn_rescan.clicked.connect(self._rescan_path)
         action_row.addWidget(btn_rescan)
 
-        btn_folder = QPushButton("📁 在资源管理器中打开")
+        btn_folder = QPushButton("在资源管理器中打开")
         btn_folder.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_folder.clicked.connect(self._open_folder)
         action_row.addWidget(btn_folder)
@@ -220,10 +222,10 @@ class ExtensionTutorialDialog(QDialog):
         ext_p = get_extension_dir()
         self.path_edit.setText(ext_p)
         if is_valid_extension_dir(ext_p):
-            self.lbl_path_status.setText("✓ 已在当前电脑成功定位到扩展目录 (包含 manifest.json)")
+            self.lbl_path_status.setText("已在当前电脑成功定位到扩展目录 (包含 manifest.json)")
             self.lbl_path_status.setStyleSheet("color: #4ade80; font-size: 12px; font-weight: 600;")
         else:
-            self.lbl_path_status.setText("⚠️ 未在默认位置检测到插件目录，请点击右侧「浏览选择」指定插件所在文件夹")
+            self.lbl_path_status.setText("未在默认位置检测到插件目录，请点击右侧「浏览选择」指定插件所在文件夹")
             self.lbl_path_status.setStyleSheet("color: #f87171; font-size: 12px; font-weight: 600;")
 
     def _open_edge(self):
@@ -234,9 +236,9 @@ class ExtensionTutorialDialog(QDialog):
             self, "已启动 Edge 安装指引",
             "【关键提示】\n"
             "现代 Chromium 安全沙箱禁止任何外部程序直接强制跳转 edge:// 内部页。\n\n"
-            "✨ 软件已自动将【edge://extensions】复制到了您的剪贴板！\n\n"
-            "👉 请在刚打开的浏览器中，直接在顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！\n"
-            "👉 随后开启右上角「开发者模式」，点击「加载已解压的扩展程序」，选择下方目录即可：\n"
+            "软件已自动将【edge://extensions】复制到了您的剪贴板！\n\n"
+            "请在刚打开的浏览器中，直接在顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！\n"
+            "随后开启右上角「开发者模式」，点击「加载已解压的扩展程序」，选择下方目录即可：\n"
             f"{ext_p}"
         )
 
@@ -248,9 +250,9 @@ class ExtensionTutorialDialog(QDialog):
             self, "已启动 Chrome 安装指引",
             "【关键提示】\n"
             "现代 Chromium 安全沙箱禁止任何外部程序直接强制跳转 chrome:// 内部页。\n\n"
-            "✨ 软件已自动将【chrome://extensions】复制到了您的剪贴板！\n\n"
-            "👉 请在刚打开的浏览器中，直接在顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！\n"
-            "👉 随后开启右上角「开发者模式」，点击「加载已解压的扩展程序」，选择下方目录即可：\n"
+            "软件已自动将【chrome://extensions】复制到了您的剪贴板！\n\n"
+            "请在刚打开的浏览器中，直接在顶部地址栏按【Ctrl + V】粘贴并回车即可瞬间直达！\n"
+            "随后开启右上角「开发者模式」，点击「加载已解压的扩展程序」，选择下方目录即可：\n"
             f"{ext_p}"
         )
 

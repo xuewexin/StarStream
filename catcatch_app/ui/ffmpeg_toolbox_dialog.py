@@ -124,9 +124,14 @@ class FFmpegToolboxDialog(QDialog):
         ib_layout = QVBoxLayout(info_box)
         ib_layout.setSpacing(12)
 
-        title = QLabel("🚀 批量媒体格式转换中心")
+        title_row = QHBoxLayout()
+        title_icon = QLabel()
+        title_icon.setPixmap(get_icon("refresh", "#38bdf8", 18).pixmap(18, 18))
+        title = QLabel("批量媒体格式转换中心")
         title.setStyleSheet("font-size: 15px; font-weight: 700; color: #f4f4f5;")
-        ib_layout.addWidget(title)
+        title_row.addWidget(title_icon)
+        title_row.addWidget(title, 1)
+        ib_layout.addLayout(title_row)
 
         desc = QLabel(
             "• 支持批量选择多文件或一键扫描整个文件夹（支持 MP4、MKV、TS、FLV、MOV、AVI、MP3、M4A 等）\n"

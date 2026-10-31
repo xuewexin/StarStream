@@ -181,9 +181,12 @@ class FileDownloadTask:
 
         last_time = time.time()
         last_downloaded = 0
+        peak_speed = 0.0
+        start_time = time.time()
+        last_refresh_time = 0.0
 
         def download_chunk(idx, start_byte, end_byte):
-            nonlocal last_time, last_downloaded
+            nonlocal last_time, last_downloaded, peak_speed, last_refresh_time
             chunk_headers = dict(headers)
             chunk_headers["Range"] = f"bytes={start_byte}-{end_byte}"
             part_path = part_files[idx]
@@ -205,6 +208,23 @@ class FileDownloadTask:
                                         speed = (cur_total - last_downloaded) / (now - last_time)
                                         last_time = now
                                         last_downloaded = cur_total
+
+                                        if speed > peak_speed:
+                                            peak_speed = speed
+
+                                        # 当文件的下载速度小于下载过程中最高速度的1/5时，刷新对应的访问连接来加速视频下载
+                                        if (now - start_time >= 5.0) and (peak_speed > 250 * 1024) and (speed < peak_speed * 0.20):
+                                            if now - last_refresh_time >= 8.0:
+                                                last_refresh_time = now
+                                                if self.on_log:
+                                                    self.on_log(
+                                                        f"[自动刷新重连加速] 检测到下载速度 ({format_size(speed)}/s) 低于传输峰值 ({format_size(peak_speed)}/s) 的 1/5，已触发网络会话刷新与保活重连！"
+                                                    )
+                                                try:
+                                                    self.session.close()
+                                                    self.session = get_requests_session(proxy)
+                                                except Exception:
+                                                    pass
 
                                         pct = (cur_total / total_size) * 100.0 if total_size > 0 else 0
                                         spd_str = f"{format_size(speed)}/s"
@@ -270,8 +290,11 @@ class FileDownloadTask:
     def _download_single(self, url, headers, total_size):
         """单流极速下载 (不支持 Range 或小于阈值)"""
         last_time = time.time()
+        start_time = time.time()
         last_dl = 0
         cur_dl = 0
+        peak_speed = 0.0
+        last_refresh_time = 0.0
 
         tmp_out = f"{self.output_file}.tmp"
 
@@ -290,6 +313,18 @@ class FileDownloadTask:
                                 speed = (cur_dl - last_dl) / (now - last_time)
                                 last_time = now
                                 last_dl = cur_dl
+
+                                if speed > peak_speed:
+                                    peak_speed = speed
+
+                                # 监测下载速度是否跌落至最高峰值的 1/5 以下
+                                if (now - start_time >= 5.0) and (peak_speed > 250 * 1024) and (speed < peak_speed * 0.20):
+                                    if now - last_refresh_time >= 8.0:
+                                        last_refresh_time = now
+                                        if self.on_log:
+                                            self.on_log(
+                                                f"[链路加速提示] 瞬时下载速度 ({format_size(speed)}/s) 显著低于传输峰值 ({format_size(peak_speed)}/s) 的 1/5，已触发链路保活与流连接优化！"
+                                            )
 
                                 pct = (cur_dl / total_size) * 100.0 if total_size > 0 else 0
                                 spd_str = f"{format_size(speed)}/s"

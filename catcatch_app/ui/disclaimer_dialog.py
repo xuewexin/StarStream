@@ -9,6 +9,8 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QColor
 
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.core.config import config
+from catcatch_app.ui.styles import THEMES
 
 
 class DisclaimerDialog(QDialog):
@@ -16,14 +18,20 @@ class DisclaimerDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("免责声明与合法使用规范 - 星流媒体下载器")
         self.setWindowIcon(get_app_icon())
-        self.setFixedSize(580, 420)
+        self.setFixedSize(620, 440)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0f1117;
-                color: #f4f4f5;
-            }
+        cur_theme = THEMES.get(config.get("theme", "dark"), THEMES["dark"])
+        self.is_light = cur_theme.get("is_light", False)
+
+        bg_col = "#ffffff" if self.is_light else "#0f172a"
+        text_col = "#0f172a" if self.is_light else "#f8fafc"
+
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {bg_col};
+                color: {text_col};
+            }}
         """)
 
         self._init_ui()
@@ -33,30 +41,35 @@ class DisclaimerDialog(QDialog):
         layout.setContentsMargins(24, 22, 24, 20)
         layout.setSpacing(16)
 
+        title_col = "#0284c7" if self.is_light else "#38bdf8"
+        card_bg = "#f8fafc" if self.is_light else "#1e293b"
+        card_border = "#cbd5e1" if self.is_light else "#334155"
+        body_text_col = "#1e293b" if self.is_light else "#f1f5f9"
+
         # 头部标题区
         header_layout = QHBoxLayout()
         header_layout.setSpacing(12)
 
         icon_lbl = QLabel()
-        icon_lbl.setPixmap(get_icon("info", "#38bdf8", 32).pixmap(32, 32))
+        icon_lbl.setPixmap(get_icon("info", title_col, 32).pixmap(32, 32))
         header_layout.addWidget(icon_lbl)
 
         title_lbl = QLabel("星流媒体下载器 (StarStream Pro) 免责声明")
         title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        title_lbl.setStyleSheet("color: #f4f4f5;")
+        title_lbl.setStyleSheet(f"color: {title_col}; font-weight: bold;")
         header_layout.addWidget(title_lbl, 1)
 
         layout.addLayout(header_layout)
 
         # 核心内容卡片 (高对比度、字号适中、高可读性)
         card = QFrame()
-        card.setStyleSheet("""
-            QFrame {
-                background-color: #181a22;
-                border: 1px solid #2d313d;
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {card_bg};
+                border: 1px solid {card_border};
                 border-radius: 8px;
                 padding: 14px 18px;
-            }
+            }}
         """)
         card_layout = QVBoxLayout(card)
         card_layout.setSpacing(12)
@@ -68,27 +81,30 @@ class DisclaimerDialog(QDialog):
             ("4", "若测试下载的音视频涉及版权争议，请在下载后 24 小时内自觉删除。")
         ]
 
+        badge_bg = "#e2e8f0" if self.is_light else "#334155"
+        badge_text = "#0284c7" if self.is_light else "#38bdf8"
+
         for num, text in items:
             item_row = QHBoxLayout()
             item_row.setSpacing(10)
             item_row.setAlignment(Qt.AlignTop)
 
             badge = QLabel(f" {num} ")
-            badge.setStyleSheet("""
-                background-color: #27272a;
-                color: #38bdf8;
+            badge.setStyleSheet(f"""
+                background-color: {badge_bg};
+                color: {badge_text};
                 font-weight: bold;
                 border-radius: 4px;
-                padding: 2px 5px;
+                padding: 2px 6px;
                 font-size: 11px;
             """)
-            badge.setFixedHeight(20)
+            badge.setFixedHeight(22)
             item_row.addWidget(badge)
 
             text_lbl = QLabel(text)
             text_lbl.setWordWrap(True)
             text_lbl.setFont(QFont("Segoe UI", 10))
-            text_lbl.setStyleSheet("color: #e4e4e7; line-height: 1.6;")
+            text_lbl.setStyleSheet(f"color: {body_text_col}; font-weight: 500; line-height: 1.6;")
             item_row.addWidget(text_lbl, 1)
 
             card_layout.addLayout(item_row)

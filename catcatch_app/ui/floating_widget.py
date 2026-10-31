@@ -73,7 +73,7 @@ class FloatingDashboardPanel(QWidget):
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
-        title_lbl = QLabel("🌌 星流 · 任务监控与工具中心")
+        title_lbl = QLabel("星流 · 任务监控与工具中心")
         title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
         title_lbl.setStyleSheet("color: #38bdf8; border: none;")
         top_row.addWidget(title_lbl)
@@ -92,7 +92,8 @@ class FloatingDashboardPanel(QWidget):
         """)
         top_row.addWidget(self.speed_pill)
 
-        close_btn = QPushButton("✕")
+        close_btn = QPushButton()
+        close_btn.setIcon(get_icon("close", "#94a3b8", 12))
         close_btn.setFixedSize(22, 22)
         close_btn.setToolTip("关闭监控面板")
         close_btn.setStyleSheet("""
@@ -147,14 +148,15 @@ class FloatingDashboardPanel(QWidget):
         card_layout.addWidget(self.scroll)
 
         # 3. 快捷文件转换与核心工具箱
-        tools_lbl = QLabel("🛠️ 快捷工具与文件转换")
+        tools_lbl = QLabel("快捷工具与文件转换")
         tools_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none; margin-top: 2px;")
         card_layout.addWidget(tools_lbl)
 
         tools_row = QHBoxLayout()
         tools_row.setSpacing(6)
 
-        btn_batch = QPushButton("🔄 批量格式转换")
+        btn_batch = QPushButton("批量格式转换")
+        btn_batch.setIcon(get_icon("refresh", "#c084fc", 14))
         btn_batch.setToolTip("批量转换音视频格式 (MP4/MKV/TS/MP3/M4A/FLAC)")
         btn_batch.setStyleSheet("""
             QPushButton {
@@ -174,7 +176,8 @@ class FloatingDashboardPanel(QWidget):
         """)
         btn_batch.clicked.connect(self._on_open_batch)
 
-        btn_ffmpeg = QPushButton("🧰 FFmpeg 工具箱")
+        btn_ffmpeg = QPushButton("FFmpeg 工具箱")
+        btn_ffmpeg.setIcon(get_icon("toolbox", "#38bdf8", 14))
         btn_ffmpeg.setToolTip("音视频快速剪辑、提取音频、无损合并")
         btn_ffmpeg.setStyleSheet("""
             QPushButton {
@@ -194,7 +197,8 @@ class FloatingDashboardPanel(QWidget):
         """)
         btn_ffmpeg.clicked.connect(self._on_open_ffmpeg)
 
-        btn_parser = QPushButton("⚡ 短视频提取")
+        btn_parser = QPushButton("短视频提取")
+        btn_parser.setIcon(get_icon("zap", "#fbbf24", 14))
         btn_parser.setToolTip("全网主流短视频无水印解析提取 (抖音/快手/B站4K/小红书)")
         btn_parser.setStyleSheet("""
             QPushButton {
@@ -220,7 +224,8 @@ class FloatingDashboardPanel(QWidget):
         card_layout.addLayout(tools_row)
 
         # 4. 底部打开主程序大按钮
-        main_btn = QPushButton("💻 打开星流完整主程序")
+        main_btn = QPushButton("打开星流完整主程序")
+        main_btn.setIcon(get_icon("monitor", "#ffffff", 14))
         main_btn.setFixedHeight(28)
         main_btn.setStyleSheet("""
             QPushButton {
@@ -512,7 +517,7 @@ class FloatingWidget(QWidget):
         painter.end()
 
     # =========================================================================
-    # 皮肤 1: 🌌 星流 · 量子星核 (StarStream Quantum Core - 赛博全息能量球与HUD测控)
+    # 皮肤 1: 星流 · 量子星核 (StarStream Quantum Core - 赛博全息能量球与HUD测控)
     # =========================================================================
     def _draw_starstream_core(self, p: QPainter):
         cx, cy = 36, 36
@@ -628,7 +633,7 @@ class FloatingWidget(QWidget):
             p.drawRoundedRect(QRectF(bar_x, bar_y, fill_w, bar_h), 2, 2)
 
     # =========================================================================
-    # 皮肤 2: 🐳 DeepSeek 灵动大肥鱼 (官方萌鱼风格)
+    # 皮肤 2: DeepSeek 灵动大肥鱼 (官方萌鱼风格)
     # =========================================================================
     def _draw_deepseek_fish(self, p: QPainter):
         wiggle = math.sin(self._anim_tick * 0.12) * (2.8 if self.active_count > 0 else 1.2)
@@ -733,7 +738,7 @@ class FloatingWidget(QWidget):
         p.drawText(QRectF(82, 38, 76, 20), Qt.AlignCenter, text_sub)
 
     # =========================================================================
-    # 皮肤 3: 🌊 迅雷/IDM 流光动态水球 (液面浪涌风格)
+    # 皮肤 3: 迅雷/IDM 流光动态水球 (液面浪涌风格)
     # =========================================================================
     def _draw_water_sphere(self, p: QPainter):
         cx, cy, r = 50, 50, 42
@@ -795,7 +800,7 @@ class FloatingWidget(QWidget):
         p.drawText(QRectF(cx - r, cy + 4, r * 2, 14), Qt.AlignCenter, status_txt)
 
     # =========================================================================
-    # 皮肤 4: 💊 极光赛博霓虹胶囊 (现代 Cyberpunk 风格)
+    # 皮肤 4: 极光赛博霓虹胶囊 (现代 Cyberpunk 风格)
     # =========================================================================
     def _draw_neon_capsule(self, p: QPainter):
         rect = QRectF(2, 2, 172, 54)
@@ -836,11 +841,11 @@ class FloatingWidget(QWidget):
 
         p.setPen(QColor(148, 163, 184))
         p.setFont(QFont("Segoe UI", 8))
-        status_txt = f"⚡ {self.active_count} 项正在下载" if self.active_count > 0 else f"✓ 共计 {self.total_count} 项任务"
+        status_txt = f"{self.active_count} 项正在下载" if self.active_count > 0 else f"共计 {self.total_count} 项任务"
         p.drawText(QRectF(54, 30, 114, 16), Qt.AlignLeft | Qt.AlignVCenter, status_txt)
 
     # =========================================================================
-    # 皮肤 5: 🖼️ 用户自定义桌面形象挂件
+    # 皮肤 5: 用户自定义桌面形象挂件
     # =========================================================================
     def _draw_custom_mascot(self, p: QPainter):
         img_rect = QRectF(10, 15, 65, 65)
@@ -944,27 +949,27 @@ class FloatingWidget(QWidget):
         # 皮肤形象切换子菜单
         skin_menu = menu.addMenu(get_icon("palette", "#38bdf8", 14), "挂件外观形象")
 
-        act_core = skin_menu.addAction("🌌 星流 · 量子星核 (默认炫酷主题)")
+        act_core = skin_menu.addAction("星流 · 量子星核 (默认炫酷主题)")
         act_core.setCheckable(True)
         act_core.setChecked(self.skin == "starstream_core")
         act_core.triggered.connect(lambda: self._set_skin("starstream_core"))
 
-        act_sphere = skin_menu.addAction("🌊 流光动态水球 (迅雷/IDM风格)")
+        act_sphere = skin_menu.addAction("流光动态水球 (迅雷/IDM风格)")
         act_sphere.setCheckable(True)
         act_sphere.setChecked(self.skin == "water_sphere")
         act_sphere.triggered.connect(lambda: self._set_skin("water_sphere"))
 
-        act_neon = skin_menu.addAction("💊 极光赛博胶囊 (极简科技风格)")
+        act_neon = skin_menu.addAction("极光赛博胶囊 (极简科技风格)")
         act_neon.setCheckable(True)
         act_neon.setChecked(self.skin == "neon_capsule")
         act_neon.triggered.connect(lambda: self._set_skin("neon_capsule"))
 
-        act_fish = skin_menu.addAction("🐳 灵动大肥鱼 (萌宠风格)")
+        act_fish = skin_menu.addAction("灵动大肥鱼 (萌宠风格)")
         act_fish.setCheckable(True)
         act_fish.setChecked(self.skin == "deepseek_fish")
         act_fish.triggered.connect(lambda: self._set_skin("deepseek_fish"))
 
-        act_custom = skin_menu.addAction("🖼️ 自定义挂件形象...")
+        act_custom = skin_menu.addAction("自定义挂件形象...")
         act_custom.setCheckable(True)
         act_custom.setChecked(self.skin == "custom_mascot")
         act_custom.triggered.connect(lambda: self._set_skin("custom_mascot"))
@@ -982,10 +987,10 @@ class FloatingWidget(QWidget):
 
         menu.addSeparator()
 
-        act_panel = menu.addAction("📊 显示极速监控微面板")
+        act_panel = menu.addAction(get_icon("monitor", "#38bdf8", 14), "显示极速监控微面板")
         act_panel.triggered.connect(self._toggle_dashboard)
 
-        act_top = menu.addAction("📌 窗口保持置顶")
+        act_top = menu.addAction(get_icon("check", "#38bdf8", 14), "窗口保持置顶")
         act_top.setCheckable(True)
         is_on_top = bool(self.windowFlags() & Qt.WindowStaysOnTopHint)
         act_top.setChecked(is_on_top)

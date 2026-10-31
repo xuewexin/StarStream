@@ -19,7 +19,7 @@ from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPixmap
 
 from catcatch_app.core.config import (
     config, get_nm3u8dl_status, NM3U8DL_RE_DOWNLOAD_URL,
-    detect_local_active_proxies
+    detect_local_active_proxies, APP_VERSION
 )
 from catcatch_app.core.task_manager import task_manager
 from catcatch_app.core.server import local_server
@@ -40,6 +40,7 @@ from catcatch_app.ui.notify_dialog import DownloadNotifyDialog
 from catcatch_app.ui.floating_widget import FloatingWidget
 from catcatch_app.ui.shutdown_dialog import ShutdownDialog
 from catcatch_app.ui.mobile_connect_dialog import MobileConnectDialog
+from catcatch_app.ui.update_dialog import UpdateCheckerThread, UpdateDialog
 from catcatch_app.core.preview_engine import play_task_preview
 from catcatch_app.core.logger import get_logs_dir, get_master_error_log_path
 
@@ -81,7 +82,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("星流媒体下载器 (StarStream Pro) v3.1.1 旗舰版")
+        self.setWindowTitle(f"星流媒体下载器 (StarStream Pro) {APP_VERSION} 旗舰版")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self._cached_bg_pixmap = None
@@ -109,10 +110,21 @@ class MainWindow(QMainWindow):
 
         # 启动后异步刷新底层引擎与代理状态，避免主线程初始化网络阻塞卡死
         QTimer.singleShot(0, self._async_init_status)
+        # 启动后异步检查软件版本更新
+        QTimer.singleShot(1500, self._check_update_on_startup)
 
         self.speed_timer = QTimer(self)
         self.speed_timer.timeout.connect(self._update_status_stats)
         self.speed_timer.start(1000)
+
+    def _check_update_on_startup(self):
+        self._update_checker = UpdateCheckerThread(self)
+        self._update_checker.update_available.connect(self._on_update_found)
+        self._update_checker.start()
+
+    def _on_update_found(self, tag, title, body, download_url):
+        dlg = UpdateDialog(tag, title, body, download_url, self)
+        dlg.exec_()
 
     def _async_init_status(self):
         self._update_ffmpeg_label()
@@ -198,11 +210,11 @@ class MainWindow(QMainWindow):
         self.btn_nm3u8dl_status.clicked.connect(self._on_nm3u8dl_status_clicked)
         self.status_bar.addWidget(self.btn_nm3u8dl_status)
 
-        # 代理状态指示交互按钮
+        # 代理状态指示交互按钮 (点击直达代理配置)
         self.btn_proxy_status = QPushButton("代理: 检测中...")
         self.btn_proxy_status.setIcon(get_icon("globe", "#9ca3af", 14))
         self.btn_proxy_status.setStyleSheet("border: none; background: transparent; color: #9ca3af; padding: 2px 6px; font-size: 12px;")
-        self.btn_proxy_status.clicked.connect(self._action_settings)
+        self.btn_proxy_status.clicked.connect(self._action_proxy_settings)
         self.status_bar.addWidget(self.btn_proxy_status)
 
         self.lbl_stats = QLabel("任务: 0 项")
@@ -228,7 +240,7 @@ class MainWindow(QMainWindow):
         toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.addToolBar(toolbar)
 
-        # 新建
+        # 新建任务
         self.act_new = QAction(get_icon("add", "#f4f4f5", 18), "新建任务", self)
         self.act_new.setShortcut("Ctrl+N")
         self.act_new.triggered.connect(self._action_new_task)
@@ -263,57 +275,62 @@ class MainWindow(QMainWindow):
         self.act_open_dir.triggered.connect(self._action_open_dir)
         toolbar.addAction(self.act_open_dir)
 
-        # 临时分片文件夹管理
-        self.act_fragments = QAction(get_icon("stream", "#38bdf8", 18), "分片管理", self)
-        self.act_fragments.setToolTip("查看和整理临时分片存放文件夹 (Temp_Segments)，支持查看与删除残留切片")
-        self.act_fragments.triggered.connect(self._action_manage_fragments)
-        toolbar.addAction(self.act_fragments)
+        # 实用工具下拉菜单 (将次级工具紧凑收纳，避免工具栏横向溢出挤掉设置与代理按钮)
+        self.btn_more_tools = QToolButton(self)
+        self.btn_more_tools.setIcon(get_icon("toolbox", "#38bdf8", 18))
+        self.btn_more_tools.setText("实用工具")
+        self.btn_more_tools.setToolTip("实用工具与扩展中心 (FFmpeg/批量转换/分片/悬浮窗/推流等)")
+        self.btn_more_tools.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.btn_more_tools.setPopupMode(QToolButton.InstantPopup)
+        tools_menu = QMenu(self)
 
-        # FFmpeg 工具箱
-        self.act_ffmpeg = QAction(get_icon("toolbox", "#d4d4d8", 18), "FFmpeg 工具箱", self)
-        self.act_ffmpeg.triggered.connect(self._action_ffmpeg_toolbox)
-        toolbar.addAction(self.act_ffmpeg)
-
-        # 批量格式转换
-        self.act_batch = QAction(get_icon("refresh", "#38bdf8", 18), "批量转换", self)
-        self.act_batch.setToolTip("批量媒体格式转换中心 (支持 MP4/MKV/TS/MP3/M4A 等多格式批量互转与极速无损封装)")
+        self.act_batch = tools_menu.addAction(get_icon("refresh", "#38bdf8", 16), "批量格式转换")
         self.act_batch.triggered.connect(self._action_batch_convert)
-        toolbar.addAction(self.act_batch)
 
-        # 清理缓存
-        self.act_clean = QAction(get_icon("clean", "#d4d4d8", 18), "清理缓存", self)
-        self.act_clean.triggered.connect(self._action_clean_cache)
-        toolbar.addAction(self.act_clean)
+        self.act_ffmpeg = tools_menu.addAction(get_icon("toolbox", "#38bdf8", 16), "FFmpeg 工具箱")
+        self.act_ffmpeg.triggered.connect(self._action_ffmpeg_toolbox)
 
-        # 错误日志
-        self.act_view_errors = QAction(get_icon("log", "#38bdf8", 18), "错误日志", self)
-        self.act_view_errors.setToolTip("查看下载错误汇总日志与排查诊断 (Logs/download_errors.log)")
-        self.act_view_errors.triggered.connect(self._action_open_master_error_log)
-        toolbar.addAction(self.act_view_errors)
+        self.act_fragments = tools_menu.addAction(get_icon("stream", "#38bdf8", 16), "分片管理 (Temp_Segments)")
+        self.act_fragments.triggered.connect(self._action_manage_fragments)
 
-        # 浏览器扩展安装教学
-        self.act_ext = QAction(get_icon("extension", "#38bdf8", 18), "插件安装教学", self)
-        self.act_ext.setToolTip("查看星流媒体嗅探器在 Chrome / Edge 等浏览器中的安装与配置教学")
-        self.act_ext.triggered.connect(self._action_extension_tutorial)
-        toolbar.addAction(self.act_ext)
+        tools_menu.addSeparator()
 
-        # 桌面极简悬浮小窗
-        self.act_floating = QAction(get_icon("monitor", "#38bdf8", 18), "桌面悬浮窗", self)
-        self.act_floating.setToolTip("开启/关闭桌面极简下载悬浮小窗 (支持拖拽链接直接下载)")
+        self.act_floating = tools_menu.addAction(get_icon("monitor", "#38bdf8", 16), "桌面极简悬浮小窗")
         self.act_floating.triggered.connect(self._toggle_floating_widget)
-        toolbar.addAction(self.act_floating)
 
-        # 手机无线推流
-        self.act_mobile = QAction(get_icon("phone", "#22c55e", 18), "手机扫码推流", self)
-        self.act_mobile.setToolTip("显示手机局域网扫码推流二维码与控制台网页")
+        self.act_mobile = tools_menu.addAction(get_icon("phone", "#22c55e", 16), "手机扫码无线推流")
         self.act_mobile.triggered.connect(self._action_show_mobile_connect)
-        toolbar.addAction(self.act_mobile)
 
-        # 视频下载免责声明
-        self.act_disclaimer = QAction(get_icon("info", "#d4d4d8", 18), "免责声明", self)
-        self.act_disclaimer.setToolTip("查看视频下载合法合规使用与免责声明")
+        self.act_ext = tools_menu.addAction(get_icon("extension", "#38bdf8", 16), "浏览器插件安装教学")
+        self.act_ext.triggered.connect(self._action_extension_tutorial)
+
+        tools_menu.addSeparator()
+
+        self.act_clean = tools_menu.addAction(get_icon("clean", "#d4d4d8", 16), "清理缓存碎片")
+        self.act_clean.triggered.connect(self._action_clean_cache)
+
+        self.act_view_errors = tools_menu.addAction(get_icon("log", "#38bdf8", 16), "错误排查日志")
+        self.act_view_errors.triggered.connect(self._action_open_master_error_log)
+
+        self.act_disclaimer = tools_menu.addAction(get_icon("info", "#d4d4d8", 16), "免责声明与合规")
         self.act_disclaimer.triggered.connect(self._action_show_disclaimer)
-        toolbar.addAction(self.act_disclaimer)
+
+        self.btn_more_tools.setMenu(tools_menu)
+        toolbar.addWidget(self.btn_more_tools)
+
+        toolbar.addSeparator()
+
+        # 核心直达: 代理配置 (直接呼出网络与多节点代理设置)
+        self.act_proxy = QAction(get_icon("globe", "#38bdf8", 18), "代理配置", self)
+        self.act_proxy.setToolTip("网络与多节点代理配置 (支持直连/跟随系统/本地代理池扫描及一键测速)")
+        self.act_proxy.triggered.connect(self._action_proxy_settings)
+        toolbar.addAction(self.act_proxy)
+
+        # 核心直达: 系统设置 (呼出核心路径与并发偏好设置)
+        self.act_settings = QAction(get_icon("settings", "#38bdf8", 18), "系统设置", self)
+        self.act_settings.setToolTip("系统核心设置 (存储路径、下载引擎、并发调度与偏好)")
+        self.act_settings.triggered.connect(lambda: self._action_settings(0))
+        toolbar.addAction(self.act_settings)
 
         toolbar.addSeparator()
 
@@ -327,21 +344,14 @@ class MainWindow(QMainWindow):
         self.btn_theme.setMenu(self._create_theme_menu())
         toolbar.addWidget(self.btn_theme)
 
-        toolbar.addSeparator()
-
-        # 设置
-        self.act_settings = QAction(get_icon("settings", "#d4d4d8", 18), "设置", self)
-        self.act_settings.triggered.connect(self._action_settings)
-        toolbar.addAction(self.act_settings)
-
         # 搜索框
         spacer = QWidget()
-        spacer.setFixedWidth(20)
+        spacer.setFixedWidth(16)
         toolbar.addWidget(spacer)
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText("搜索任务名称或网址...")
-        self.search_edit.setFixedWidth(220)
+        self.search_edit.setFixedWidth(180)
         self.search_edit.textChanged.connect(self._on_search_text_changed)
         toolbar.addWidget(self.search_edit)
 
@@ -489,13 +499,15 @@ class MainWindow(QMainWindow):
         status = get_nm3u8dl_status()
         if status["found"]:
             eng = status["engine"] or "RE"
-            self.btn_nm3u8dl_status.setText(f"✓ N_m3u8DL: 就绪 ({eng})")
+            self.btn_nm3u8dl_status.setText(f"N_m3u8DL: 就绪 ({eng})")
+            self.btn_nm3u8dl_status.setIcon(get_icon("check", "#4ade80", 14))
             self.btn_nm3u8dl_status.setStyleSheet(
                 "border: none; background: transparent; color: #4ade80; font-weight: 500; margin-left: 14px; padding: 2px 6px; font-size: 12px;"
             )
             self.btn_nm3u8dl_status.setToolTip(f"当前下载引擎路径:\n{status['active_path']}\n点击可在设置中切换或查看详情")
         else:
-            self.btn_nm3u8dl_status.setText("⚠️ 未检测到 N_m3u8DL 引擎 (点击下载最新版)")
+            self.btn_nm3u8dl_status.setText("未检测到 N_m3u8DL 引擎 (点击下载最新版)")
+            self.btn_nm3u8dl_status.setIcon(get_icon("info", "#fbbf24", 14))
             self.btn_nm3u8dl_status.setStyleSheet(
                 "border: 1px solid #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24; font-weight: 600; border-radius: 4px; margin-left: 14px; padding: 2px 8px; font-size: 12px;"
             )
@@ -506,7 +518,7 @@ class MainWindow(QMainWindow):
         if not status["found"]:
             self._show_nm3u8dl_download_dialog(status)
         else:
-            self._action_settings()
+            self._action_settings(0)
 
     def _show_nm3u8dl_download_dialog(self, status=None):
         if status is None:
@@ -531,19 +543,22 @@ class MainWindow(QMainWindow):
         l.addWidget(d_lbl)
 
         btn_row = QHBoxLayout()
-        btn_github = QPushButton("🌐 前往 GitHub 下载最新版 (N_m3u8DL-RE)")
+        btn_github = QPushButton("前往 GitHub 下载最新版 (N_m3u8DL-RE)")
+        btn_github.setIcon(get_icon("globe", "#ffffff", 16))
         btn_github.setStyleSheet("background-color: #2563eb; color: #ffffff; font-weight: 600; padding: 8px 16px;")
         btn_github.clicked.connect(lambda: webbrowser.open(NM3U8DL_RE_DOWNLOAD_URL))
         btn_row.addWidget(btn_github)
 
-        btn_mirror = QPushButton("⚡ 加速镜像站")
+        btn_mirror = QPushButton("加速镜像站")
+        btn_mirror.setIcon(get_icon("zap", "#38bdf8", 16))
         btn_mirror.setStyleSheet("background-color: #1e293b; color: #38bdf8; border: 1px solid #334155; padding: 8px 12px;")
         btn_mirror.clicked.connect(lambda: webbrowser.open(status.get("mirror_url", NM3U8DL_RE_DOWNLOAD_URL)))
         btn_row.addWidget(btn_mirror)
         l.addLayout(btn_row)
 
         action_box = QHBoxLayout()
-        btn_pick = QPushButton("📂 我已下载，指定 exe 路径...")
+        btn_pick = QPushButton("我已下载，指定 exe 路径...")
+        btn_pick.setIcon(get_icon("folder", "#ffffff", 16))
         btn_pick.setStyleSheet("background-color: #334155; color: #ffffff; padding: 6px 14px;")
         
         def _pick_file():
@@ -562,7 +577,8 @@ class MainWindow(QMainWindow):
         btn_pick.clicked.connect(_pick_file)
         action_box.addWidget(btn_pick)
 
-        btn_scan = QPushButton("🔄 重新扫描全盘")
+        btn_scan = QPushButton("重新扫描全盘")
+        btn_scan.setIcon(get_icon("refresh", "#ffffff", 16))
         def _do_rescan():
             new_st = config.rescan_tools()
             self._update_nm3u8dl_label()
@@ -642,16 +658,23 @@ class MainWindow(QMainWindow):
             self._render_row(row, t)
 
     def _render_row(self, row, t):
+        cur_theme = THEMES.get(config.get("theme", "dark"), THEMES["dark"])
+        is_light = cur_theme.get("is_light", False)
+        text_col = QColor(cur_theme.get("text", "#f8fafc"))
+        text_sec_col = QColor(cur_theme.get("text_secondary", "#cbd5e1"))
+
         # 0. 序号
         item_id = QTableWidgetItem(str(row + 1))
         item_id.setTextAlignment(Qt.AlignCenter)
         item_id.setData(Qt.UserRole, t["id"])
+        item_id.setForeground(text_sec_col)
         self.table.setItem(row, 0, item_id)
 
         # 1. 任务名称
         title = t.get("title") or t.get("save_name") or "未命名"
         item_title = QTableWidgetItem(title)
         item_title.setToolTip(t.get("url", ""))
+        item_title.setForeground(text_col)
         self.table.setItem(row, 1, item_title)
 
         # 2. 规格/分辨率
@@ -662,19 +685,19 @@ class MainWindow(QMainWindow):
             item_res.setForeground(QColor("#f43f5e"))
             item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
         elif "1080" in res:
-            item_res.setForeground(QColor("#a855f7"))
+            item_res.setForeground(QColor("#a855f7" if not is_light else "#7c3aed"))
             item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
         elif "720" in res:
-            item_res.setForeground(QColor("#38bdf8"))
+            item_res.setForeground(QColor("#38bdf8" if not is_light else "#0284c7"))
         else:
-            item_res.setForeground(QColor("#9ca3af"))
+            item_res.setForeground(text_sec_col)
         self.table.setItem(row, 2, item_res)
 
         # 3. 视频时长
         dur = t.get("duration", "")
         item_dur = QTableWidgetItem(dur if dur else "-")
         item_dur.setTextAlignment(Qt.AlignCenter)
-        item_dur.setForeground(QColor("#cbd5e1"))
+        item_dur.setForeground(text_sec_col)
         self.table.setItem(row, 3, item_dur)
 
         # 4. 类型
@@ -682,11 +705,13 @@ class MainWindow(QMainWindow):
         item_type = QTableWidgetItem(f"[{mtype}]")
         item_type.setTextAlignment(Qt.AlignCenter)
         if mtype == "M3U8":
-            item_type.setForeground(QColor("#a78bfa"))
+            item_type.setForeground(QColor("#a78bfa" if not is_light else "#6366f1"))
         elif mtype in ["VIDEO", "MP4"]:
-            item_type.setForeground(QColor("#3875f6"))
+            item_type.setForeground(QColor("#3875f6" if not is_light else "#2563eb"))
         elif mtype in ["AUDIO", "MP3"]:
-            item_type.setForeground(QColor("#34d399"))
+            item_type.setForeground(QColor("#34d399" if not is_light else "#059669"))
+        else:
+            item_type.setForeground(text_sec_col)
         self.table.setItem(row, 4, item_type)
 
         # 5. 文件大小
@@ -709,6 +734,7 @@ class MainWindow(QMainWindow):
 
         item_size = QTableWidgetItem(size_str)
         item_size.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        item_size.setForeground(text_col)
         self.table.setItem(row, 5, item_size)
 
         # 6. 下载进度条
@@ -724,24 +750,34 @@ class MainWindow(QMainWindow):
         spd_str = t.get("speed", "")
         item_spd = QTableWidgetItem(spd_str)
         item_spd.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        item_spd.setForeground(QColor("#38bdf8"))
+        item_spd.setForeground(QColor("#38bdf8" if not is_light else "#0284c7"))
         self.table.setItem(row, 7, item_spd)
 
         # 8. 剩余时间
         item_eta = QTableWidgetItem(t.get("eta", ""))
         item_eta.setTextAlignment(Qt.AlignCenter)
+        item_eta.setForeground(text_sec_col)
         self.table.setItem(row, 8, item_eta)
 
         # 9. 状态
         status = t.get("status", "waiting")
-        status_map = {
-            "waiting": ("等待中", "#fbbf24"),
-            "downloading": ("下载中", "#3875f6"),
-            "paused": ("已暂停", "#9ca3af"),
-            "completed": ("已完成", "#4ade80"),
-            "error": ("失败", "#f87171")
-        }
-        text_status, color_status = status_map.get(status, (status, "#e4e4e7"))
+        if is_light:
+            status_map = {
+                "waiting": ("等待中", "#d97706"),
+                "downloading": ("下载中", "#2563eb"),
+                "paused": ("已暂停", "#64748b"),
+                "completed": ("已完成", "#16a34a"),
+                "error": ("失败", "#dc2626")
+            }
+        else:
+            status_map = {
+                "waiting": ("等待中", "#fbbf24"),
+                "downloading": ("下载中", "#38bdf8"),
+                "paused": ("已暂停", "#94a3b8"),
+                "completed": ("已完成", "#4ade80"),
+                "error": ("失败", "#f87171")
+            }
+        text_status, color_status = status_map.get(status, (status, "#f8fafc" if not is_light else "#0f172a"))
         item_st = QTableWidgetItem(text_status)
         item_st.setTextAlignment(Qt.AlignCenter)
         item_st.setForeground(QColor(color_status))
@@ -1219,13 +1255,16 @@ class MainWindow(QMainWindow):
         dlg = ExtensionTutorialDialog(self)
         dlg.exec_()
 
-    def _action_settings(self):
-        dlg = SettingsDialog(self)
+    def _action_settings(self, initial_tab=0):
+        dlg = SettingsDialog(self, initial_tab=initial_tab)
         if dlg.exec_() == SettingsDialog.Accepted:
             self._update_ffmpeg_label()
             self._update_nm3u8dl_label()
             self._update_proxy_label()
             self.refresh_table()
+
+    def _action_proxy_settings(self):
+        self._action_settings(initial_tab=1)
 
     def _action_show_disclaimer(self):
         from catcatch_app.ui.disclaimer_dialog import DisclaimerDialog
@@ -1309,6 +1348,10 @@ class MainWindow(QMainWindow):
             self.act_disclaimer.setIcon(get_icon("info", btn_icon_col, 18))
         if hasattr(self, "btn_theme"):
             self.btn_theme.setIcon(get_icon("palette", accent, 18))
+        if hasattr(self, "btn_more_tools"):
+            self.btn_more_tools.setIcon(get_icon("toolbox", accent, 18))
+        if hasattr(self, "act_proxy"):
+            self.act_proxy.setIcon(get_icon("globe", accent, 18))
         if hasattr(self, "act_settings"):
             self.act_settings.setIcon(get_icon("settings", btn_icon_col, 18))
 
@@ -1318,7 +1361,7 @@ class MainWindow(QMainWindow):
 
         # 1. 预设多主题选择
         for k, v in THEMES.items():
-            prefix = "✓ " if k == cur_theme_id else "   "
+            prefix = "• " if k == cur_theme_id else "  "
             act = menu.addAction(get_icon("palette", v["accent"], 14), f"{prefix}{v['name']}")
             act.triggered.connect(lambda checked=False, tid=k: self._on_theme_selected(tid))
 

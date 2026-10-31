@@ -73,7 +73,7 @@ input[type="text"]:focus { border-color: #38bdf8; }
 </div>
 
 <div class="card">
-  <div class="card-title">📱 手机无线推流到电脑下载</div>
+  <div class="card-title">手机无线推流到电脑下载</div>
   <div class="input-group">
     <label class="input-label">视频地址 (支持 B站、抖音、快手、小红书、M3U8直链):</label>
     <input type="text" id="urlInput" placeholder="长按粘贴视频分享链接或网页地址...">
@@ -82,12 +82,12 @@ input[type="text"]:focus { border-color: #38bdf8; }
     <label class="input-label">保存名称 (选填，留空将自动联网解析标题):</label>
     <input type="text" id="nameInput" placeholder="默认自动解析">
   </div>
-  <button class="btn btn-primary" id="pushBtn" onclick="pushTask()">🚀 立即推送到电脑下载</button>
+  <button class="btn btn-primary" id="pushBtn" onclick="pushTask()">立即推送到电脑下载</button>
   <div class="toast" id="toastMsg"></div>
 </div>
 
 <div class="card">
-  <div class="card-title">🖥️ 电脑实时任务状态 (<span id="taskCount">0</span>)</div>
+  <div class="card-title">电脑实时任务状态 (<span id="taskCount">0</span>)</div>
   <div id="taskList">
     <div class="empty-tip">正在同步电脑端任务...</div>
   </div>
@@ -112,7 +112,7 @@ async function pushTask() {
     });
     const res = await resp.json();
     if (res.success) {
-      showToast('✓ 已成功推送到电脑！正在自动开启解析与下载', 'success');
+      showToast('已成功推送到电脑！正在自动开启解析与下载', 'success');
       document.getElementById('urlInput').value = '';
       document.getElementById('nameInput').value = '';
       loadTasks();
@@ -123,7 +123,7 @@ async function pushTask() {
     showToast('连接电脑失败: ' + e, 'error');
   } finally {
     btn.disabled = false;
-    btn.innerText = '🚀 立即推送到电脑下载';
+    btn.innerText = '立即推送到电脑下载';
   }
 }
 
@@ -207,10 +207,10 @@ function renderTasks(tasks) {
         </div>
         <div class="task-actions">
           ${t.status === 'downloading'
-            ? `<button class="btn-mini" onclick="taskAction('${t.id}', 'pause')">⏸ 暂停</button>`
-            : (t.status === 'paused' || t.status === 'error' ? `<button class="btn-mini primary" onclick="taskAction('${t.id}', 'start')">▶ 开始</button>` : '')
+            ? `<button class="btn-mini" onclick="taskAction('${t.id}', 'pause')">暂停</button>`
+            : (t.status === 'paused' || t.status === 'error' ? `<button class="btn-mini primary" onclick="taskAction('${t.id}', 'start')">开始</button>` : '')
           }
-          <button class="btn-mini danger" onclick="taskAction('${t.id}', 'delete')">🗑️ 删除</button>
+          <button class="btn-mini danger" onclick="taskAction('${t.id}', 'delete')">删除</button>
         </div>
       </div>
     `;

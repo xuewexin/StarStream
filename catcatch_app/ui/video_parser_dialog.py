@@ -78,10 +78,15 @@ class VideoParserDialog(QDialog):
         h_layout = QVBoxLayout(header_frame)
         h_layout.setSpacing(6)
 
-        title_lbl = QLabel("⚡ 全网主流视频无水印一键提取")
+        title_row = QHBoxLayout()
+        title_icon = QLabel()
+        title_icon.setPixmap(get_icon("zap", "#a5b4fc", 20).pixmap(20, 20))
+        title_lbl = QLabel("全网主流视频无水印一键提取")
         title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
         title_lbl.setStyleSheet("color: #a5b4fc;")
-        h_layout.addWidget(title_lbl)
+        title_row.addWidget(title_icon)
+        title_row.addWidget(title_lbl, 1)
+        h_layout.addLayout(title_row)
 
         badge_row = QHBoxLayout()
         badges = [
@@ -117,7 +122,8 @@ class VideoParserDialog(QDialog):
         clear_btn = QPushButton("清空")
         clear_btn.clicked.connect(lambda: self.input_edit.clear())
 
-        self.parse_btn = QPushButton("⚡ 立即深度逆向解析")
+        self.parse_btn = QPushButton("立即深度逆向解析")
+        self.parse_btn.setIcon(get_icon("zap", "#ffffff", 16))
         self.parse_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.parse_btn.setStyleSheet("""
             QPushButton {
@@ -133,7 +139,8 @@ class VideoParserDialog(QDialog):
         """)
         self.parse_btn.clicked.connect(self._start_parse)
 
-        self.browser_btn = QPushButton("🌐 在浏览器中打开并嗅探")
+        self.browser_btn = QPushButton("在浏览器中打开并嗅探")
+        self.browser_btn.setIcon(get_icon("globe", "#38bdf8", 16))
         self.browser_btn.setToolTip("在系统默认浏览器中打开该视频页面，由星流媒体嗅探器插件直接捕获最高画质无水印直链")
         self.browser_btn.setStyleSheet("""
             QPushButton {
@@ -225,7 +232,8 @@ class VideoParserDialog(QDialog):
         self.copy_link_btn.setIcon(get_icon("copy", "#a1a1aa", 14))
         self.copy_link_btn.clicked.connect(self._copy_parsed_url)
 
-        self.download_btn = QPushButton("🚀 立即添加到星流下载队列")
+        self.download_btn = QPushButton("立即添加到星流下载队列")
+        self.download_btn.setIcon(get_icon("download", "#ffffff", 16))
         self.download_btn.setEnabled(False)
         self.download_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.download_btn.setStyleSheet("""
@@ -267,7 +275,7 @@ class VideoParserDialog(QDialog):
 
         self.parse_btn.setEnabled(False)
         self.pbar.show()
-        self.status_lbl.setText("⚡ 正在深入逆向目标平台并提取无水印高清视频直链，请稍候...")
+        self.status_lbl.setText("正在深入逆向目标平台并提取无水印高清视频直链，请稍候...")
         self.status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
 
         eff_proxy = config.get_effective_proxy()
@@ -303,11 +311,11 @@ class VideoParserDialog(QDialog):
         if cover_url:
             self._load_cover(cover_url)
         else:
-            self.cover_lbl.setText("🎬 视频预览就绪")
+            self.cover_lbl.setText("视频预览就绪")
 
         self.copy_link_btn.setEnabled(True)
         self.download_btn.setEnabled(True)
-        self.status_lbl.setText("✓ 提取成功！已为您获取最高画质直链，可一键添加到下载队列。")
+        self.status_lbl.setText("提取成功！已为您获取最高画质直链，可一键添加到下载队列。")
         self.status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
 
     def _open_in_browser(self):
@@ -318,7 +326,7 @@ class VideoParserDialog(QDialog):
             QMessageBox.warning(self, "提示", "请在上方输入框输入或粘贴有效的网页链接！")
             return
         webbrowser.open(url)
-        self.status_lbl.setText("🌐 已在浏览器中打开页面！星流浏览器插件已在后台待命，播放视频即可自动抓取无水印直链。")
+        self.status_lbl.setText("已在浏览器中打开页面！星流浏览器插件已在后台待命，播放视频即可自动抓取无水印直链。")
         self.status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
 
     def _on_parse_failed(self, msg):

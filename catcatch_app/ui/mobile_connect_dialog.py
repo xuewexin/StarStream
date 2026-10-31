@@ -48,10 +48,15 @@ class MobileConnectDialog(QDialog):
         layout.setContentsMargins(24, 20, 24, 20)
 
         # 头部说明
-        title_lbl = QLabel("📱 手机扫码推流 (局域网互联)")
+        title_row = QHBoxLayout()
+        title_icon = QLabel()
+        title_icon.setPixmap(get_icon("phone", "#22c55e", 20).pixmap(20, 20))
+        title_lbl = QLabel("手机扫码推流 (局域网互联)")
         title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
         title_lbl.setStyleSheet("color: #f4f4f5;")
-        layout.addWidget(title_lbl)
+        title_row.addWidget(title_icon)
+        title_row.addWidget(title_lbl, 1)
+        layout.addLayout(title_row)
 
         desc_lbl = QLabel("请确保手机与电脑连接在同一个 WiFi 局域网下。\n使用手机微信、浏览器或系统相机扫码，即可打开移动端工作台！")
         desc_lbl.setStyleSheet("color: #a1a1aa; font-size: 12px; line-height: 1.4;")

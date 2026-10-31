@@ -15,7 +15,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QComboBox, QFileDialog, QSpinBox, QCheckBox,
     QGroupBox, QMessageBox, QRadioButton, QButtonGroup,
     QTableWidget, QTableWidgetItem, QHeaderView, QWidget, QInputDialog,
-    QSlider
+    QSlider, QTabWidget
 )
 from PyQt5.QtCore import Qt
 
@@ -35,23 +35,34 @@ from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_tab=0):
         super().__init__(parent)
-        self.setWindowTitle("系统与多节点代理设置 - 星流下载器")
+        self.setWindowTitle("系统与多节点代理配置中心 - 星流下载器")
         self.setWindowIcon(get_app_icon())
+        self.resize(720, 520)
         self.setMinimumWidth(680)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-        self._init_ui()
+        self._init_ui(initial_tab)
         self._load_values()
 
-    def _init_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
+    def _init_ui(self, initial_tab=0):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(12)
 
-        # 1. 存储与外部工具
-        path_group = QGroupBox("路径与执行核心")
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setIconSize(self.tab_widget.iconSize())
+
+        # ==================== Tab 0: 核心与路径 ====================
+        tab_core = QWidget()
+        core_layout = QVBoxLayout(tab_core)
+        core_layout.setContentsMargins(12, 12, 12, 12)
+        core_layout.setSpacing(12)
+
+        path_group = QGroupBox("存储路径与外部引擎")
         path_layout = QVBoxLayout(path_group)
+        path_layout.setSpacing(10)
 
         # 保存目录
         r1 = QHBoxLayout()
@@ -105,7 +116,7 @@ class SettingsDialog(QDialog):
         ])
         r3.addWidget(self.engine_combo, 1)
 
-        btn_rescan_tools = QPushButton("重新全盘探测引擎")
+        btn_rescan_tools = QPushButton("全盘重新探测引擎")
         btn_rescan_tools.setIcon(get_icon("refresh", "#a1a1aa", 16))
         btn_rescan_tools.clicked.connect(self._rescan_tools)
         r3.addWidget(btn_rescan_tools)
@@ -119,7 +130,8 @@ class SettingsDialog(QDialog):
         btn_re = QPushButton("浏览...")
         btn_re.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_re.clicked.connect(self._browse_re)
-        btn_dl_re = QPushButton("🌐 获取最新版本 N_m3u8DL-RE")
+        btn_dl_re = QPushButton("获取最新版本 N_m3u8DL-RE")
+        btn_dl_re.setIcon(get_icon("download", "#93c5fd", 16))
         btn_dl_re.setStyleSheet("background-color: #1e3a8a; color: #93c5fd; font-weight: 500;")
         btn_dl_re.clicked.connect(self._download_nm3u8dl)
         r4.addWidget(self.re_edit, 1)
@@ -127,11 +139,18 @@ class SettingsDialog(QDialog):
         r4.addWidget(btn_dl_re)
         path_layout.addLayout(r4)
 
-        layout.addWidget(path_group)
+        core_layout.addWidget(path_group)
+        core_layout.addStretch()
 
-        # 2. 代理网络管理 (核心功能：不用代理 / 跟随系统 / 手动多节点)
-        proxy_group = QGroupBox("网络与代理配置")
-        proxy_layout = QVBoxLayout(proxy_group)
+        # ==================== Tab 1: 网络与多节点代理 ====================
+        tab_proxy = QWidget()
+        proxy_layout = QVBoxLayout(tab_proxy)
+        proxy_layout.setContentsMargins(12, 12, 12, 12)
+        proxy_layout.setSpacing(10)
+
+        proxy_group = QGroupBox("代理模式与节点配置")
+        pg_layout = QVBoxLayout(proxy_group)
+        pg_layout.setSpacing(10)
 
         # 代理模式单选
         mode_row = QHBoxLayout()
@@ -148,18 +167,18 @@ class SettingsDialog(QDialog):
         mode_row.addWidget(self.radio_system)
         mode_row.addWidget(self.radio_manual)
         mode_row.addStretch()
-        proxy_layout.addLayout(mode_row)
+        pg_layout.addLayout(mode_row)
 
         # 系统代理实时探测提示
         self.lbl_system_proxy_info = QLabel()
         self.lbl_system_proxy_info.setStyleSheet("color: #71717a; font-size: 11px;")
-        proxy_layout.addWidget(self.lbl_system_proxy_info)
+        pg_layout.addWidget(self.lbl_system_proxy_info)
 
         # 手动代理表格与控制区
         self.manual_widget = QWidget()
         manual_layout = QVBoxLayout(self.manual_widget)
         manual_layout.setContentsMargins(0, 4, 0, 0)
-        manual_layout.setSpacing(6)
+        manual_layout.setSpacing(8)
 
         sel_row = QHBoxLayout()
         sel_row.addWidget(QLabel("当前活动代理节点:"))
@@ -167,6 +186,7 @@ class SettingsDialog(QDialog):
         self.active_proxy_combo.currentIndexChanged.connect(self._on_active_proxy_changed)
         sel_row.addWidget(self.active_proxy_combo, 1)
         btn_test_active = QPushButton("测试当前代理")
+        btn_test_active.setIcon(get_icon("check", "#a1a1aa", 16))
         btn_test_active.clicked.connect(self._test_active_proxy)
         sel_row.addWidget(btn_test_active)
         manual_layout.addLayout(sel_row)
@@ -181,7 +201,7 @@ class SettingsDialog(QDialog):
         self.proxy_table.setColumnWidth(0, 180)
         self.proxy_table.setColumnWidth(2, 90)
         self.proxy_table.verticalHeader().setVisible(False)
-        self.proxy_table.setMaximumHeight(130)
+        self.proxy_table.setMinimumHeight(130)
         manual_layout.addWidget(self.proxy_table)
 
         btn_proxy_row = QHBoxLayout()
@@ -191,7 +211,7 @@ class SettingsDialog(QDialog):
         self.btn_del_proxy = QPushButton("删除选中")
         self.btn_del_proxy.setIcon(get_icon("delete", "#a1a1aa", 16))
         self.btn_del_proxy.clicked.connect(self._del_proxy)
-        self.btn_scan_proxy = QPushButton("⚡ 自动扫描本机在线代理")
+        self.btn_scan_proxy = QPushButton("自动扫描本机在线代理")
         self.btn_scan_proxy.setIcon(get_icon("refresh", "#a1a1aa", 16))
         self.btn_scan_proxy.clicked.connect(self._auto_scan_active_proxies)
         btn_proxy_row.addWidget(self.btn_add_proxy)
@@ -200,16 +220,27 @@ class SettingsDialog(QDialog):
         btn_proxy_row.addStretch()
         manual_layout.addLayout(btn_proxy_row)
 
-        proxy_layout.addWidget(self.manual_widget)
+        pg_layout.addWidget(self.manual_widget)
         self.radio_none.toggled.connect(self._update_proxy_ui_state)
         self.radio_system.toggled.connect(self._update_proxy_ui_state)
         self.radio_manual.toggled.connect(self._update_proxy_ui_state)
 
-        layout.addWidget(proxy_group)
+        proxy_layout.addWidget(proxy_group)
 
-        # 3. 并发性能与扩展端口
+        # 浏览器扩展同步提示
+        lbl_ext_proxy_sync = QLabel("提示：星流浏览器插件已默认开启「自动匹配浏览器代理」，抓取任务时将与浏览器当前代理环境保持自动同步。")
+        lbl_ext_proxy_sync.setStyleSheet("color: #71717a; font-size: 11px;")
+        proxy_layout.addWidget(lbl_ext_proxy_sync)
+        proxy_layout.addStretch()
+
+        # ==================== Tab 2: 并发与扩展 ====================
+        tab_perf = QWidget()
+        perf_layout = QVBoxLayout(tab_perf)
+        perf_layout.setContentsMargins(12, 12, 12, 12)
+        perf_layout.setSpacing(12)
+
         perf_group = QGroupBox("并发调度与端口")
-        perf_layout = QVBoxLayout(perf_group)
+        p_layout = QVBoxLayout(perf_group)
 
         p_row = QHBoxLayout()
         p_row.addWidget(QLabel("最大并发任务数:"))
@@ -226,7 +257,7 @@ class SettingsDialog(QDialog):
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
         p_row.addWidget(self.port_spin)
-        perf_layout.addLayout(p_row)
+        p_layout.addLayout(p_row)
 
         c_row = QHBoxLayout()
         self.del_tmp_cb = QCheckBox("下载完成后自动清理临时分片目录")
@@ -235,17 +266,14 @@ class SettingsDialog(QDialog):
         c_row.addWidget(self.del_tmp_cb)
         c_row.addWidget(self.auto_start_cb)
         c_row.addWidget(self.notify_cb)
-        perf_layout.addLayout(c_row)
+        p_layout.addLayout(c_row)
+        perf_layout.addWidget(perf_group)
 
-        layout.addWidget(perf_group)
-
-        # 4. 媒体默认选项与缓存清理
-        media_group = QGroupBox("媒体处理与自动命名配置")
+        media_group = QGroupBox("媒体处理与扩展管理")
         media_layout = QVBoxLayout(media_group)
 
         self.auto_convert_mp4_cb = QCheckBox("自动将下载的视频/流媒体转为标准 MP4 格式 (集成 FFmpeg + faststart 极速起播)")
         self.attach_metadata_cb = QCheckBox("保存文件名自动附带媒体规格信息 (格式: 视频名称 [分辨率] [时长].mp4)")
-
         media_layout.addWidget(self.auto_convert_mp4_cb)
         media_layout.addWidget(self.attach_metadata_cb)
 
@@ -273,11 +301,17 @@ class SettingsDialog(QDialog):
         ext_row.addWidget(btn_ext)
         media_layout.addLayout(ext_row)
 
-        layout.addWidget(media_group)
+        perf_layout.addWidget(media_group)
+        perf_layout.addStretch()
 
-        # 5. 外观与个性化 (多主题与背景壁纸)
+        # ==================== Tab 3: 外观与壁纸 ====================
+        tab_theme = QWidget()
+        theme_layout = QVBoxLayout(tab_theme)
+        theme_layout.setContentsMargins(12, 12, 12, 12)
+        theme_layout.setSpacing(12)
+
         theme_group = QGroupBox("外观与个性化设置")
-        theme_layout = QVBoxLayout(theme_group)
+        t_group_layout = QVBoxLayout(theme_group)
 
         t_row = QHBoxLayout()
         t_row.addWidget(QLabel("界面主题风格:"))
@@ -285,7 +319,7 @@ class SettingsDialog(QDialog):
         for k, v in THEMES.items():
             self.theme_combo.addItem(f"{v['name']}", k)
         t_row.addWidget(self.theme_combo, 1)
-        theme_layout.addLayout(t_row)
+        t_group_layout.addLayout(t_row)
 
         bg_row = QHBoxLayout()
         bg_row.addWidget(QLabel("自定义背景壁纸:"))
@@ -300,7 +334,7 @@ class SettingsDialog(QDialog):
         bg_row.addWidget(self.bg_edit, 1)
         bg_row.addWidget(btn_browse_bg)
         bg_row.addWidget(btn_clear_bg)
-        theme_layout.addLayout(bg_row)
+        t_group_layout.addLayout(bg_row)
 
         op_row = QHBoxLayout()
         op_row.addWidget(QLabel("壁纸遮罩浓度:"))
@@ -312,13 +346,25 @@ class SettingsDialog(QDialog):
         self.opacity_slider.valueChanged.connect(lambda val: self.lbl_opacity_val.setText(f"{val}%"))
         op_row.addWidget(self.opacity_slider, 1)
         op_row.addWidget(self.lbl_opacity_val)
-        theme_layout.addLayout(op_row)
+        t_group_layout.addLayout(op_row)
 
-        lbl_theme_hint = QLabel("💡 提示：设置自定义背景后，界面表格与面板将自动开启高透毛玻璃效果；遮罩浓度越高，文字辨识度越高。")
+        lbl_theme_hint = QLabel("提示：设置自定义背景后，界面表格与面板将自动开启高透毛玻璃效果；遮罩浓度越高，文字辨识度越高。")
         lbl_theme_hint.setStyleSheet("color: #71717a; font-size: 11px;")
-        theme_layout.addWidget(lbl_theme_hint)
+        t_group_layout.addWidget(lbl_theme_hint)
 
-        layout.addWidget(theme_group)
+        theme_layout.addWidget(theme_group)
+        theme_layout.addStretch()
+
+        # 添加到 QTabWidget
+        self.tab_widget.addTab(tab_core, get_icon("folder", "#38bdf8", 16), "核心与路径")
+        self.tab_widget.addTab(tab_proxy, get_icon("globe", "#38bdf8", 16), "网络与多节点代理")
+        self.tab_widget.addTab(tab_perf, get_icon("settings", "#38bdf8", 16), "并发与扩展")
+        self.tab_widget.addTab(tab_theme, get_icon("palette", "#38bdf8", 16), "外观与壁纸")
+
+        if 0 <= initial_tab < self.tab_widget.count():
+            self.tab_widget.setCurrentIndex(initial_tab)
+
+        main_layout.addWidget(self.tab_widget)
 
         # 底部操作按钮
         btn_layout = QHBoxLayout()
@@ -331,7 +377,7 @@ class SettingsDialog(QDialog):
 
         btn_layout.addWidget(cancel_btn)
         btn_layout.addWidget(save_btn)
-        layout.addLayout(btn_layout)
+        main_layout.addLayout(btn_layout)
 
     def _load_values(self):
         self.save_edit.setText(config.get("save_dir", ""))

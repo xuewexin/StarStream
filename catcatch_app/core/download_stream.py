@@ -344,6 +344,9 @@ class StreamDownloadTask:
             tot_parts = 0
             percent = 0.0
             smooth_bps = 0.0
+            peak_bps = 0.0
+            cli_start_time = time.time()
+            last_refresh_log_time = 0.0
             speed_str = ""
             eta_str = ""
 
@@ -435,7 +438,18 @@ class StreamDownloadTask:
                             last_disk_bytes = disk_sz
                             last_sample_time = now
 
-                        # 4. 格式化最终展示的速度
+                        # 4. 格式化最终展示的速度并监测峰值跌落加速
+                        if smooth_bps > peak_bps:
+                            peak_bps = smooth_bps
+
+                        if (now - cli_start_time >= 6.0) and (peak_bps > 250 * 1024) and (smooth_bps < peak_bps * 0.20):
+                            if now - last_refresh_log_time >= 10.0:
+                                last_refresh_log_time = now
+                                if self.on_log:
+                                    self.on_log(
+                                        f"[自动重连加速] 监测到当前下载速率 ({format_size(smooth_bps)}/s) 低于传输峰值 ({format_size(peak_bps)}/s) 的 1/5，已触发链路保活与动态网络优化！"
+                                    )
+
                         if smooth_bps > 1024:
                             speed_str = f"{format_size(smooth_bps)}/s"
                         elif raw_sp:

@@ -62,7 +62,7 @@ class NewTaskDialog(QDialog):
         self.url_edit.setPlaceholderText("可粘贴视频直链、M3U8、或 B站 / 抖音 / 快手 / 小红书等网页分享链接...")
         self.url_edit.textChanged.connect(self._on_url_changed)
 
-        self.parse_btn = QPushButton("⚡ 全网一键解析")
+        self.parse_btn = QPushButton("全网一键解析")
         self.parse_btn.setIcon(get_icon("zap", "#38bdf8", 14))
         self.parse_btn.setToolTip("一键逆向解析目标网页，提取真实原画 MP4 直链或 M3U8 清单")
         self.parse_btn.clicked.connect(self._trigger_parse)
@@ -149,7 +149,7 @@ class NewTaskDialog(QDialog):
         layout.addWidget(self.adv_group)
 
         # 免责声明小贴士
-        disclaimer_lbl = QLabel("⚖️ 免责声明：本软件仅供个人合法学习交流与离线备份，严禁用于商业牟利或盗版侵权。")
+        disclaimer_lbl = QLabel("免责声明：本软件仅供个人合法学习交流与离线备份，严禁用于商业牟利或盗版侵权。")
         disclaimer_lbl.setStyleSheet("color: #71717a; font-size: 11px; margin-top: 4px;")
         layout.addWidget(disclaimer_lbl)
 
@@ -201,7 +201,7 @@ class NewTaskDialog(QDialog):
         eff_p = config.get_effective_proxy() if proxy_val == "__DEFAULT__" else (str(proxy_val) if proxy_val not in ["__NONE__", "__SYSTEM__"] else "")
 
         self.parse_btn.setEnabled(False)
-        self.parse_status_lbl.setText("⚡ 正在从目标站点深度逆向提取视频流直链，请稍候...")
+        self.parse_status_lbl.setText("正在从目标站点深度逆向提取视频流直链，请稍候...")
         self.parse_status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
 
         self._parse_worker = VideoParseWorker(raw_text, proxy=eff_p)
@@ -228,7 +228,7 @@ class NewTaskDialog(QDialog):
             self.ref_edit.setText(hdrs["Referer"])
 
         res_desc = res.get("resolution") or "自适应"
-        self.parse_status_lbl.setText(f"✓ 解析成功！已提取 [{res_desc}] 视频直链: {title[:36]}")
+        self.parse_status_lbl.setText(f"解析成功！已提取 [{res_desc}] 视频直链: {title[:36]}")
         self.parse_status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
 
     def _on_parse_failed(self, err_msg):

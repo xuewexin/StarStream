@@ -9,6 +9,8 @@ import uuid
 import re
 import urllib.request
 
+APP_VERSION = "v3.1.2"
+
 if getattr(sys, 'frozen', False):
     ROOT_DIR = os.path.dirname(os.path.abspath(sys.executable))
     _MEI = getattr(sys, '_MEIPASS', '')
