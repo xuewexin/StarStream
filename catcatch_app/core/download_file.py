@@ -96,33 +96,63 @@ class FileDownloadTask:
         }
         req_headers.update({k: v for k, v in headers.items() if v})
 
+        # 防盗链修补
+        if not req_headers.get("Referer"):
+            ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
+            if ref:
+                req_headers["Referer"] = ref
+            elif "cdnplay.mom" in url:
+                req_headers["Referer"] = "https://huangguo01.net/"
+
+        if req_headers.get("Referer") and not req_headers.get("Origin"):
+            try:
+                from urllib.parse import urlparse
+                ref_u = urlparse(req_headers["Referer"])
+                if ref_u.scheme and ref_u.netloc:
+                    req_headers["Origin"] = f"{ref_u.scheme}://{ref_u.netloc}"
+            except Exception:
+                pass
+
         os.makedirs(save_dir, exist_ok=True)
 
         if self.on_log:
             self.on_log(f"正在探测远程资源信息: {url}")
 
+        from .config import detect_system_proxy, normalize_proxy_url
         task_p = (self.task_data.get("proxy") or "").strip()
+        proxy = None
         if task_p.upper() in ["DIRECT", "NONE"]:
             proxy = None
-        elif task_p.upper() == "GLOBAL" or not task_p:
-            proxy = config.get_effective_proxy() or None
+        elif task_p.upper() in ["SYSTEM", "__SYSTEM__"]:
+            sys_p = detect_system_proxy()
+            proxy = sys_p if sys_p else None
+        elif task_p.upper() in ["AUTO", "DEFAULT", "GLOBAL", ""] or not task_p:
+            proxy = config.get_effective_proxy(validate=True) or detect_system_proxy() or None
         else:
-            proxy = task_p
+            proxy = normalize_proxy_url(task_p)
 
-        if proxy and proxy not in ["none", "direct"]:
-            is_alive, check_msg = is_proxy_alive(proxy)
+        if proxy and proxy.lower() not in ["none", "direct", "system"]:
+            is_alive, check_msg = is_proxy_alive(proxy, timeout=0.5)
             if not is_alive:
                 if self.on_log:
-                    self.on_log(f"[代理探活警告] 配置的代理 ({proxy}) 无法连通 ({check_msg})，正在搜寻本机在线代理...")
+                    self.on_log(f"[代理探活警告] 配置的代理 ({proxy}) 无法连通 ({check_msg})，正在自动搜寻可用代理...")
                 actives = detect_local_active_proxies()
                 if actives:
                     proxy = actives[0]["url"]
                     if self.on_log:
-                        self.on_log(f"[代理智能切换] 自动切换为活跃本地代理: {proxy} ({actives[0]['name']})")
+                        self.on_log(f"[代理智能切换] 自动切换为活跃在线代理: {proxy} ({actives[0]['name']})")
                 else:
-                    if self.on_log:
-                        self.on_log("[代理降级提示] 未发现其它活跃代理，尝试直连下载...")
-                    proxy = None
+                    sys_p = detect_system_proxy()
+                    if sys_p and is_proxy_alive(sys_p, timeout=0.5)[0]:
+                        proxy = sys_p
+                        if self.on_log:
+                            self.on_log(f"[代理智能切换] 自动切换为系统代理: {proxy}")
+                    else:
+                        if self.on_log:
+                            self.on_log("[代理降级提示] 未发现其它活跃代理，尝试直连下载...")
+                        proxy = None
+        else:
+            proxy = None
         self.session = get_requests_session(proxy)
 
         # 1. 探测资源头部信息

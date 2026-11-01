@@ -413,13 +413,25 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         title = item.get("title") or item.get("pageTitle") or item.get("name") or "video"
         media_type = item.get("mediaType") or item.get("type") or ""
         
-        headers = item.get("headers", {})
-        if "referer" in item and "Referer" not in headers:
+        headers = dict(item.get("headers", {}))
+        if "referer" in item and "Referer" not in headers and item["referer"]:
             headers["Referer"] = item["referer"]
-        if "userAgent" in item and "User-Agent" not in headers:
+        if "pageUrl" in item and "Referer" not in headers and item["pageUrl"]:
+            headers["Referer"] = item["pageUrl"]
+        if "userAgent" in item and "User-Agent" not in headers and item["userAgent"]:
             headers["User-Agent"] = item["userAgent"]
-        if "cookie" in item and "Cookie" not in headers:
+        if "cookie" in item and "Cookie" not in headers and item["cookie"]:
             headers["Cookie"] = item["cookie"]
+
+        # 智能防盗链补齐：若有 Referer 自动补齐 Origin
+        if headers.get("Referer") and not headers.get("Origin"):
+            try:
+                from urllib.parse import urlparse
+                ref_u = urlparse(headers["Referer"])
+                if ref_u.scheme and ref_u.netloc:
+                    headers["Origin"] = f"{ref_u.scheme}://{ref_u.netloc}"
+            except Exception:
+                pass
 
         # 智能全网逆向解析: 若为主流短视频平台分享链接，自动在后台提取无水印直链
         if any(d in url.lower() for d in ["douyin.com", "bilibili.com", "b23.tv", "kuaishou.com", "xiaohongshu.com"]):
@@ -451,15 +463,19 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
 
         # 3. 代理配置：
         # - 如果插件指定了 "direct" 或 "none"，表示强制直连；
-        # - 如果插件指定了具体代理 (如 http://127.0.0.1:7890 或 socks5://...)，优先使用该代理；
-        # - 如果插件未设置 (空或 "default")，则回退使用 exe 客户端当前的全局有效代理 config.get_effective_proxy()
+        # - 如果插件指定了具体代理 (如 http://127.0.0.1:1080 或 socks5://...)，优先使用该代理并校验；
+        # - 如果插件传递了 "system"，优先获取实际 Windows 系统代理；
+        # - 如果插件传递了 "auto"、"default" 或未设置，自动使用客户端当前生效的探活代理
         custom_proxy = (item.get("proxy") or "").strip()
-        if custom_proxy in ["direct", "none"]:
-            final_proxy = ""
-        elif custom_proxy and custom_proxy != "default":
-            final_proxy = custom_proxy
+        from .config import normalize_proxy_url, detect_system_proxy
+        if custom_proxy.lower() in ["direct", "none"]:
+            final_proxy = "direct"
+        elif custom_proxy.lower() in ["system", "__system__"]:
+            final_proxy = detect_system_proxy() or "system"
+        elif custom_proxy.lower() in ["auto", "default", "__default__", ""]:
+            final_proxy = config.get_effective_proxy(validate=True) or detect_system_proxy()
         else:
-            final_proxy = config.get_effective_proxy()
+            final_proxy = normalize_proxy_url(custom_proxy)
 
         task_info = {
             "url": url,

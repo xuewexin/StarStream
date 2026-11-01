@@ -24,8 +24,12 @@ else:
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
     APP_DIR = os.path.dirname(SCRIPT_DIR)
     ROOT_DIR = os.path.dirname(APP_DIR)
-    CONFIG_FILE = os.path.join(APP_DIR, "config.json")
-    TASKS_FILE = os.path.join(APP_DIR, "tasks.json")
+    if os.path.exists(os.path.join(ROOT_DIR, "config.json")):
+        CONFIG_FILE = os.path.join(ROOT_DIR, "config.json")
+        TASKS_FILE = os.path.join(ROOT_DIR, "tasks.json")
+    else:
+        CONFIG_FILE = os.path.join(APP_DIR, "config.json")
+        TASKS_FILE = os.path.join(APP_DIR, "tasks.json")
 
 DEFAULT_PROXIES = [
     {"id": "clash", "name": "Clash / Clash Verge (7890)", "url": "http://127.0.0.1:7890"},
@@ -246,25 +250,33 @@ def get_temp_segments_dir():
     return d
 
 
-def is_proxy_alive(proxy_url, timeout=0.8):
+def is_proxy_alive(proxy_url, timeout=0.5):
     """
     极速检测代理服务端口是否连通探活
     返回: (is_alive, reason)
     """
-    if not proxy_url or proxy_url in ["none", "direct", "system"]:
-        return True, "直连/系统代理"
+    if not proxy_url or proxy_url.lower() in ["none", "direct"]:
+        return True, "直连"
+    if proxy_url.lower() in ["system", "__system__"]:
+        sys_p = detect_system_proxy()
+        if sys_p:
+            return is_proxy_alive(sys_p, timeout)
+        return True, "跟随系统"
     try:
         import urllib.parse, socket
-        parsed = urllib.parse.urlsplit(normalize_proxy_url(proxy_url))
+        norm_url = normalize_proxy_url(proxy_url)
+        parsed = urllib.parse.urlsplit(norm_url)
         host = parsed.hostname or "127.0.0.1"
         port = parsed.port or (1080 if "socks" in (parsed.scheme or "") else 80)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
-        res = sock.connect_ex((host, port))
-        sock.close()
-        if res == 0:
+        try:
+            sock.connect((host, port))
+            sock.close()
             return True, "端口通畅"
-        return False, f"端口无法连接 (错误代码: {res})"
+        except Exception as e:
+            sock.close()
+            return False, str(e)
     except Exception as e:
         return False, str(e)
 
@@ -288,21 +300,29 @@ def detect_local_active_proxies():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.settimeout(0.3)
-            if s.connect_ex((host, port)) == 0:
-                active.append({"id": pid, "name": f"{name} (在线)", "url": url, "port": port})
+            s.connect((host, port))
             s.close()
+            active.append({"id": pid, "name": f"{name} (在线)", "url": url, "port": port})
         except Exception:
             pass
     return active
 
 
 def normalize_proxy_url(url: str) -> str:
-    """标准化代理 URL，若无协议前缀则补全 http://"""
+    """标准化代理 URL，纠正常见拼写错误，若无协议前缀则补全 http://"""
     url = (url or "").strip()
     if not url:
         return ""
-    if "://" not in url:
-        return f"http://{url}"
+    # 纠正常见拼写如 sock5:// -> socks5://
+    low = url.lower()
+    if low.startswith("sock5://"):
+        url = "socks5://" + url[8:]
+    elif low.startswith("sock4://"):
+        url = "socks4://" + url[8:]
+    elif low.startswith("socks://"):
+        url = "socks5://" + url[8:]
+    elif "://" not in url:
+        url = f"http://{url}"
     return url
 
 
@@ -473,17 +493,23 @@ class Config:
         return dict(self._config)
 
     # 代理控制辅助方法
-    def get_effective_proxy(self, validate=False):
-        """解析并返回当前生效的有效代理 URL，返回空字符串表示直连"""
+    def get_effective_proxy(self, validate=True):
+        """解析并返回当前生效的有效代理 URL，自动探活并优雅降级，返回空字符串表示直连"""
         mode = self._config.get("proxy_mode", "none")
         if mode == "none":
             return ""
         elif mode == "system":
-            return detect_system_proxy()
+            sys_p = detect_system_proxy()
+            if sys_p and validate:
+                alive, _ = is_proxy_alive(sys_p, timeout=0.4)
+                if alive:
+                    return sys_p
+            return sys_p
         elif mode == "manual":
             active_id = self._config.get("active_proxy_id")
             selected_url = ""
-            for p in self._config.get("proxies", []):
+            proxies = self._config.get("proxies", [])
+            for p in proxies:
                 if p.get("id") == active_id:
                     selected_url = normalize_proxy_url(p.get("url", ""))
                     break
@@ -494,10 +520,21 @@ class Config:
                 is_alive, _ = is_proxy_alive(selected_url, timeout=0.4)
                 if is_alive:
                     return selected_url
-                # 若配置的代理端口离线 (10061拒绝连接)，自动探活本机其它活跃代理
+                # 若配置的代理端口离线 (超时或拒绝连接)，先在用户配置的其它代理列表中寻找活着的节点
+                for p in proxies:
+                    cand_url = normalize_proxy_url(p.get("url", ""))
+                    if cand_url and cand_url != selected_url:
+                        alive, _ = is_proxy_alive(cand_url, timeout=0.3)
+                        if alive:
+                            return cand_url
+                # 探活本机常见客户端活跃端口 (sing-box, Clash, v2ray 等)
                 actives = detect_local_active_proxies()
                 if actives:
                     return actives[0]["url"]
+                # 尝试系统代理
+                sys_p = detect_system_proxy()
+                if sys_p and is_proxy_alive(sys_p, timeout=0.3)[0]:
+                    return sys_p
                 return selected_url
         return ""
 
@@ -531,3 +568,6 @@ class Config:
 
 
 config = Config()
+get_effective_proxy = config.get_effective_proxy
+get_config = lambda: config._config
+load_config = config.load

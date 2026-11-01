@@ -111,29 +111,44 @@ class StreamDownloadTask:
         os.makedirs(temp_segments_dir, exist_ok=True)
         self.output_file = os.path.join(save_dir, f"{save_name}.mp4")
 
-        # 代理检测与自适应防断机制
+        # 代理检测与自适应防断自愈机制
+        from urllib.parse import urlparse
+        from .config import detect_system_proxy, normalize_proxy_url
         task_p = (self.task_data.get("proxy") or "").strip()
+        proxy = ""
         if task_p.upper() in ["DIRECT", "NONE"]:
             proxy = ""
-        elif task_p.upper() == "GLOBAL" or not task_p:
-            proxy = config.get_effective_proxy()
+        elif task_p.upper() in ["SYSTEM", "__SYSTEM__"]:
+            sys_p = detect_system_proxy()
+            proxy = sys_p if sys_p else ""
+        elif task_p.upper() in ["AUTO", "DEFAULT", "GLOBAL", ""] or not task_p:
+            proxy = config.get_effective_proxy(validate=True)
+            if not proxy:
+                proxy = detect_system_proxy()
         else:
-            proxy = task_p
+            proxy = normalize_proxy_url(task_p)
 
-        if proxy and proxy.lower() not in ["none", "direct"]:
-            is_alive, check_msg = is_proxy_alive(proxy)
+        # 严格过滤与探活：若指定的代理无法连通（如端口已关闭或配置过时），自动秒级探测本机在线代理兜底！
+        if proxy and proxy.lower() not in ["none", "direct", "system"]:
+            is_alive, check_msg = is_proxy_alive(proxy, timeout=0.5)
             if not is_alive:
                 if self.on_log:
-                    self.on_log(f"[代理探活警告] 配置的代理 ({proxy}) 无法连通 ({check_msg})！正在搜寻本机在线代理...")
+                    self.on_log(f"[代理探活警告] 当前配置代理 ({proxy}) 无法连通 ({check_msg})！正在自动搜寻可用代理...")
                 actives = detect_local_active_proxies()
                 if actives:
                     proxy = actives[0]["url"]
                     if self.on_log:
-                        self.on_log(f"[代理智能切换] 自动切换为活跃本地代理: {proxy} ({actives[0]['name']})")
+                        self.on_log(f"[代理智能切换] 已自动切换为活跃在线代理: {proxy} ({actives[0]['name']})")
                 else:
-                    if self.on_log:
-                        self.on_log(f"[代理降级提示] 未发现其它活跃代理，尝试直连下载...")
-                    proxy = ""
+                    sys_p = detect_system_proxy()
+                    if sys_p and is_proxy_alive(sys_p, timeout=0.5)[0]:
+                        proxy = sys_p
+                        if self.on_log:
+                            self.on_log(f"[代理智能切换] 自动切换为有效系统代理: {proxy}")
+                    else:
+                        if self.on_log:
+                            self.on_log(f"[代理降级提示] 未发现其它活跃代理，尝试直连拉取...")
+                        proxy = ""
 
         cmd = [cli_path, url]
 
@@ -175,15 +190,32 @@ class StreamDownloadTask:
             if config.get("auto_convert_mp4", True):
                 cmd.extend(["-M", "format=mp4"])
             
-            # 请求头
-            headers = self.task_data.get("headers", {})
+            # 请求头与防盗链智能修补
+            headers = dict(self.task_data.get("headers", {}))
+            if not headers.get("Referer"):
+                ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
+                if ref:
+                    headers["Referer"] = ref
+                elif "cdnplay.mom" in url:
+                    headers["Referer"] = "https://huangguo01.net/"
+
+            if headers.get("Referer") and not headers.get("Origin"):
+                try:
+                    ref_parsed = urlparse(headers["Referer"])
+                    if ref_parsed.scheme and ref_parsed.netloc:
+                        headers["Origin"] = f"{ref_parsed.scheme}://{ref_parsed.netloc}"
+                except Exception:
+                    pass
+
             for k, v in headers.items():
                 if v:
                     cmd.extend(["-H", f"{k}: {v}"])
 
-            if proxy:
+            # 严格安全校验：只有格式规范的 URL (http/https/socks4/socks5) 才允许传入 --custom-proxy
+            valid_proxy_schemes = ("http://", "https://", "socks5://", "socks4://", "socks4a://")
+            if proxy and proxy.lower().startswith(valid_proxy_schemes):
                 cmd.extend(["--custom-proxy", proxy])
-            elif config.get("proxy_mode", "none") == "none" or task_p.upper() in ["DIRECT", "NONE"]:
+            elif task_p.upper() in ["DIRECT", "NONE"] or (config.get("proxy_mode", "none") == "none" and not proxy):
                 cmd.extend(["--use-system-proxy", "false"])
 
             base_url = self.task_data.get("baseUrl")
@@ -197,12 +229,17 @@ class StreamDownloadTask:
             if self.task_data.get("del_after_done", config.get("del_tmp_files", True)):
                 cmd.append("--enableDelAfterDone")
             
-            headers = self.task_data.get("headers", {})
+            headers = dict(self.task_data.get("headers", {}))
+            if not headers.get("Referer"):
+                ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
+                if ref:
+                    headers["Referer"] = ref
             header_strs = [f"{k}:{v}" for k, v in headers.items() if v]
             if header_strs:
                 cmd.extend(["--headers", "|".join(header_strs)])
 
-            if proxy:
+            valid_proxy_schemes = ("http://", "https://", "socks5://", "socks4://", "socks4a://")
+            if proxy and proxy.lower().startswith(valid_proxy_schemes):
                 cmd.extend(["--proxyAddress", proxy])
 
         if self.on_log:
