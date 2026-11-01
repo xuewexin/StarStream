@@ -156,6 +156,11 @@ async function captureMediaRequest(details, respInfo) {
     }
   }
 
+  // 防盗链兜底：若子请求未显式包含 Referer，自动使用当前标签页 URL 作为 Referer！
+  if (!referer && pageUrl) {
+    referer = pageUrl;
+  }
+
   // 识别媒体类型
   const mediaType = detectMediaType(url, respInfo ? respInfo.contentType : "");
 
@@ -532,10 +537,20 @@ async function pushTaskToLocalClient(taskData) {
         if (browserProxy && browserProxy.proxyUrl) {
           item.proxy = browserProxy.proxyUrl;
         } else if (browserProxy && browserProxy.mode === 'direct') {
-          item.proxy = 'none';
+          item.proxy = 'direct';
         } else {
-          item.proxy = 'system';
+          item.proxy = 'auto';
         }
+      }
+      if (!item.headers) item.headers = {};
+      if (!item.headers.Referer && (item.referer || item.pageUrl)) {
+        item.headers.Referer = item.referer || item.pageUrl;
+      }
+      if (item.headers.Referer && !item.headers.Origin) {
+        try {
+          const u = new URL(item.headers.Referer);
+          item.headers.Origin = u.origin;
+        } catch (e) {}
       }
     };
     if (Array.isArray(taskData)) {

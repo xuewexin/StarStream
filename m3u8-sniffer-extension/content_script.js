@@ -369,7 +369,7 @@
           } else if (proxyInfo && proxyInfo.mode === 'direct') {
             finalProxy = 'none';
           } else {
-            finalProxy = 'system';
+            finalProxy = 'auto';
           }
         } catch (e) {
           finalProxy = 'auto';
@@ -384,8 +384,11 @@
         resolution: mediaInfo.resolution || resStr || '',
         duration: mediaInfo.duration || durSec || 0,
         proxy: finalProxy,
+        pageUrl: window.location.href,
+        referer: window.location.href,
         headers: {
           Referer: window.location.href,
+          Origin: window.location.origin,
           'User-Agent': navigator.userAgent
         }
       };

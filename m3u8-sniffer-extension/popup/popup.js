@@ -213,20 +213,30 @@
       btn.textContent = '推送中...';
       btn.disabled = true;
 
-      const tasks = selectedItems.map((it) => ({
-        url: it.url,
-        title: it.pageTitle || 'video',
-        saveName: it.pageTitle || 'video',
-        mediaType: it.mediaType,
-        resolution: it.resolution || '',
-        duration: it.duration || 0,
-        headers: {
-          Referer: it.referer || '',
-          'User-Agent': it.userAgent || '',
-          Cookie: it.cookie || ''
-        },
-        baseUrl: it.baseUrl || ''
-      }));
+      const tasks = selectedItems.map((it) => {
+        const ref = it.referer || it.pageUrl || '';
+        let orig = '';
+        if (ref) {
+          try { orig = new URL(ref).origin; } catch (e) {}
+        }
+        return {
+          url: it.url,
+          title: it.pageTitle || 'video',
+          saveName: it.pageTitle || 'video',
+          mediaType: it.mediaType,
+          resolution: it.resolution || '',
+          duration: it.duration || 0,
+          referer: ref,
+          pageUrl: it.pageUrl || ref,
+          headers: {
+            Referer: ref,
+            Origin: orig,
+            'User-Agent': it.userAgent || '',
+            Cookie: it.cookie || ''
+          },
+          baseUrl: it.baseUrl || ''
+        };
+      });
 
       try {
         const resp = await fetch(`http://127.0.0.1:${clientPort}/api/tasks`, {
@@ -752,6 +762,11 @@
       pushBtn.disabled = true;
 
       const cfg = getTaskConfigOptions();
+      const ref = item.referer || item.pageUrl || '';
+      let orig = '';
+      if (ref) {
+        try { orig = new URL(ref).origin; } catch (e) {}
+      }
       const taskData = {
         url: item.url,
         title: titleInput.value.trim() || item.pageTitle || 'video',
@@ -759,8 +774,11 @@
         mediaType: item.mediaType,
         resolution: item.resolution || '',
         duration: item.duration || 0,
+        referer: ref,
+        pageUrl: item.pageUrl || ref,
         headers: {
-          Referer: item.referer || '',
+          Referer: ref,
+          Origin: orig,
           'User-Agent': item.userAgent || '',
           Cookie: item.cookie || ''
         },
