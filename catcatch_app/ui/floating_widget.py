@@ -74,10 +74,10 @@ class FloatingDashboardPanel(QWidget):
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
-        title_lbl = QLabel(t("float_dash_title"))
-        title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
-        title_lbl.setStyleSheet("color: #38bdf8; border: none;")
-        top_row.addWidget(title_lbl)
+        self.title_lbl = QLabel(t("float_dash_title"))
+        self.title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        self.title_lbl.setStyleSheet("color: #38bdf8; border: none;")
+        top_row.addWidget(self.title_lbl)
 
         top_row.addStretch()
 
@@ -115,9 +115,9 @@ class FloatingDashboardPanel(QWidget):
         card_layout.addLayout(top_row)
 
         # 2. 实时任务监控区 (滚动容器)
-        sec_title = QLabel(t("float_dash_current"))
-        sec_title.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none;")
-        card_layout.addWidget(sec_title)
+        self.sec_title = QLabel(t("float_dash_current"))
+        self.sec_title.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none;")
+        card_layout.addWidget(self.sec_title)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -149,17 +149,17 @@ class FloatingDashboardPanel(QWidget):
         card_layout.addWidget(self.scroll)
 
         # 3. 快捷文件转换与核心工具箱
-        tools_lbl = QLabel("快捷工具与文件转换")
-        tools_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none; margin-top: 2px;")
-        card_layout.addWidget(tools_lbl)
+        self.tools_lbl = QLabel(t("float_quick_tools"))
+        self.tools_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none; margin-top: 2px;")
+        card_layout.addWidget(self.tools_lbl)
 
         tools_row = QHBoxLayout()
         tools_row.setSpacing(6)
 
-        btn_batch = QPushButton("批量格式转换")
-        btn_batch.setIcon(get_icon("refresh", "#c084fc", 14))
-        btn_batch.setToolTip("批量转换音视频格式 (MP4/MKV/TS/MP3/M4A/FLAC)")
-        btn_batch.setStyleSheet("""
+        self.btn_batch = QPushButton(t("batch_convert"))
+        self.btn_batch.setIcon(get_icon("refresh", "#c084fc", 14))
+        self.btn_batch.setToolTip(t("batch_convert"))
+        self.btn_batch.setStyleSheet("""
             QPushButton {
                 background: #1e1b4b;
                 color: #c084fc;
@@ -175,12 +175,12 @@ class FloatingDashboardPanel(QWidget):
                 color: #ffffff;
             }
         """)
-        btn_batch.clicked.connect(self._on_open_batch)
+        self.btn_batch.clicked.connect(self._on_open_batch)
 
-        btn_ffmpeg = QPushButton("FFmpeg 工具箱")
-        btn_ffmpeg.setIcon(get_icon("toolbox", "#38bdf8", 14))
-        btn_ffmpeg.setToolTip("音视频快速剪辑、提取音频、无损合并")
-        btn_ffmpeg.setStyleSheet("""
+        self.btn_ffmpeg = QPushButton(t("ffmpeg_box"))
+        self.btn_ffmpeg.setIcon(get_icon("toolbox", "#38bdf8", 14))
+        self.btn_ffmpeg.setToolTip(t("ffmpeg_box"))
+        self.btn_ffmpeg.setStyleSheet("""
             QPushButton {
                 background: #0c4a6e;
                 color: #38bdf8;
@@ -196,12 +196,12 @@ class FloatingDashboardPanel(QWidget):
                 color: #ffffff;
             }
         """)
-        btn_ffmpeg.clicked.connect(self._on_open_ffmpeg)
+        self.btn_ffmpeg.clicked.connect(self._on_open_ffmpeg)
 
-        btn_parser = QPushButton("短视频提取")
-        btn_parser.setIcon(get_icon("zap", "#fbbf24", 14))
-        btn_parser.setToolTip("全网主流短视频无水印解析提取 (抖音/快手/B站4K/小红书)")
-        btn_parser.setStyleSheet("""
+        self.btn_parser = QPushButton(t("video_extract"))
+        self.btn_parser.setIcon(get_icon("zap", "#fbbf24", 14))
+        self.btn_parser.setToolTip(t("tip_video_parser"))
+        self.btn_parser.setStyleSheet("""
             QPushButton {
                 background: #451a03;
                 color: #fbbf24;
@@ -217,18 +217,18 @@ class FloatingDashboardPanel(QWidget):
                 color: #ffffff;
             }
         """)
-        btn_parser.clicked.connect(self._on_open_parser)
+        self.btn_parser.clicked.connect(self._on_open_parser)
 
-        tools_row.addWidget(btn_batch)
-        tools_row.addWidget(btn_ffmpeg)
-        tools_row.addWidget(btn_parser)
+        tools_row.addWidget(self.btn_batch)
+        tools_row.addWidget(self.btn_ffmpeg)
+        tools_row.addWidget(self.btn_parser)
         card_layout.addLayout(tools_row)
 
         # 4. 底部打开主程序大按钮
-        main_btn = QPushButton("打开星流完整主程序")
-        main_btn.setIcon(get_icon("monitor", "#ffffff", 14))
-        main_btn.setFixedHeight(28)
-        main_btn.setStyleSheet("""
+        self.main_btn = QPushButton(t("float_open_main"))
+        self.main_btn.setIcon(get_icon("monitor", "#ffffff", 14))
+        self.main_btn.setFixedHeight(28)
+        self.main_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #4f46e5);
                 color: #ffffff;
@@ -241,10 +241,30 @@ class FloatingDashboardPanel(QWidget):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1d4ed8, stop:1 #4338ca);
             }
         """)
-        main_btn.clicked.connect(self._on_open_main)
-        card_layout.addWidget(main_btn)
+        self.main_btn.clicked.connect(self._on_open_main)
+        card_layout.addWidget(self.main_btn)
 
         root_layout.addWidget(self.card)
+
+    def retranslate_ui(self):
+        if hasattr(self, "title_lbl") and self.title_lbl:
+            self.title_lbl.setText(t("float_dash_title"))
+        if hasattr(self, "sec_title") and self.sec_title:
+            self.sec_title.setText(t("float_dash_current"))
+        if hasattr(self, "tools_lbl") and self.tools_lbl:
+            self.tools_lbl.setText(t("float_quick_tools"))
+        if hasattr(self, "btn_batch") and self.btn_batch:
+            self.btn_batch.setText(t("batch_convert"))
+            self.btn_batch.setToolTip(t("batch_convert"))
+        if hasattr(self, "btn_ffmpeg") and self.btn_ffmpeg:
+            self.btn_ffmpeg.setText(t("ffmpeg_box"))
+            self.btn_ffmpeg.setToolTip(t("ffmpeg_box"))
+        if hasattr(self, "btn_parser") and self.btn_parser:
+            self.btn_parser.setText(t("video_extract"))
+            self.btn_parser.setToolTip(t("tip_video_parser"))
+        if hasattr(self, "main_btn") and self.main_btn:
+            self.main_btn.setText(t("float_open_main"))
+        self.refresh_data()
 
     def _on_open_batch(self):
         self.request_open_batch_convert.emit()
@@ -281,12 +301,12 @@ class FloatingDashboardPanel(QWidget):
             empty_l.setContentsMargins(0, 18, 0, 18)
             empty_l.setSpacing(6)
 
-            lbl = QLabel("暂无正在进行的下载任务")
+            lbl = QLabel(t("float_no_active"))
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setStyleSheet("color: #64748b; font-size: 11px; border: none;")
             empty_l.addWidget(lbl)
 
-            btn_new = QPushButton("+ 新建下载")
+            btn_new = QPushButton(t("float_new_task"))
             btn_new.setFixedWidth(90)
             btn_new.setStyleSheet("""
                 QPushButton {
@@ -307,7 +327,7 @@ class FloatingDashboardPanel(QWidget):
             return
 
         # 展示活跃任务 (至多前 4 项)
-        for t in active[:4]:
+        for t_item in active[:4]:
             t_row = QWidget()
             t_row.setStyleSheet("background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 4px;")
             tl = QVBoxLayout(t_row)
@@ -316,14 +336,14 @@ class FloatingDashboardPanel(QWidget):
 
             # 行 1: 标题与速度
             r1 = QHBoxLayout()
-            name = t.get("title") or t.get("save_name") or "未命名任务"
+            name = t_item.get("title") or t_item.get("save_name") or t("float_unnamed_task")
             if len(name) > 20:
                 name = name[:18] + "..."
             name_lbl = QLabel(name)
             name_lbl.setStyleSheet("color: #f1f5f9; font-size: 11px; font-weight: 500; border: none;")
             r1.addWidget(name_lbl, 1)
 
-            spd = t.get("speed_str") or "0.00 B/s"
+            spd = t_item.get("speed_str") or "0.00 B/s"
             spd_lbl = QLabel(spd)
             spd_lbl.setStyleSheet("color: #38bdf8; font-size: 10px; font-weight: bold; border: none;")
             r1.addWidget(spd_lbl)
@@ -975,7 +995,7 @@ class FloatingWidget(QWidget):
         act_custom.setChecked(self.skin == "custom_mascot")
         act_custom.triggered.connect(lambda: self._set_skin("custom_mascot"))
 
-        act_import = menu.addAction(get_icon("folder", "#a855f7", 14), "导入自定义挂件图片...")
+        act_import = menu.addAction(get_icon("folder", "#a855f7", 14), t("float_import_img"))
         act_import.triggered.connect(self._action_import_custom_image)
 
         # 缩放倍率子菜单
@@ -1015,7 +1035,11 @@ class FloatingWidget(QWidget):
 
         menu.exec_(event.globalPos())
 
-        menu.exec_(event.globalPos())
+    def retranslate_ui(self):
+        """响应语言切换，重新翻译面板和重绘文字"""
+        if hasattr(self, "_dashboard") and self._dashboard:
+            self._dashboard.retranslate_ui()
+        self.update()
 
     def _action_close_floating(self):
         self.hide()

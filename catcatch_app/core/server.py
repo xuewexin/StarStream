@@ -387,6 +387,15 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 self._send_json_response(200, {"success": True, "action": action})
                 return
 
+        elif path == "/api/language":
+            new_lang = data.get("language")
+            if new_lang:
+                from catcatch_app.core.i18n import set_current_language
+                set_current_language(new_lang)
+                config.set("language", new_lang)
+                self._send_json_response(200, {"success": True, "language": new_lang})
+                return
+
         self._send_json_response(404, {"error": "Not Found"})
 
     def do_DELETE(self):

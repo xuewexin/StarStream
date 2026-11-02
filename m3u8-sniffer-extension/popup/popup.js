@@ -163,6 +163,11 @@
     initLanguageUI();
     applyI18nUI();
     renderList();
+    fetch(`http://127.0.0.1:${clientPort}/api/language`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: langCode })
+    }).catch(() => {});
   }
 
   document.addEventListener('DOMContentLoaded', async () => {
@@ -443,7 +448,7 @@
         if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
         if (data.effective_proxy) clientEffectiveProxy = data.effective_proxy;
         if (data.temp_segments_dir) clientTempDir = data.temp_segments_dir;
-        if (data.language && !localStorage.getItem('user_manual_lang') && typeof ExtI18n !== 'undefined') {
+        if (data.language && typeof ExtI18n !== 'undefined') {
           if (data.language !== ExtI18n.getLang()) {
             ExtI18n.setLang(data.language);
             initLanguageUI();
@@ -715,13 +720,13 @@
     const t = typeof ExtI18n !== 'undefined' ? ExtI18n.t : (k => k);
     const isChecked = selectedIds.has(item.id);
     const domain = getDomain(item.url);
-    const title = item.pageTitle || '未命名媒体';
+    const title = item.pageTitle || t('unknown_site', '未命名媒体');
 
     let tagsHtml = `<span class="tag-badge tag-type">${item.mediaType.toUpperCase()}</span>`;
     if (item.isAd) {
-      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似切片'}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || t('tag_ad', '疑似切片')}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
     } else if (item.isFeature) {
-      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">${t('tag_feature')}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="${t('tip_feature_video', '当前页面时长最长的主视频')}">${t('tag_feature')}</span>`;
     }
     if (item.resolution) {
       tagsHtml += `<span class="tag-badge tag-res">${item.resolution}</span>`;
@@ -735,7 +740,7 @@
       tagsHtml += `<span class="tag-badge tag-size">${formatSize(item.contentLength)}</span>`;
     }
     if (item.hasKey) {
-      tagsHtml += `<span class="tag-badge tag-key">加密 (AES-128)</span>`;
+      tagsHtml += `<span class="tag-badge tag-key">${t('tag_encrypted', '加密 (AES-128)')}</span>`;
     }
     tagsHtml += `<span class="tag-badge tag-domain">${domain}</span>`;
 
@@ -767,15 +772,15 @@
       <div class="card-top">
         <input type="checkbox" class="card-checkbox" ${isChecked ? 'checked' : ''}>
         <div class="card-title-wrap">
-          <input type="text" class="card-title-input" value="${escapeHtml(title)}" title="点击修改保存名称">
+          <input type="text" class="card-title-input" value="${escapeHtml(title)}" title="${t('tip_edit_title', '点击修改保存名称')}">
         </div>
       </div>
       <div class="card-tags">${tagsHtml}</div>
-      <div class="card-url-box" title="点击复制完整直链">${escapeHtml(item.url)}</div>
+      <div class="card-url-box" title="${t('tip_copy_url', '点击复制完整直链')}">${escapeHtml(item.url)}</div>
       <div class="card-actions">
         <button class="btn-sm btn-primary action-push">${t('btn_push')}</button>
-        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">${t('btn_config')}</button>
-        <button class="btn-sm btn-secondary action-copy-cmd" title="复制 N_m3u8DL-RE 独立运行命令 (免客户端)">${t('btn_copy_cmd')}</button>
+        <button class="btn-sm btn-secondary action-config" title="${t('btn_config')}">${t('btn_config')}</button>
+        <button class="btn-sm btn-secondary action-copy-cmd" title="${t('btn_copy_cmd')}">${t('btn_copy_cmd')}</button>
         <button class="btn-sm btn-secondary action-preview">${t('btn_preview')}</button>
         <button class="btn-sm btn-secondary action-copy">${t('btn_copy')}</button>
         <button class="btn-sm btn-danger action-del">${t('btn_delete')}</button>
@@ -802,7 +807,7 @@
           </select>
         </div>
         <div class="config-row cfg-custom-proxy-row hidden">
-          <span class="config-label">代理地址:</span>
+          <span class="config-label">${t('cfg_proxy_addr', '代理地址:')}</span>
           <input type="text" class="config-input cfg-custom-proxy" placeholder="${t('cfg_custom_proxy_placeholder')}">
         </div>
         <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
@@ -827,7 +832,7 @@
     urlBox.addEventListener('click', () => {
       navigator.clipboard.writeText(item.url).then(() => {
         const oldText = urlBox.textContent;
-        urlBox.textContent = '已复制直链到剪贴板';
+        urlBox.textContent = t('cap_copied_link', '已复制直链到剪贴板');
         setTimeout(() => (urlBox.textContent = oldText), 1500);
       });
     });
@@ -897,7 +902,7 @@
 
       navigator.clipboard.writeText(cmd).then(() => {
         const originalText = btnSource.textContent;
-        btnSource.textContent = '已复制 N_m3u8DL 命令！';
+        btnSource.textContent = t('cap_copied_cmd', '已复制 N_m3u8DL 命令！');
         setTimeout(() => (btnSource.textContent = originalText), 1800);
       });
     }
@@ -910,7 +915,7 @@
 
     const pushBtn = card.querySelector('.action-push');
     pushBtn.addEventListener('click', async () => {
-      pushBtn.textContent = '推送中...';
+      pushBtn.textContent = t('cap_pushing', '推送中...');
       pushBtn.disabled = true;
 
       const cfg = getTaskConfigOptions();
@@ -947,7 +952,7 @@
           body: JSON.stringify(taskData)
         });
         if (resp.ok) {
-          pushBtn.textContent = '已加入队列';
+          pushBtn.textContent = t('cap_pushed', '已加入队列');
           pushBtn.style.backgroundColor = '#166534';
           pushBtn.style.color = '#ffffff';
           return;
@@ -956,11 +961,11 @@
 
       chrome.runtime.sendMessage({ action: 'PUSH_TO_CLIENT', data: taskData }, (res) => {
         if (res && res.success) {
-          pushBtn.textContent = '已加入队列';
+          pushBtn.textContent = t('cap_pushed', '已加入队列');
           pushBtn.style.backgroundColor = '#166534';
           pushBtn.style.color = '#ffffff';
         } else {
-          pushBtn.textContent = '客户端离线';
+          pushBtn.textContent = t('status_offline', '客户端离线');
           pushBtn.disabled = false;
         }
       });
@@ -974,8 +979,8 @@
     const copyBtn = card.querySelector('.action-copy');
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(item.url).then(() => {
-        copyBtn.textContent = '已复制';
-        setTimeout(() => (copyBtn.textContent = '复制'), 1500);
+        copyBtn.textContent = t('cap_copied_link', '已复制');
+        setTimeout(() => (copyBtn.textContent = t('btn_copy', '复制')), 1500);
       });
     });
 

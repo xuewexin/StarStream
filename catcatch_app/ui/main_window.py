@@ -229,7 +229,8 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(QLabel())
 
         # 计划电源管理: 全部完成后自动关机
-        self.chk_auto_shutdown = QCheckBox("全部完成后自动关机")
+        self.chk_auto_shutdown = QCheckBox(t("cb_auto_shutdown"))
+        self.chk_auto_shutdown.setToolTip(t("cb_auto_shutdown_tip"))
         self.chk_auto_shutdown.setStyleSheet("color: #a1a1aa; font-size: 12px; margin-right: 14px;")
         self.chk_auto_shutdown.setChecked(config.get("auto_shutdown_on_finish", False))
         self.chk_auto_shutdown.toggled.connect(lambda v: config.set("auto_shutdown_on_finish", v))
@@ -383,44 +384,48 @@ class MainWindow(QMainWindow):
         if width is None:
             width = self.width()
 
-        is_compact = width < 1200
-        is_narrow = width < 1000
-        is_ultra_compact = width < 850
+        is_compact = width < 1280
+        is_small = width < 1050
+        is_ultra = width < 850
 
-        # 1. 动态调节搜索框占用宽度
-        if is_ultra_compact:
+        # 1. 动态调节搜索框宽度，为操作按钮留出充足横向空间
+        if is_ultra:
+            self.search_edit.setFixedWidth(75)
+        elif is_small:
             self.search_edit.setFixedWidth(90)
-        elif is_narrow:
-            self.search_edit.setFixedWidth(120)
         elif is_compact:
-            self.search_edit.setFixedWidth(140)
+            self.search_edit.setFixedWidth(120)
         else:
-            self.search_edit.setFixedWidth(180)
+            self.search_edit.setFixedWidth(160)
 
-        # 2. 核心操作按键文字/纯图标自适应
-        # 只要宽度小于 1200px，操作按键切换为精致图标展示，保证右侧设置/语言/壁纸不被挤出屏幕
-        acts_to_compact = [
+        # 2. 现代专业下载器工具栏自适应策略:
+        # 小窗模式 (< 1050px) 下工具栏全局切换为纯图标呈现，收拢至 ~500px，在 800px 窗口下永不折叠
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly if is_small else Qt.ToolButtonTextBesideIcon)
+
+        secondary_acts = [
             self.act_start, self.act_pause, self.act_delete,
             self.act_open_dir, self.act_proxy, self.act_settings
         ]
-        for act in acts_to_compact:
+        for act in secondary_acts:
             btn = self.toolbar.widgetForAction(act)
             if btn and isinstance(btn, QToolButton):
-                btn.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
-
-        # 特别窄的情况下，视频提取与实用工具也紧凑化
-        btn_parser = self.toolbar.widgetForAction(self.act_parser)
-        if btn_parser and isinstance(btn_parser, QToolButton):
-            btn_parser.setToolButtonStyle(Qt.ToolButtonIconOnly if is_narrow else Qt.ToolButtonTextBesideIcon)
+                btn.setToolButtonStyle(Qt.ToolButtonIconOnly)
 
         if hasattr(self, "btn_more_tools") and self.btn_more_tools:
-            self.btn_more_tools.setToolButtonStyle(Qt.ToolButtonIconOnly if is_narrow else Qt.ToolButtonTextBesideIcon)
-
+            self.btn_more_tools.setToolButtonStyle(Qt.ToolButtonIconOnly)
         if hasattr(self, "btn_theme") and self.btn_theme:
-            self.btn_theme.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
-
+            self.btn_theme.setToolButtonStyle(Qt.ToolButtonIconOnly)
         if hasattr(self, "btn_lang") and self.btn_lang:
-            self.btn_lang.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
+            self.btn_lang.setToolButtonStyle(Qt.ToolButtonIconOnly)
+
+        # 3. 核心大按钮 (新建任务与视频提取):
+        btn_new = self.toolbar.widgetForAction(self.act_new)
+        if btn_new and isinstance(btn_new, QToolButton):
+            btn_new.setToolButtonStyle(Qt.ToolButtonIconOnly if is_small else Qt.ToolButtonTextBesideIcon)
+
+        btn_parser = self.toolbar.widgetForAction(self.act_parser)
+        if btn_parser and isinstance(btn_parser, QToolButton):
+            btn_parser.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
 
     def _build_tree_nodes(self):
         self.tree.clear()
@@ -838,16 +843,14 @@ class MainWindow(QMainWindow):
         pbar.setValue(int(prog))
         pbar.setFormat(f"{prog:.1f}%")
 
-        # 7. 实时下载速度
+        # 7. 实时下载速度 (非活跃下载状态时展示标准占位符，避免在多语言下与状态列冗余冲突)
         spd_str = t_task.get("speed", "")
         st_val = t_task.get("status", "waiting")
-        if st_val == "completed" or spd_str in ["完成", "Completed", "Done"]:
-            spd_str = t("st_completed")
-        elif st_val == "paused" or spd_str in ["已暂停", "Paused"]:
-            spd_str = t("st_paused")
+        if st_val in ["completed", "paused", "waiting"] or spd_str in ["完成", "Completed", "Done", "已暂停", "Paused"]:
+            spd_str = "--"
         elif st_val == "error" or spd_str in ["失败", "Failed", "Error"]:
             spd_str = t("st_failed")
-        self._set_cell_item(row, 7, spd_str, color=QColor("#38bdf8" if not is_light else "#0284c7"), align=Qt.AlignRight | Qt.AlignVCenter)
+        self._set_cell_item(row, 7, spd_str, color=QColor("#38bdf8" if not is_light else "#0284c7") if st_val == "downloading" else text_sec_col, align=Qt.AlignRight | Qt.AlignVCenter)
 
         # 8. 剩余时间
         self._set_cell_item(row, 8, t_task.get("eta", ""), color=text_sec_col, align=Qt.AlignCenter)
@@ -923,10 +926,8 @@ class MainWindow(QMainWindow):
             if it_spd:
                 spd_val = task.get("speed", "")
                 st_val = task.get("status", "waiting")
-                if st_val == "completed" or spd_val in ["完成", "Completed", "Done"]:
-                    spd_val = t("st_completed")
-                elif st_val == "paused" or spd_val in ["已暂停", "Paused"]:
-                    spd_val = t("st_paused")
+                if st_val in ["completed", "paused", "waiting"] or spd_val in ["完成", "Completed", "Done", "已暂停", "Paused"]:
+                    spd_val = "--"
                 elif st_val == "error" or spd_val in ["失败", "Failed", "Error"]:
                     spd_val = t("st_failed")
                 it_spd.setText(spd_val)
@@ -1565,14 +1566,17 @@ class MainWindow(QMainWindow):
         self._retranslate_ui()
 
     def _retranslate_ui(self):
-        self.setWindowTitle(f"星流媒体下载器 (StarStream Pro) {APP_VERSION}")
+        self.setWindowTitle(f"{t('app_title')} (StarStream Pro) {APP_VERSION}")
         self.act_new.setText(t("new_download"))
+        self.act_new.setToolTip(t("tip_new_task"))
         self.act_parser.setText(t("video_parser"))
+        self.act_parser.setToolTip(t("tip_video_parser"))
         self.act_start.setText(t("start"))
         self.act_pause.setText(t("pause"))
         self.act_delete.setText(t("delete"))
         self.act_open_dir.setText(t("open_dir"))
         self.btn_more_tools.setText(t("tools_menu"))
+        self.btn_more_tools.setToolTip(t("tip_more_tools"))
         self.act_batch.setText(t("batch_convert"))
         self.act_ffmpeg.setText(t("ffmpeg_box"))
         self.act_fragments.setText(t("fragments_mgr"))
@@ -1583,10 +1587,18 @@ class MainWindow(QMainWindow):
         self.act_view_errors.setText(t("error_logs"))
         self.act_disclaimer.setText(t("disclaimer"))
         self.act_proxy.setText(t("proxy_settings"))
+        self.act_proxy.setToolTip(t("tip_proxy_settings"))
         self.act_settings.setText(t("sys_settings"))
+        self.act_settings.setToolTip(t("tip_sys_settings"))
         self.btn_theme.setText(t("theme_bg"))
+        self.btn_theme.setToolTip(t("tip_theme_bg"))
         self.btn_lang.setText(t("language"))
+        self.btn_lang.setToolTip(t("tip_language"))
         self.btn_lang.setMenu(self._create_language_menu())
+
+        if hasattr(self, "chk_auto_shutdown") and self.chk_auto_shutdown:
+            self.chk_auto_shutdown.setText(t("cb_auto_shutdown"))
+            self.chk_auto_shutdown.setToolTip(t("cb_auto_shutdown_tip"))
 
         self.table.setHorizontalHeaderLabels([
             t("col_id"), t("col_title"), t("col_quality"), t("col_duration"), t("col_type"),
@@ -1600,6 +1612,10 @@ class MainWindow(QMainWindow):
         self._update_status_stats()
         self._adapt_toolbar()
         self._build_tree_nodes()
+        if hasattr(self, "floating_widget") and self.floating_widget:
+            if hasattr(self.floating_widget, "retranslate_ui"):
+                self.floating_widget.retranslate_ui()
+            self.floating_widget.update()
         if hasattr(self, "tray") and self.tray:
             self._init_tray()
         self.refresh_table()

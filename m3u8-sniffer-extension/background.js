@@ -503,10 +503,29 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true;
   }
 
+  if (req.action === "GET_TAB_INFO") {
+    const tabId = sender.tab ? sender.tab.id : -1;
+    if (tabId >= 0) {
+      chrome.tabs.get(tabId).then((tab) => {
+        sendResponse({ title: tab?.title || "", url: tab?.url || "" });
+      }).catch(() => {
+        sendResponse({ title: sender.tab?.title || "", url: sender.tab?.url || "" });
+      });
+    } else {
+      sendResponse({ title: sender.tab?.title || "", url: sender.tab?.url || "" });
+    }
+    return true;
+  }
+
   if (req.action === "CHECK_CLIENT_STATUS") {
     fetch(`${LOCAL_SERVER_URL}/api/status`, { method: "GET" })
       .then((r) => r.json())
-      .then((data) => sendResponse({ online: true, data }))
+      .then((data) => {
+        if (data && data.language) {
+          chrome.storage.local.set({ extension_language: data.language });
+        }
+        sendResponse({ online: true, data });
+      })
       .catch(() => sendResponse({ online: false }));
     return true;
   }
@@ -626,3 +645,21 @@ async function pushTaskToLocalClient(taskData) {
     });
   }
 }
+
+// 自动检测客户端语言变化并向扩展内所有页面分发同步
+function syncClientLanguage() {
+  fetch(`${LOCAL_SERVER_URL}/api/status`, { method: "GET" })
+    .then((r) => r.json())
+    .then((data) => {
+      if (data && data.language) {
+        chrome.storage.local.get(["extension_language"], (res) => {
+          if (!res || res.extension_language !== data.language) {
+            chrome.storage.local.set({ extension_language: data.language });
+          }
+        });
+      }
+    })
+    .catch(() => {});
+}
+setInterval(syncClientLanguage, 15000);
+syncClientLanguage();

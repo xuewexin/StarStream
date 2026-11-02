@@ -46,13 +46,18 @@
 
   function cleanVideoTitle(raw, fallbackTabTitle) {
     let title = (raw || '').trim();
-    if (isPlayerOrGenericTitle(title) && fallbackTabTitle && !isPlayerOrGenericTitle(fallbackTabTitle)) {
-      title = fallbackTabTitle.trim();
+    if (isPlayerOrGenericTitle(title)) {
+      if (fallbackTabTitle && !isPlayerOrGenericTitle(fallbackTabTitle)) {
+        title = fallbackTabTitle.trim();
+      } else {
+        title = '';
+      }
     }
     // 移除末尾播放器标识与盗版影视网站后缀
     title = title.replace(/\s*[-_—|]\s*(DPlayer|ckplayer|Artplayer|xgplayer|Aliplayer|网页播放器|H5播放器)\s*$/i, '');
     title = title.replace(/\s*[-_—|]\s*(在线播放|在线观看|高清在线|免费在线|完整版在线|高清播放).*$/i, '');
-    return title.trim() || fallbackTabTitle || '网页视频';
+    const defaultTitle = typeof ExtI18n !== 'undefined' ? ExtI18n.t('cap_default_video_title') : '网页视频';
+    return title.trim() || fallbackTabTitle || defaultTitle;
   }
 
   // 2. 接收来自 inject.js 的深层嗅探消息
@@ -160,12 +165,13 @@
 
     const btn = document.createElement('div');
     btn.className = 'catcatch-floating-btn';
+    const t = (k, def) => (typeof ExtI18n !== 'undefined' ? ExtI18n.t(k) : def);
     btn.innerHTML = `
       <div class="catcatch-btn-main" style="display:inline-flex;align-items:center;gap:5px;">
         ${SVG_DOWNLOAD_ICON}
-        <span>下载视频</span>
+        <span>${t('cap_download_video', '下载视频')}</span>
       </div>
-      <span class="catcatch-close-badge" title="关闭悬浮角标">×</span>
+      <span class="catcatch-close-badge" title="${t('cap_close_badge', '关闭悬浮角标')}">×</span>
     `;
     btn.__targetMedia = mediaEl;
 
@@ -310,6 +316,25 @@
     panel.className = 'catcatch-floating-panel';
     panel.style.top = `${window.scrollY + rect.bottom + 6}px`;
     panel.style.right = `${window.innerWidth - (window.scrollX + rect.right)}px`;
+
+    // 若当前在通用播放器 iframe 中，立即向上层标签页请求主网页标题进行标题纠正
+    if (!currentTitle || isPlayerOrGenericTitle(document.title)) {
+      try {
+        chrome.runtime.sendMessage({ action: 'GET_TAB_INFO' }, (res) => {
+          if (res && res.title) {
+            const refined = cleanVideoTitle(res.title);
+            if (refined && !isPlayerOrGenericTitle(refined)) {
+              currentTitle = refined;
+              const titleEl = panel.querySelector('.catcatch-panel-title');
+              if (titleEl) {
+                titleEl.textContent = currentTitle;
+                titleEl.title = currentTitle;
+              }
+            }
+          }
+        });
+      } catch (e) {}
+    }
 
     panel.innerHTML = `
       <div class="catcatch-panel-title" title="${currentTitle}">${currentTitle}</div>

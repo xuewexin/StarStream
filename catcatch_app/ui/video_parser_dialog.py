@@ -92,11 +92,11 @@ class VideoParserDialog(QDialog):
         badge_row = QHBoxLayout()
         badge_row.setSpacing(8)
         badges = [
-            "B站 (Bilibili)",
-            "抖音 (无水印)",
-            "快手 (高清)",
-            "小红书 (原画)",
-            "通用网页 (H5/M3U8)"
+            t("vp_badge_bilibili"),
+            t("vp_badge_douyin"),
+            t("vp_badge_kuaishou"),
+            t("vp_badge_xiaohongshu"),
+            t("vp_badge_web")
         ]
         chip_style = (
             "background-color: #0f172a; "
@@ -157,7 +157,7 @@ class VideoParserDialog(QDialog):
 
         self.browser_btn = QPushButton(t("vp_browser_btn"))
         self.browser_btn.setIcon(get_icon("globe", "#94a3b8", 16))
-        self.browser_btn.setToolTip("在系统默认浏览器中打开该视频页面，由星流媒体嗅探器插件直接捕获最高画质无水印直链")
+        self.browser_btn.setToolTip(t("vp_browser_tooltip"))
         self.browser_btn.setStyleSheet("""
             QPushButton {
                 background-color: #1e293b;
@@ -213,14 +213,14 @@ class VideoParserDialog(QDialog):
         title_row = QHBoxLayout()
         title_row.addWidget(QLabel(t("vp_field_title")))
         self.title_edit = QLineEdit()
-        self.title_edit.setPlaceholderText("解析成功后将自动填入真实视频标题")
+        self.title_edit.setPlaceholderText(t("vp_placeholder_title"))
         title_row.addWidget(self.title_edit, 1)
         info_col.addLayout(title_row)
 
         url_row = QHBoxLayout()
         url_row.addWidget(QLabel(t("vp_field_url")))
         self.url_display = QLineEdit()
-        self.url_display.setPlaceholderText("提取出的真实无水印 MP4 直链或 M3U8 清单")
+        self.url_display.setPlaceholderText(t("vp_placeholder_url"))
         url_row.addWidget(self.url_display, 1)
         info_col.addLayout(url_row)
 

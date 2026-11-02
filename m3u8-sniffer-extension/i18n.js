@@ -103,6 +103,17 @@
       btn_clean_all: "一键清空全部残留分片",
       btn_refresh: "刷新",
       frag_clean: "当前分片目录干净，无残留切片文件"
+      cap_download_video: "下载视频",
+      cap_close_badge: "关闭悬浮角标",
+      cfg_proxy_addr: "代理地址:",
+      tip_edit_title: "点击修改保存名称",
+      tip_copy_url: "点击复制完整直链",
+      tag_encrypted: "加密 (AES-128)",
+      tip_feature_video: "当前页面时长最长的主视频",
+      confirm_clear_records: "确定要清空已嗅探的媒体记录吗？",
+      unknown: "未知",
+      cap_default_video_title: "网页视频",
+    
     },
     zh_TW: {
       brand_title: "星流媒體探測器",
@@ -182,6 +193,17 @@
       btn_clean_all: "一鍵清空全部殘留分片",
       btn_refresh: "重新整理",
       frag_clean: "當前分片目錄乾淨，無殘留切片檔案"
+      cap_download_video: "下載影片",
+      cap_close_badge: "關閉浮動標記",
+      cfg_proxy_addr: "代理位址:",
+      tip_edit_title: "點擊修改儲存名稱",
+      tip_copy_url: "點擊複製完整直鏈",
+      tag_encrypted: "加密 (AES-128)",
+      tip_feature_video: "目前頁面時長最長的主影片",
+      confirm_clear_records: "確定要清空已探測的媒體記錄嗎？",
+      unknown: "未知",
+      cap_default_video_title: "網頁影片",
+    
     },
     en_US: {
       brand_title: "StarStream Sniffer",
@@ -261,6 +283,17 @@
       btn_clean_all: "Clean All Residual Segments",
       btn_refresh: "Refresh",
       frag_clean: "Segment directory is completely clean"
+      cap_download_video: "Download Video",
+      cap_close_badge: "Close Floating Badge",
+      cfg_proxy_addr: "Proxy Address:",
+      tip_edit_title: "Click to edit save title",
+      tip_copy_url: "Click to copy full direct URL",
+      tag_encrypted: "Encrypted (AES-128)",
+      tip_feature_video: "Main feature video with longest duration on page",
+      confirm_clear_records: "Are you sure you want to clear all sniffed media records?",
+      unknown: "Unknown",
+      cap_default_video_title: "Web Video",
+    
     },
     ja_JP: {
       brand_title: "StarStream スニファー",
@@ -340,6 +373,17 @@
       btn_clean_all: "残留セグメントを一括削除",
       btn_refresh: "更新",
       frag_clean: "セグメントディレクトリはクリーンです"
+      cap_download_video: "動画をダウンロード",
+      cap_close_badge: "フローティングバッジを閉じる",
+      cfg_proxy_addr: "プロキシアドレス:",
+      tip_edit_title: "クリックして保存名を編集",
+      tip_copy_url: "クリックして直リンク全体をコピー",
+      tag_encrypted: "暗号化 (AES-128)",
+      tip_feature_video: "ページ内で最も再生時間の長い本編動画",
+      confirm_clear_records: "検出されたメディア履歴をすべて消去しますか？",
+      unknown: "不明",
+      cap_default_video_title: "Web動画",
+    
     },
     ko_KR: {
       brand_title: "StarStream 스니퍼",
@@ -419,6 +463,17 @@
       btn_clean_all: "잔여 세그먼트 모두 정리",
       btn_refresh: "새로고침",
       frag_clean: "세그먼트 디렉터리가 완전히 깨끗합니다"
+      cap_download_video: "비디오 다운로드",
+      cap_close_badge: "플로팅 배지 닫기",
+      cfg_proxy_addr: "프록시 주소:",
+      tip_edit_title: "클릭하여 저장 이름 수정",
+      tip_copy_url: "클릭하여 전체 직접 링크 복사",
+      tag_encrypted: "암호화됨 (AES-128)",
+      tip_feature_video: "페이지 내 재생 시간이 가장 긴 메인 비디오",
+      confirm_clear_records: "탐지된 미디어 기록을 모두 삭제하시겠습니까?",
+      unknown: "알 수 없음",
+      cap_default_video_title: "웹 비디오",
+    
     },
     fr_FR: {
       brand_title: "StarStream Renifleur",
@@ -498,6 +553,17 @@
       btn_clean_all: "Vider tous les segments résiduels",
       btn_refresh: "Actualiser",
       frag_clean: "Le dossier de segments est totalement propre"
+      cap_download_video: "Télécharger la vidéo",
+      cap_close_badge: "Fermer le badge flottant",
+      cfg_proxy_addr: "Adresse du proxy :",
+      tip_edit_title: "Cliquer pour modifier le titre",
+      tip_copy_url: "Cliquer pour copier l'URL directe complète",
+      tag_encrypted: "Chiffré (AES-128)",
+      tip_feature_video: "Vidéo principale la plus longue de la page",
+      confirm_clear_records: "Voulez-vous vraiment effacer tous les médias détectés ?",
+      unknown: "Inconnu",
+      cap_default_video_title: "Vidéo Web",
+    
     },
     de_DE: {
       brand_title: "StarStream Sniffer",
@@ -577,6 +643,17 @@
       btn_clean_all: "Alle Segmente bereinigen",
       btn_refresh: "Aktualisieren",
       frag_clean: "Segmentverzeichnis ist vollständig sauber"
+      cap_download_video: "Video herunterladen",
+      cap_close_badge: "Schwebendes Abzeichen schließen",
+      cfg_proxy_addr: "Proxy-Adresse:",
+      tip_edit_title: "Klicken, um Speichernamen zu bearbeiten",
+      tip_copy_url: "Klicken, um vollständige Direkt-URL zu kopieren",
+      tag_encrypted: "Verschlüsselt (AES-128)",
+      tip_feature_video: "Hauptvideo mit der längsten Dauer auf der Seite",
+      confirm_clear_records: "Möchten Sie wirklich alle erfassten Medieneinträge löschen?",
+      unknown: "Unbekannt",
+      cap_default_video_title: "Webvideo",
+    
     },
     es_ES: {
       brand_title: "StarStream Rastreador",
@@ -656,6 +733,17 @@
       btn_clean_all: "Limpiar todos los fragmentos residuales",
       btn_refresh: "Actualizar",
       frag_clean: "El directorio de fragmentos está completamente limpio"
+      cap_download_video: "Descargar vídeo",
+      cap_close_badge: "Cerrar distintivo flotante",
+      cfg_proxy_addr: "Dirección del proxy:",
+      tip_edit_title: "Haz clic para editar el nombre",
+      tip_copy_url: "Haz clic para copiar el enlace directo completo",
+      tag_encrypted: "Cifrado (AES-128)",
+      tip_feature_video: "Vídeo principal con mayor duración en la página",
+      confirm_clear_records: "¿Seguro que quieres borrar todos los registros multimedia detectados?",
+      unknown: "Desconocido",
+      cap_default_video_title: "Vídeo Web",
+    
     },
     ru_RU: {
       brand_title: "StarStream Перехватчик",
@@ -735,6 +823,17 @@
       btn_clean_all: "Удалить все остаточные сегменты",
       btn_refresh: "Обновить",
       frag_clean: "Каталог сегментов полностью пуст"
+      cap_download_video: "Скачать видео",
+      cap_close_badge: "Закрыть плавающий значок",
+      cfg_proxy_addr: "Адрес прокси:",
+      tip_edit_title: "Нажмите, чтобы изменить название",
+      tip_copy_url: "Нажмите, чтобы скопировать прямую ссылку",
+      tag_encrypted: "Зашифровано (AES-128)",
+      tip_feature_video: "Основное видео с наибольшей длительностью",
+      confirm_clear_records: "Вы уверены, что хотите очистить историю перехваченных медиа?",
+      unknown: "Неизвестно",
+      cap_default_video_title: "Веб-видео",
+    
     },
     pt_BR: {
       brand_title: "StarStream Capturador",
@@ -815,6 +914,17 @@
       btn_refresh: "Atualizar",
       frag_clean: "O diretório de segmentos está completamente limpo"
     }
+      cap_download_video: "Baixar vídeo",
+      cap_close_badge: "Fechar selo flutuante",
+      cfg_proxy_addr: "Endereço do proxy:",
+      tip_edit_title: "Clique para editar o título",
+      tip_copy_url: "Clique para copiar o link direto completo",
+      tag_encrypted: "Criptografado (AES-128)",
+      tip_feature_video: "Vídeo principal com maior duração na página",
+      confirm_clear_records: "Tem certeza de que deseja limpar todos os registros de mídia capturados?",
+      unknown: "Desconhecido",
+      cap_default_video_title: "Vídeo Web",
+    
   };
 
   let currentLang = 'zh_CN';
