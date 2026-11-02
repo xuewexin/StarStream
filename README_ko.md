@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension_v3.2.0.zip%20(165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="확장 프로그램 다운로드">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-유사-오픈소스-프로젝트-비교-및-대체-가이드-alternatives--comparison">
+    <img src="https://img.shields.io/badge/🔥%20대체-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="오픈소스 비교">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -146,6 +150,22 @@
 >    👉 **단일 실행 파일(`StarStream.exe`)을 바로 다운로드하여 사용하실 수 있습니다**! 첫 실행 시 시스템 환경 변수(`PATH`) 및 주요 경로를 자동으로 스캔하여 기존 엔진을 자동 연결합니다.
 > 3. **⚠️ 실행 시 주의사항**:
 >    단일 실행 파일 `StarStream.exe`를 다운로드한 경우, **반드시 새롭고 비어있는 전용 폴더(예: `D:\StarStream\`)에 넣고 실행해 주십시오**! 실행 시 동일 경로에 설정 파일, 데이터베이스, 로그 및 임시 작업 폴더가 자동 생성되므로, 전용 폴더에 두시면 관리가 훨씬 편리합니다.
+
+---
+
+## ⚔️ 유사 오픈소스 프로젝트 비교 및 대체 가이드 (Alternatives & Comparison)
+
+StarStream과 Cat-Catch(猫抓), SimpleG, N_m3u8DL-RE, yt-dlp, Video DownloadHelper의 주요 특징 비교:
+
+| 기능 비교 | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG (클래식 GUI) | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **구동 방식** | **데스크톱 앱 + 브라우저 확장 연동** | 브라우저 확장 프로그램 단독 | 단독 Windows 프로그램 | CLI 터미널 프로그램 | 확장 프로그램 + 유료 도우미 앱 |
+| **핵심 엔진** | **N_m3u8DL-RE + FFmpeg 기본 내장** | 브라우저 Blob / Fetch 다운로드 | 구형 N_m3u8DL-CLI v3.0.2 | yt-dlp Python 엔진 | 확장 다운로드 / 로컬 호스트 |
+| **멀티스레드 다운로드** | **✅ 지원 (4 ~ 32 스레드, 24MB/s+ 속도)** | ❌ 단일 스레드 (대용량 파일 시 느림) | ⚠️ 기본 멀티스레드 | 수동 옵션 플래그 필요 | 유료 결제 시 잠금 해제 |
+| **영상/음성 자동 병합** | **✅ 자동 믹싱 및 표준 MP4 무손실 변환** | ❌ 분리된 트랙 병합 불가 | ⚠️ 기본 FFmpeg 병합 | 수동 FFmpeg 명령어 병합 | 무료 버전 시 워터마크/시간 제한 |
+| **브라우저 프록시 동기화** | **✅ 브라우저 IP 자동 동기화 (403 차단 방지)** | 브라우저 프록시만 따름 | ❌ 브라우저 프록시 감지 불가 | 수동 `--proxy` 입력 필요 | ❌ 자동 동기화 미지원 |
+| **플레이어 오버레이 UI** | **✅ 동영상 플레이어 내 스마트 다운로드 캡슐** | ❌ 툴바 아이콘 클릭 필수 | ❌ URL 수동 복사/붙여넣기 | ❌ 텍스트 터미널 전용 | 툴바 아이콘 클릭 필수 |
+| **라이선스** | **✅ 100% 영구 무료 및 오픈소스 (MIT)** | 무료 및 오픈소스 | 무료 및 오픈소스 | 무료 및 오픈소스 | 유료 상용 결제 유도 |
 
 ---
 
@@ -260,3 +280,8 @@ flowchart TD
 - **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 메일을 확인하는 대로 신속하게 답변 및 조치해 드리겠습니다. 여러분의 성원과 피드백에 감사드립니다!
+
+---
+
+### 🏷️ Search Topics & SEO Keywords
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

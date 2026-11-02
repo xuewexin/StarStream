@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Расширение%20браузера-Extension_v3.2.0.zip%20(165%20КБ)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Скачать расширение">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-сравнение-и-альтернативы-почему-starstream">
+    <img src="https://img.shields.io/badge/🔥%20Альтернатива-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="Сравнение и альтернативы">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -148,6 +152,21 @@
 
 ---
 
+## ⚔️ Сравнение и альтернативы (Почему StarStream?)
+
+Сравнение StarStream с Cat-Catch, SimpleG, N_m3u8DL-RE, yt-dlp и Video DownloadHelper:
+
+| Параметр | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Архитектура** | **Клиент для ПК + Расширение для браузера** | Только расширение | Классическое приложение Windows | Консольный интерфейс (CLI) | Расширение + Платный модуль |
+| **Движок загрузки** | **Встроенные N_m3u8DL-RE и FFmpeg** | Встроенный Blob / Fetch | Старый N_m3u8DL-CLI | Движок yt-dlp Python | Браузер / Фоновая служба |
+| **Многопоточность** | **✅ До 32 потоков (скорость 24+ МБ/с)** | ❌ Один поток / Медленно | ⚠️ Базовая многопоточность | Требуются флаги командной строки | Требуется платная лицензия |
+| **Синхронизация прокси** | **✅ Полное совпадение с IP браузера (нет 403)** | Только прокси браузера | ❌ Не видит прокси браузера | Нужен ключ `--proxy` | ❌ Не поддерживается |
+| **Капсула в плеере** | **✅ Кнопка встроена прямо в видеоплеер** | ❌ Требуется клик на панель | ❌ Ручная вставка ссылок | ❌ Только терминал | Требуется клик на панель |
+| **Лицензия** | **✅ 100% Бесплатно и Open Source (MIT)** | Open Source | Open Source | Open Source | Условно-бесплатно с ограничениями |
+
+---
+
 ## ⚡ Ключевые возможности
 
 | Модуль | Описание |
@@ -205,3 +224,8 @@
 - **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 Мы ответим на ваше письмо и примем меры в кратчайшие сроки! Спасибо за вашу поддержку и обратную связь!
+
+---
+
+### 🏷️ Search Topics & SEO Keywords
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

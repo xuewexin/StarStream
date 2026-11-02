@@ -43,6 +43,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.0.zip%20(仅%20165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-同类开源项目横向对比与选型指南-comparison--alternatives">
+    <img src="https://img.shields.io/badge/🔥%20替代推荐-猫抓%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="同类开源项目横向对比与选型指南">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -147,6 +151,33 @@
 >    👉 **可以直接下载单文件【独立主程序 (`StarStream.exe`)】**！星流在首次启动时会自动全盘扫描系统环境变量（`PATH`）与常见目录，智能识别并自动挂载这两个前置依赖工具，无需重复配置。
 > 3. **⚠️ 运行注意事项 (强烈建议)**：
 >    若您下载的是单文件独立版 `StarStream.exe`，**请务必将该 exe 文件放置在一个全新的空文件夹（如 `D:\StarStream\`）中运行**！软件在运行过程中会在 exe 所在目录下自动生成本地数据库、配置文件、日志记录及临时工作目录。将 exe 放入独立的干净文件夹中可防止桌面或下载目录混乱，便于日常管理与清理。
+
+---
+
+## ⚔️ 同类开源项目横向对比与选型指南 (Comparison & Alternatives)
+
+很多用户在寻找音视频下载工具时常有疑问：**“星流 (StarStream) 与「猫抓 (CatCatch)」、「SimpleG」、「N_m3u8DL-RE 命令行」、「yt-dlp」或「Video DownloadHelper」相比有什么区别？我该如何选择？”**
+
+下表为您直观梳理核心能力对比：
+
+| 功能维度 / 核心特性 | 🌟 星流 (StarStream Pro) | 🐱 猫抓 (Cat-Catch) | 🛠️ SimpleG (N_m3u8DL原版GUI) | ⚡ yt-dlp / CLI 工具 | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **产品形态** | **桌面客户端 + 浏览器扩展双模极速联动** | 纯浏览器扩展插件 | 传统单体 Windows 客户端 | 纯命令行控制台程序 | 浏览器扩展 + 付费配套应用 |
+| **底层下载引擎** | **原生内置 N_m3u8DL-RE + FFmpeg 工业级引擎** | 浏览器内置 Blob / Fetch 内存拉取 | 老旧 N_m3u8DL-CLI v3.0.2 内核 | yt-dlp Python 脚本引擎 | 扩展自带下载 / 需装后台服务 |
+| **高并发多线程下载** | **✅ 支持 (4 ~ 32 线程极速并发拉取，实测 24MB/s+)** | ❌ 仅单线程/低并发 (大文件与长视频极慢) | ⚠️ 基础多线程支持 | 需手动配置复杂命令行参数 | 需付费购买高级许可证解锁 |
+| **音视频分离流混流** | **✅ 自动混流并秒级封装为通用 MP4 (faststart)** | ❌ 无法自动处理音轨/画面分离流 | ⚠️ 基础转码合并 | 支持命令行调用 FFmpeg 合并 | ❌ 免费版限制合并时长/加水印 |
+| **浏览器代理自动对齐** | **✅ 深度对齐浏览器出口 IP (从根源彻底杜绝 403)** | 仅走浏览器当前代理 | ❌ 无法感知浏览器当前代理状态 | 需手动查询并配置 `--proxy` 参数 | ❌ 不支持智能代理对齐 |
+| **网页播放器内嵌操作** | **✅ 视频右上角原生注入天蓝色下载操作胶囊** | ❌ 必须每次点击右上角扩展栏弹窗 | ❌ 无浏览器交互，需手动复制粘贴 URL | ❌ 纯黑窗口命令行输入 | 需点击浏览器右上角插件图标 |
+| **桌面迷你悬浮监控挂件** | **✅ 炫酷星球呼吸悬浮挂件 + 任务监控微面板** | ❌ 无桌面端挂件 | ❌ 无桌面挂件 | ❌ 无图形界面挂件 | ❌ 无桌面端挂件 |
+| **全网主流平台一键解析** | **✅ 内置短视频解析工作台 (B站4K/抖音/快手无水印)** | 需依赖第三方规则脚本 | ❌ 无逆向解析能力 | 依赖提取器更新维护 | ❌ 不支持国内短视频去水印 |
+| **全球多语言支持** | **✅ 完整适配 10 国主流语言与专属 README 文档** | 仅中文 / 英文 | 仅中文 | 英文控制台输出 | 多语言支持 |
+| **开源免费与商用限制** | **✅ 100% 永久开源免费 (基于 MIT 协议)** | 开源免费 | 开源免费 | 开源免费 (Unlicense) | 商业软件 (限制功能/诱导付费) |
+
+### 🎯 针对不同使用习惯用户的选型建议：
+- **如果您是「猫抓 (CatCatch)」忠实用户**：猫抓是一款出色的嗅探扩展，但在下载数十个 GB 的长视频或加密 HLS 流时，浏览器内存占用巨大且极易断流失败。星流在继承强大嗅探能力的同时，将下载交给工业级桌面引擎并发拉取，是**猫抓的终极性能加速替代方案**！
+- **如果您是「SimpleG」老用户**：SimpleG 是一款陪伴大家多年的经典 N_m3u8DL GUI，但因久未维护已无法适配最新的动态防盗链与多节点代理。星流是**SimpleG 的 2026 现代化重构旗舰版**，界面彻底升级为沉浸式 Dark Slate 灰蓝矢量主题，支持小窗响应式折叠与最新 N_m3u8DL-RE 引擎！
+- **如果您是「yt-dlp / 命令行」极客用户**：无需每次在终端中繁琐拼接 `--referer`、`--user-agent`、`--cookie` 与代理端口，星流浏览器扩展全自动捕获全部鉴权参数，一键投送客户端或一键复制完整命令行，极客与便捷兼得！
+- **如果您是「Video DownloadHelper」用户**：彻底告别其必须安装额外付费 Companion App、免费版强制打水印、限制下载并发时长的困扰，星流全功能完全开放，开箱即用。
 
 ---
 
@@ -393,3 +424,8 @@ StarStream-Pro/
 - **Gmail**：[lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 收到邮件后会尽快为您解答与处理！感谢您的支持与反馈！
+
+---
+
+### 🏷️ 核心技术与检索索引 (Search Topics & Keywords)
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20ブラウザ拡張機能-Extension_v3.2.0.zip%20(165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="拡張機能をダウンロード">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-類似オープンソース比較と移行ガイド-alternatives--comparison">
+    <img src="https://img.shields.io/badge/🔥%20代替ツール-猫抓(CatCatch)%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="オープンソース比較">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -146,6 +150,23 @@
 >    👉 **単体実行ファイル（`StarStream.exe`）を直接ダウンロードしてご利用いただけます**！起動時にシステム環境変数（`PATH`）や標準フォルダーを自動スキャンし、既存のツールを自動検出して連携します。
 > 3. **⚠️ 起動時の重要なお願い**:
 >    単体版 `StarStream.exe` をご利用になる場合は、**必ず新しく作成した専用フォルダー（例：`D:\StarStream\`）に配置して実行してください**。起動時に設定ファイル、データベース、ログ、作業フォルダーが実行ファイルと同階層に自動生成されるため、専用フォルダーに置くことで管理や整理がスムーズになります。
+
+---
+
+## ⚔️ 類似オープンソース比較と移行ガイド (Alternatives & Comparison)
+
+「StarStream（星流）」と「猫抓 (Cat-Catch)」「SimpleG」「N_m3u8DL-RE CLI」「yt-dlp」「Video DownloadHelper」の機能比較一覧です：
+
+| 比較項目 | 🌟 StarStream Pro | 🐱 猫抓 (Cat-Catch) | 🛠️ SimpleG (原版GUI) | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **動作形態** | **デスクトップアプリ + 拡張機能の連携** | ブラウザ拡張機能のみ | 従来型Windowsアプリ | コマンドラインツール | 拡張機能 + 有料アプリ |
+| **ダウンロードエンジン** | **N_m3u8DL-RE + FFmpeg を標準内蔵** | ブラウザ内蔵 Blob / Fetch | 旧 N_m3u8DL-CLI v3.0.2 | yt-dlp Python エンジン | 拡張機能内蔵 / 外部サービス |
+| **マルチスレッド高速取得** | **✅ 対応 (4〜32スレッド並列、実測24MB/s超)** | ❌ 単一スレッド（大容量動画は低速） | ⚠️ 基本的なマルチスレッド | コマンドライン引数の指定が必要 | 有料ライセンスが必要 |
+| **映像・音声の自動結合** | **✅ 自動混流・標準MP4形式へ無損変換** | ❌ 音声分離ストリームの合成不可 | ⚠️ 簡易結合 | FFmpegコマンドの併用が必要 | 無料版は時間制限や透かし |
+| **プロキシ自動整合** | **✅ ブラウザのIPと完全同期 (403を完全防止)** | ブラウザ依存 | ❌ ブラウザのプロキシを検知不可 | 手動で `--proxy` 設定が必要 | ❌ 自動整合非対応 |
+| **プレイヤー内蔵UI** | **✅ プレイヤー右上にダウンロードカプセル表示** | ❌ 拡張機能アイコンのクリック必須 | ❌ URLの手動コピー＆ペースト | ❌ コマンドライン入力 | 拡張機能アイコンをクリック |
+| **デスクトップ常駐** | **✅ デスクトップ球形ウィジェット + ミニ監視** | ❌ なし | ❌ なし | ❌ なし | ❌ なし |
+| **ライセンス** | **✅ 100% 無料・オープンソース (MIT)** | オープンソース | オープンソース | オープンソース (Unlicense) | 有料機能ありの商用ツール |
 
 ---
 
@@ -261,3 +282,8 @@ flowchart TD
 - **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 メールを確認次第、迅速に回答および対応いたします。皆様の応援とフィードバックに心より感謝申し上げます！
+
+---
+
+### 🏷️ Search Topics & SEO Keywords
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

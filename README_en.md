@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.0.zip%20(165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-comparison--alternatives-why-choose-starstream">
+    <img src="https://img.shields.io/badge/🔥%20Alternative-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="Comparison & Alternatives">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -146,6 +150,32 @@ You can obtain the latest release of StarStream via the following distribution c
 >    👉 **You can directly download the standalone executable (`StarStream.exe`)**! Upon startup, StarStream will automatically scan system paths (`PATH`) and standard directories to detect and bind your existing prerequisite tools.
 > 3. **⚠️ Important Usage Tip**:
 >    If you choose the standalone `StarStream.exe`, **please place it in a clean, dedicated new folder (e.g., `D:\StarStream\`) before launching**! The application automatically generates configuration files, databases, logs, and temporary directories next to the executable. A dedicated directory keeps your system tidy and simplifies file management.
+
+---
+
+## ⚔️ Comparison & Alternatives (Why Choose StarStream?)
+
+Users frequently ask: **"How does StarStream compare to Cat-Catch, SimpleG, original N_m3u8DL-RE CLI, yt-dlp, or Video DownloadHelper? Which one should I choose?"**
+
+Here is a comprehensive feature comparison:
+
+| Feature Dimension | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG (Classic GUI) | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Architecture** | **Dual-Engine (Desktop Client + Browser Extension)** | Browser Extension Only | Standalone Legacy Windows GUI | Command-Line Interface (CLI) | Extension + Proprietary Companion App |
+| **Download Engine** | **Built-in N_m3u8DL-RE + FFmpeg Core** | Browser Fetch / Blob Memory Stream | Legacy N_m3u8DL-CLI v3.0.2 | yt-dlp Python Engine | Browser Download / Native Host Service |
+| **Multi-threading** | **✅ Supported (4 ~ 32 threads, 24MB/s+ throughput)** | ❌ Single-threaded / Slow on large files | ⚠️ Basic multi-threading | Requires manual CLI flags | Paid license required to unlock |
+| **Audio/Video Muxing** | **✅ Auto muxing & remuxing to standard MP4 (faststart)** | ❌ Cannot mux split A/V tracks | ⚠️ Basic FFmpeg muxing | Requires manual FFmpeg command | Watermarked or restricted in free version |
+| **Browser Proxy Sync** | **✅ Auto-aligns proxy with browser IP (Eliminates 403)** | Follows browser only | ❌ Cannot detect browser proxy | Requires manual `--proxy` flag | ❌ Not supported |
+| **In-Player Overlay** | **✅ Floating Capsule injected directly into video players** | ❌ Must click browser toolbar icon | ❌ No browser integration | ❌ Terminal prompt only | Must click extension toolbar icon |
+| **Desktop Floating Orb** | **✅ Futuristic Orb widget + Mini task monitor panel** | ❌ None | ❌ None | ❌ None | ❌ None |
+| **Multi-Language (i18n)** | **✅ Full 10-language internationalization suite** | Chinese / English only | Chinese only | English terminal output only | Multiple languages |
+| **Licensing** | **✅ 100% Free & Open Source (MIT)** | Free & Open Source | Free & Open Source | Free & Open Source (Unlicense) | Freemium / Paid commercial upsell |
+
+### 🎯 Recommendation Guide:
+- **For Cat-Catch Users**: Cat-Catch is great for sniffing links, but downloading multi-gigabyte HLS streams inside the browser often exhausts memory or crashes. StarStream is the **ultimate accelerated companion and alternative to Cat-Catch**, offloading heavy downloads to the high-performance `N_m3u8DL-RE` desktop engine.
+- **For SimpleG Users**: SimpleG is a beloved classic N_m3u8DL GUI, but has not been maintained for years. StarStream is the **modern, fully overhauled successor to SimpleG**, featuring modern dark slate vector UI, responsive small-window folding, proxy auto-alignment, and N_m3u8DL-RE core.
+- **For yt-dlp / CLI Geeks**: No more manually inspecting DevTools to copy `--referer`, `--user-agent`, and cookies into terminal flags. StarStream captures all headers automatically and lets you copy the fully formed command or download with 1-click.
+- **For Video DownloadHelper Users**: Completely eliminates the annoyance of paid companion apps, watermark restrictions, and conversion limits. 100% free and open-source forever.
 
 ---
 
@@ -277,3 +307,8 @@ If you encounter any issues, bugs, questions during use, or have valuable sugges
 - **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 We will respond and address your questions and feedback as soon as possible! Thank you for your support!
+
+---
+
+### 🏷️ Search Topics & SEO Keywords
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

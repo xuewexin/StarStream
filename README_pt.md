@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Extensão%20Navegador-Extension_v3.2.0.zip%20(165%20KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Baixar extensão">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-comparação-e-alternativas-por-que-starstream">
+    <img src="https://img.shields.io/badge/🔥%20Alternativa-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="Comparação e Alternativas">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -148,6 +152,21 @@ Você pode obter a versão mais recente do StarStream pelos seguintes canais:
 
 ---
 
+## ⚔️ Comparação e Alternativas (Por que StarStream?)
+
+Comparativo entre StarStream, Cat-Catch, SimpleG, N_m3u8DL-RE, yt-dlp e Video DownloadHelper:
+
+| Recurso | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Arquitetura** | **Cliente Desktop + Extensão de Navegador** | Apenas extensão | Programa Windows tradicional | Interface de linha de comando (CLI) | Extensão + App pago |
+| **Motor de Download** | **N_m3u8DL-RE + FFmpeg embutidos** | Blob / Fetch do navegador | N_m3u8DL-CLI antigo | Motor yt-dlp em Python | Download do navegador / Host |
+| **Multithreading** | **✅ Suportado (4 a 32 threads, 24MB/s+)** | ❌ Thread única / Lento | ⚠️ Multithread básico | Requer parâmetros manuais | Requer licença paga |
+| **Alinhamento de Proxy** | **✅ Sincroniza IP com o navegador (Evita 403)** | Apenas proxy do navegador | ❌ Não detecta proxy do navegador | Requer parâmetro `--proxy` | ❌ Não suportado |
+| **Cápsula no Player** | **✅ Botão injetado no player de vídeo** | ❌ Requer clicar no ícone | ❌ Copiar e colar link manual | ❌ Apenas terminal | Requer clicar no ícone |
+| **Licença** | **✅ 100% Gratuito e Código Aberto (MIT)** | Código aberto | Código aberto | Código aberto | Freemium com restrições |
+
+---
+
 ## ⚡ Recursos Principais
 
 | Módulo | Descrição |
@@ -205,3 +224,8 @@ Se você encontrar algum problema, bug ou tiver dúvidas durante o uso, ou se ti
 - **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 Responderemos e atenderemos às suas dúvidas e sugestões o mais rápido possível! Obrigado pelo seu apoio e feedback!
+
+---
+
+### 🏷️ Search Topics & SEO Keywords
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`

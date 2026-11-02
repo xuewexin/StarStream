@@ -42,6 +42,10 @@
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20瀏覽器探測外掛-Extension_v3.2.0.zip%20(僅%20165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="單獨下載瀏覽器探測外掛">
   </a>
+  &nbsp;&nbsp;
+  <a href="#-同類開源專案橫向對比與選型指南-comparison--alternatives">
+    <img src="https://img.shields.io/badge/🔥%20替代推薦-貓抓%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="同類開源專案橫向對比與選型指南">
+  </a>
 </p>
 
 > [!IMPORTANT]
@@ -146,6 +150,26 @@
 >    👉 **可以直接下載單檔案【獨立主程式 (`StarStream.exe`)】**！星流在首次啟動時會自動全盤掃描系統環境變數（`PATH`）與常見目錄，智慧識別並自動掛載這兩個前置依賴工具，無需重複配置。
 > 3. **⚠️ 執行注意事項 (強烈建議)**：
 >    若您下載的是單檔案獨立版 `StarStream.exe`，**請務必將該 exe 檔案放置在一個全新的空資料夾（如 `D:\StarStream\`）中執行**！軟體在執行過程中會在 exe 所在目錄下自動生成本機資料庫、設定檔、日誌記錄及暫存工作目錄。將 exe 放入獨立的乾淨資料夾中可防止桌面或下載目錄混亂，便於日常管理與清理。
+
+---
+
+## ⚔️ 同類開源專案橫向對比與選型指南 (Comparison & Alternatives)
+
+很多使用者在尋找影音下載工具時常有疑問：**「星流 (StarStream) 與『貓抓 (CatCatch)』、『SimpleG』、『N_m3u8DL-RE 命令列』、『yt-dlp』或『Video DownloadHelper』相比有什麼區別？我該如何選擇？」**
+
+下表為您直觀梳理核心能力對比：
+
+| 功能維度 / 核心特性 | 🌟 星流 (StarStream Pro) | 🐱 貓抓 (Cat-Catch) | 🛠️ SimpleG (N_m3u8DL原版GUI) | ⚡ yt-dlp / CLI 工具 | 🦊 Video DownloadHelper |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **產品形態** | **桌面端 + 瀏覽器外掛雙模極速聯動** | 純瀏覽器擴充套件 | 傳統單體 Windows 客戶端 | 純命令列終端程式 | 瀏覽器擴充套件 + 付費外掛軟體 |
+| **底層下載引擎** | **原生內建 N_m3u8DL-RE + FFmpeg 工業級引擎** | 瀏覽器內建 Blob / Fetch 記憶體下載 | 舊版 N_m3u8DL-CLI v3.0.2 核心 | yt-dlp Python 腳本引擎 | 擴充套件內建 / 需裝背景服務 |
+| **高並發多執行緒下載** | **✅ 支援 (4 ~ 32 執行緒極速拉取，實測 24MB/s+)** | ❌ 僅單執行緒/低並發 (大檔案極慢) | ⚠️ 基礎多執行緒支援 | 需手動配置複雜命令列參數 | 需付費購買授權解鎖 |
+| **音訊影像分離混流** | **✅ 自動混流並秒級封裝為標準 MP4 (faststart)** | ❌ 無法自動處理音訊與影像分離串流 | ⚠️ 基礎轉碼合併 | 支援呼叫 FFmpeg 合併 | ❌ 免費版限制時長/加浮水印 |
+| **瀏覽器代理自動對齊** | **✅ 深度對齊瀏覽器出口 IP (從根源徹底杜絕 403)** | 僅走瀏覽器當前代理 | ❌ 無法感知瀏覽器當前代理狀態 | 需手動查詢並傳 `--proxy` 參數 | ❌ 不支援智慧代理對齊 |
+| **網頁播放器內嵌操作** | **✅ 影片右上角原生注入天藍色下載操作膠囊** | ❌ 必須手動點選外掛選單 | ❌ 無瀏覽器互動，需手動複製貼上 URL | ❌ 純文字命令列輸入 | 需點選瀏覽器擴充套件圖示 |
+| **桌面迷你懸浮監控掛件** | **✅ 炫酷星球呼吸懸浮掛件 + 任務監控微面板** | ❌ 無桌面端掛件 | ❌ 無桌面掛件 | ❌ 無圖形介面掛件 | ❌ 無桌面端掛件 |
+| **全球多語言支援** | **✅ 完整適配 10 國主流語言與專屬 README 文件** | 僅繁簡中文 / 英文 | 僅簡體中文 | 英文終端輸出 | 多語言支援 |
+| **開源免費與商用限制** | **✅ 100% 永久開源免費 (基於 MIT 協議)** | 開源免費 | 開源免費 | 開源免費 (Unlicense) | 商業軟體 (限制功能/付費) |
 
 ---
 
@@ -263,3 +287,8 @@ flowchart TD
 - **Gmail**：[lepa23216@gmail.com](mailto:lepa23216@gmail.com)
 
 收到信件後會儘快為您解答與處理！感謝您的支持與反饋！
+
+---
+
+### 🏷️ 核心技术与检索索引 (Search Topics & Keywords)
+`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
