@@ -63,8 +63,8 @@
 
 ## 📸 应用实机展示
 
-### 1. 桌面端主控中心 (沉浸式 Slate 灰蓝工业级 UI)
-> 彻底告别粗糙符号与简陋界面，全状态监控一目了然：本地监听端口 `18910` 就绪、`FFmpeg` 就绪、`N_m3u8DL (RE)` 引擎就绪、代理模式（直连 / 系统 / 手动）一键切换。
+### 1. 桌面端主控中心 (沉浸式 Dark Slate 灰蓝工业级 UI)
+> 全矢量高精度图标，全状态监控一目了然：本地监听端口 `18910` 就绪、`FFmpeg` 就绪、`N_m3u8DL (RE)` 引擎就绪、网络代理实时状态指示与一键极速切换。
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="桌面端主控中心实机截图">
@@ -72,32 +72,58 @@
 
 ---
 
-### 2. 极速并发多任务下载 (实测 24.70 MB/s 极速分段拉取)
-> 多任务队列并发调度，支持毫秒级断点续传。实时呈现分块下载百分比、动态传输速率（实测峰值达 **24.70 MB/s**）与秒级剩余时间估算。
+### 2. 新建下载任务与深度逆向解析 (智能代理与独立并发配置)
+> 支持全网主流视频分享口令与链接一键粘贴解析。针对单个任务独立配置并发线程数（4~32 线程）、专用保存目录与网络代理模式（直连 / 本地代理 / 跟随全局）。
 
 <p align="center">
-  <img src="docs/images/app_download_active.png" width="92%" alt="多任务高并发下载实况">
+  <img src="docs/images/app_new_task.png" width="82%" alt="新建任务与代理配置对话框">
 </p>
 
 ---
 
-### 3. 海外流媒体无感嗅探 (以 YouTube 为例)
-> 访问各类流媒体平台播放视频时，播放器右上角无感浮现【下载视频】胶囊。自动解析视频画质（如 1280x720）、独立 AUDIO 音频流与播放时长，支持一键推送到桌面端或复制真实链接。
+### 3. FFmpeg 多媒体专业处理工具箱 (格式转换与音视频后处理)
+> 开箱即用内置专业级媒体工具箱：支持单文件/批量格式转换（MP4/MKV/TS/MOV）、音视频混流、无损音频提取、视频无损剪切与媒体元数据探测。
 
 <p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="92%" alt="YouTube 网页视频一键悬浮胶囊嗅探">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg 专业处理工具箱">
 </p>
 
 ---
 
-### 4. 国内主流视频网站智能嗅探与直推下载
-> 播放网页视频时，智能捕获 1080P 高清规格与 MP4 格式，悬浮窗直观呈现视频参数，点击【推送到星流下载器】即刻自动唤醒客户端高速下载。
+### 4. 海外流媒体无感嗅探 (以 YouTube 为例)
+> 访问各类海外流媒体播放视频时，播放器右上角无感浮现【下载视频】胶囊。自动捕获真实分辨率、音频流与播放时长，自动对齐浏览器代理并支持一键推送到桌面端。
 
 <p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="92%" alt="国内主流视频平台嗅探与直推">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube 网页视频一键悬浮胶囊嗅探">
 </p>
 
 ---
+
+### 5. 主流网页视频智能嗅探与直推下载 (自动对齐浏览器代理)
+> 在任意网页播放视频时，播放器右上角无感浮现下载胶囊。直观呈现真实分辨率、时长与格式，一键对齐浏览器代理并推送至桌面客户端高速下载。
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="网页视频智能悬浮嗅探卡片">
+</p>
+
+---
+
+### 6. 桌面任务监控与便捷工具中心
+> 点击悬浮球即刻展开监控面板：实时查看正在进行的下载任务进度、全局下载速率，并一键呼出格式转换、FFmpeg 工具箱与短视频提取工作台。
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="桌面任务监控与工具中心">
+</p>
+
+---
+
+### 7. 灵动微型太空星球悬浮球 (随时掌握任务动态)
+> 极具科技感的迷你太空星球悬浮球，支持桌面任意拖拽、智能贴边吸附与多级缩放，实时掌握就绪任务数与全局传输动态。
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="桌面迷你悬浮监控挂件">
+</p>
+
 
 ## 📦 软件版本与下载 (Releases)
 

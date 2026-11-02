@@ -61,14 +61,67 @@
 
 ## 📸 Demonstração e Capturas
 
-### 1. Painel Principal Desktop (Design Industrial Dark Slate)
-> Monitoramento completo em uma única tela: Porta local `18910` ativa, `FFmpeg` pronto, motor `N_m3u8DL (RE)` pronto e alternância de modo de proxy (Direto / Sistema / Manual) em um clique.
+### 1. Painel principal de controle (Design moderno Dark Slate)
+> Ícones vetoriais nítidos e monitoramento total de status: porta local `18910` pronta, módulo `FFmpeg` pronto, motor `N_m3u8DL (RE)` ativo e indicador de proxy em tempo real.
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="Captura de tela do painel principal">
 </p>
 
 ---
+
+### 2. Nova tarefa de download (Configuração individual de proxy e threads)
+> Análise e extração profunda de links com um único clique. Configure o número de threads (4 a 32), diretório exclusivo e modo de proxy de rede por tarefa.
+
+<p align="center">
+  <img src="docs/images/app_new_task.png" width="82%" alt="Diálogo de nova tarefa">
+</p>
+
+---
+
+### 3. Caixa de ferramentas multimídia FFmpeg (Conversão e pós-processamento)
+> Estação de trabalho multimídia pronta para uso: conversão individual e em lote (MP4/MKV/TS/MOV), mesclagem de áudio/vídeo, extração de áudio sem perdas e corte rápido.
+
+<p align="center">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="Ferramentas FFmpeg">
+</p>
+
+---
+
+### 4. Captura contínua de streams internacionais (Exemplo YouTube)
+> Um selo flutuante elegante aparece discretamente durante a reprodução. Exibe resolução real, duração e transfere a tarefa diretamente pelo mesmo canal proxy.
+
+<p align="center">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="Cápsula de captura do YouTube">
+</p>
+
+---
+
+### 5. Captura inteligente de vídeo da web e envio direto (Alinhamento de proxy)
+> Exibe resoluções reais, duração e formato. Alinha-se automaticamente ao proxy do navegador para downloads ultrarrápidos no cliente de desktop.
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Cartão flutuante do capturador web">
+</p>
+
+---
+
+### 6. Monitoramento de tarefas e central de ferramentas rápidas
+> Clique no orbe flutuante para expandir o painel: veja downloads em andamento, velocidade global e inicie o conversor, a caixa FFmpeg ou o extrator de vídeo.
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="Painel de monitoramento e ferramentas">
+</p>
+
+---
+
+### 7. Widget flutuante de desktop (Monitoramento em tempo real de tarefas e velocidade)
+> Widget interativo em formato de planeta com suporte a arrastar pelo desktop, fixação nas bordas e acompanhamento dinâmico das tarefas e taxa de transferência.
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="Widget flutuante de desktop">
+</p>
+
 
 ## ⚡ Recursos Principais
 

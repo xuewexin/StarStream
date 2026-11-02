@@ -61,14 +61,67 @@
 
 ## 📸 Demostración y Capturas
 
-### 1. Panel de Control de Escritorio (Diseño Industrial Dark Slate)
-> Supervisión integral de un vistazo: Puerto local `18910` listo, `FFmpeg` listo, motor `N_m3u8DL (RE)` listo y cambio de modo proxy (Directo / Sistema / Manual) con un solo clic.
+### 1. Panel de control de escritorio (Diseño moderno Dark Slate)
+> Iconos vectoriales nítidos y monitorización completa: Puerto local `18910` listo, `FFmpeg` listo, motor `N_m3u8DL (RE)` preparado e indicador de proxy de red en tiempo real.
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="Captura del panel de control">
 </p>
 
 ---
+
+### 2. Nueva tarea de descarga (Configuración individual de proxy e hilos)
+> Extracción y análisis de enlaces con un solo clic. Configuración de hilos concurrentes (4 a 32), carpetas de guardado y modos de proxy por tarea.
+
+<p align="center">
+  <img src="docs/images/app_new_task.png" width="82%" alt="Diálogo de nueva tarea">
+</p>
+
+---
+
+### 3. Caja de herramientas multimedia FFmpeg (Conversión y edición)
+> Estación de trabajo multimedia lista para usar: conversión individual y por lotes (MP4/MKV/TS/MOV), multiplexación de audio/vídeo, extracción de audio sin pérdidas y recorte rápido.
+
+<p align="center">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="Caja de herramientas FFmpeg">
+</p>
+
+---
+
+### 4. Rastreo fluido de vídeos internacionales (Ejemplo YouTube)
+> Una cápsula flotante no intrusiva aparece al reproducir vídeos web. Detecta resolución real y duración, enviando la tarea al escritorio mediante el mismo proxy.
+
+<p align="center">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="Cápsula de detección de YouTube">
+</p>
+
+---
+
+### 5. Rastreo de vídeo web y envío directo (Alineación automática de proxy)
+> Muestra resoluciones reales, duración y formato. Se alinea automáticamente con el proxy del navegador para descargar a máxima velocidad en el cliente de escritorio.
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Tarjeta flotante del rastreador web">
+</p>
+
+---
+
+### 6. Centro de monitoreo de tareas y herramientas rápidas
+> Haga clic en la esfera flotante para expandir el panel: supervise descargas activas, velocidad global y abra el conversor, FFmpeg o el extractor de vídeo.
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="Centro de monitoreo y herramientas">
+</p>
+
+---
+
+### 7. Widget flotante de escritorio (Seguimiento en directo de tareas y velocidad)
+> Widget esférico interactivo con arrastre libre por el escritorio, acoplamiento a los bordes y visualización en tiempo real de tareas listas y velocidad global.
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="Widget flotante de escritorio">
+</p>
+
 
 ## ⚡ Características Principales
 

@@ -63,7 +63,7 @@
 ## 📸 Screenshots & Funktionen
 
 ### 1. Desktop-Dashboard (Modernes Dark-Slate-Industriedesign)
-> Übersichtliche Überwachung auf einen Blick: Lokaler Port `18910` bereit, `FFmpeg` bereit, `N_m3u8DL (RE)` Engine einsatzbereit und 1-Klick-Proxy-Umschaltung (Direkt / System / Manuell).
+> Präzise Vektorsymbole und lückenlose Statusüberwachung: Lokaler Port `18910` bereit, `FFmpeg` bereit, `N_m3u8DL (RE)` einsatzbereit, Echtzeitanzeige für Netzwerk-Proxys.
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="Desktop-Dashboard">
@@ -71,14 +71,58 @@
 
 ---
 
-### 2. Paralleler High-Speed-Download (Getestet mit bis zu 24,70 MB/s)
-> Aufgaben-Warteschlangen mit automatischer Wiederaufnahme. Zeigt Segment-Fortschritt, Echtzeit-Geschwindigkeit (Spitzenwert **24,70 MB/s**) und verbleibende Restzeit an.
+### 2. Neuer Download-Auftrag (Individuelle Proxy- und Thread-Konfiguration)
+> Intelligente URL-Erkennung per Klick. Konfigurieren Sie Threads (4 bis 32), Zielordner und Proxy-Verbindungsmodi für jeden Download separat.
 
 <p align="center">
-  <img src="docs/images/app_download_active.png" width="92%" alt="Aktive Downloads">
+  <img src="docs/images/app_new_task.png" width="82%" alt="Neuer Download-Auftrag Dialog">
 </p>
 
 ---
+
+### 3. Professionelle FFmpeg-Multimedia-Toolbox (Konvertierung & Nachbearbeitung)
+> Integrierte Medien-Toolbox: Einzel- und Stapelkonvertierung (MP4/MKV/TS/MOV), Muxen von Audio und Video, verlustfreie Audio-Extraktion und schneller Videoschnitt.
+
+<p align="center">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg-Toolbox">
+</p>
+
+---
+
+### 4. Nahtloses Video-Sniffing (Beispiel YouTube)
+> Ein eleganter schwebender Badge erscheint beim Abspielen von Webvideos. Auflösung und Dauer prüfen und den Download über denselben Proxy-Kanal an den Desktop übertragen.
+
+<p align="center">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube-Sniffer-Kapsel">
+</p>
+
+---
+
+### 5. Web-Streaming-Sniffer & Direktübertragung (Automatische Proxy-Synchronisation)
+> Zeigt echte Videoauflösungen, Dauer und Format an. Synchronisiert sich automatisch mit dem Browser-Proxy für extrem schnelle Downloads auf dem Desktop.
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Web-Sniffer Schwebende Karte">
+</p>
+
+---
+
+### 6. Desktop-Aufgabenüberwachung & Schnellwerkzeuge
+> Klicken Sie auf die Schwebekugel, um das Dashboard zu öffnen: Live-Downloadstatus, Gesamtrate überwachen und Stapelkonvertierung, FFmpeg sowie Video-Extraktor starten.
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="Aufgabenüberwachung & Werkzeuge">
+</p>
+
+---
+
+### 7. Desktop-Schwebendes Minifenster (Echtzeit-Überwachung von Status & Rate)
+> Zukunftsweisendes Planeten-Widget mit freier Platzierung auf dem Desktop, Kantenandocken und Live-Anzeige der Download-Geschwindigkeit und bereiten Aufgaben.
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="Schwebendes Desktop-Widget">
+</p>
+
 
 ## 📦 Versionen und Downloads
 

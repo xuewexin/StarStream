@@ -63,7 +63,7 @@
 ## 📸 Screenshots & Showcase
 
 ### 1. Desktop Dashboard (Modern Dark Slate Industrial UI)
-> Clean and elegant UI with complete status monitoring: Local listening port `18910` Ready, `FFmpeg` Ready, `N_m3u8DL (RE)` Engine Ready, and one-click proxy mode switching (Direct / System / Manual).
+> Crisp vector icons, full status monitoring at a glance: Local RPC port `18910` ready, `FFmpeg` ready, `N_m3u8DL (RE)` engine ready, real-time proxy status indicator, and instant mode switching.
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="Desktop Dashboard Screenshot">
@@ -71,32 +71,58 @@
 
 ---
 
-### 2. High-Speed Concurrent Multi-Task Downloading (Tested up to 24.70 MB/s)
-> Multi-task queue scheduling with millisecond-level resume capability. Displays chunk download percentages, real-time speed (peak tested at **24.70 MB/s**), and accurate time remaining estimations.
+### 2. New Download Task & Deep URL Parsing (Per-Task Proxy & Thread Config)
+> One-click paste and deep extraction for mainstream video URLs. Configure dedicated threads (4~32), custom save directories, and proxy network modes per task.
 
 <p align="center">
-  <img src="docs/images/app_download_active.png" width="92%" alt="Active Multi-task Downloads">
+  <img src="docs/images/app_new_task.png" width="82%" alt="New Task Dialog Screenshot">
 </p>
 
 ---
 
-### 3. International Streaming Sniffing (YouTube Example)
-> Floating download capsule automatically appears at the top right of the video player on global streaming sites. It resolves resolutions (e.g. 1280x720), separated audio streams, and durations for one-click download or link copying.
+### 3. FFmpeg Professional Multimedia Toolbox (Conversion & Post-Processing)
+> Built-in out-of-the-box media workstation: Single & batch format conversion (MP4/MKV/TS/MOV), audio-video muxing, lossless audio extraction, fast video trimming, and stream probing.
 
 <p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="92%" alt="Web Capsule Sniffing on YouTube">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg Toolbox Screenshot">
 </p>
 
 ---
 
-### 4. Smart Video Sniffing & One-Click Push on Streaming Sites
-> Intelligently captures 1080P HD streams and MP4 direct links. The floating window presents detailed video parameters; click [Push to StarStream] to wake up the desktop client for immediate high-speed downloading.
+### 4. Seamless International Stream Sniffing (YouTube Example)
+> A sleek floating capsule discreetly appears during video playback. Automatically captures real resolution, audio streams, duration, and pushes tasks directly via the identical proxy tunnel.
 
 <p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="92%" alt="Web Video Sniffing & Push">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube Video Sniffer Capsule">
 </p>
 
 ---
+
+### 5. Web Stream Sniffing & One-Click Push (Auto-Align Browser Proxy)
+> A compact card surfaces genuine video resolutions, duration, and format. One-click aligns with browser proxy and dispatches high-speed downloads to the desktop client.
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Web Video Sniffer Card">
+</p>
+
+---
+
+### 6. Desktop Task Monitor & Quick Tools Hub
+> Click the floating orb to expand the live monitoring dashboard: inspect active downloads, global transfer rate, and launch Batch Converter, FFmpeg Toolbox, or Video Extractor instantly.
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="Desktop Task Monitor & Tools Hub">
+</p>
+
+---
+
+### 7. Futuristic Mini Celestial Floating Orb (Live Status Tracking)
+> Sci-fi inspired mini planet widget with desktop dragging, edge snapping, and scaling. Stay updated on ready tasks, download progress, and global throughput at any time.
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="Desktop Floating Widget">
+</p>
+
 
 ## 📦 Releases & Downloads
 

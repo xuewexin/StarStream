@@ -198,7 +198,7 @@ class FloatingDashboardPanel(QWidget):
         """)
         self.btn_ffmpeg.clicked.connect(self._on_open_ffmpeg)
 
-        self.btn_parser = QPushButton(t("video_extract"))
+        self.btn_parser = QPushButton(t("video_parser"))
         self.btn_parser.setIcon(get_icon("zap", "#fbbf24", 14))
         self.btn_parser.setToolTip(t("tip_video_parser"))
         self.btn_parser.setStyleSheet("""
@@ -260,7 +260,7 @@ class FloatingDashboardPanel(QWidget):
             self.btn_ffmpeg.setText(t("ffmpeg_box"))
             self.btn_ffmpeg.setToolTip(t("ffmpeg_box"))
         if hasattr(self, "btn_parser") and self.btn_parser:
-            self.btn_parser.setText(t("video_extract"))
+            self.btn_parser.setText(t("video_parser"))
             self.btn_parser.setToolTip(t("tip_video_parser"))
         if hasattr(self, "main_btn") and self.main_btn:
             self.main_btn.setText(t("float_open_main"))

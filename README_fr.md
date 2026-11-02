@@ -62,32 +62,67 @@
 
 ## 📸 Démonstration & Captures d'écran
 
-### 1. Tableau de bord de bureau (Interface industrielle Dark Slate)
-> Surveillance complète en un coup d'œil : Port d'écoute local `18910` prêt, `FFmpeg` prêt, moteur `N_m3u8DL (RE)` prêt, et bascule de mode proxy (Direct / Système / Manuel) en un clic.
+### 1. Tableau de bord principal (Interface moderne Dark Slate)
+> Icônes vectorielles nettes et surveillance complète : Port local `18910` prêt, moteur `FFmpeg` prêt, `N_m3u8DL (RE)` opérationnel, indicateur d'état du proxy réseau en temps réel.
 
 <p align="center">
-  <img src="docs/images/app_main_window.png" width="92%" alt="Capture d'écran du tableau de bord">
+  <img src="docs/images/app_main_window.png" width="92%" alt="Tableau de bord principal">
 </p>
 
 ---
 
-### 2. Téléchargement multitâche haute vitesse (Testé à 24.70 Mo/s)
-> Planification de file d'attente multitâche avec reprise sur incident. Affiche la progression des segments, le débit en temps réel (pic testé à **24.70 Mo/s**) et l'estimation du temps restant.
+### 2. Nouvelle tâche de téléchargement (Configuration de proxy et threads par tâche)
+> Analyse approfondie des liens vidéo en un clic. Configurez les threads (4 à 32), le dossier de destination et le mode de proxy de manière indépendante pour chaque tâche.
 
 <p align="center">
-  <img src="docs/images/app_download_active.png" width="92%" alt="Téléchargements multitâches actifs">
+  <img src="docs/images/app_new_task.png" width="82%" alt="Boîte de dialogue Nouvelle tâche">
 </p>
 
 ---
 
-### 3. Reniflage transparent de vidéos en ligne (Exemple YouTube)
-> Lors de la lecture d'une vidéo sur des plateformes de streaming, la capsule flottante apparaît automatiquement en haut à droite du lecteur pour télécharger ou copier le lien direct.
+### 3. Boîte à outils multimédia FFmpeg (Conversion et post-traitement)
+> Station de travail multimédia intégrée : conversion de format simple et par lot (MP4/MKV/TS/MOV), multiplexage audio/vidéo, extraction audio sans perte et découpe rapide.
 
 <p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="92%" alt="Détection de capsule sur YouTube">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="Boîte à outils FFmpeg">
 </p>
 
 ---
+
+### 4. Détection intelligente de flux internationaux (Exemple YouTube)
+> Une capsule discrète apparaît lors de la lecture d'une vidéo web. Visualisez la résolution, la durée et transférez la tâche vers le client de bureau via le même canal proxy.
+
+<p align="center">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="Capsule de détection YouTube">
+</p>
+
+---
+
+### 5. Renifleur de flux Web et transfert direct (Alignement automatique du proxy)
+> Affiche les résolutions réelles, la durée et le format. Aligne automatiquement le proxy avec celui du navigateur pour un téléchargement ultra-rapide.
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Carte flottante de détection Web">
+</p>
+
+---
+
+### 6. Centre de surveillance des tâches et outils rapides
+> Cliquez sur l'orbe flottant pour ouvrir le panneau : suivez les téléchargements actifs, le débit global, et accédez rapidement au convertisseur, à FFmpeg et à l'extracteur.
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="Centre de surveillance et outils">
+</p>
+
+---
+
+### 7. Widget flottant de bureau (Suivi en direct des tâches et débits)
+> Widget céleste miniature et interactif avec glisser-déposer sur le bureau, ancrage automatique aux bords et suivi en temps réel des tâches et de la vitesse de téléchargement.
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="Widget flottant de bureau">
+</p>
+
 
 ## 📦 Versions et Téléchargements
 

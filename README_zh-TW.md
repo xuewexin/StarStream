@@ -62,8 +62,8 @@
 
 ## 📸 應用實機展示
 
-### 1. 桌面端主控中心 (沉浸式 Slate 灰藍工業級 UI)
-> 徹底告別粗糙符號與簡陋介面，全狀態監控一目了然：本地監聽埠 `18910` 就緒、`FFmpeg` 就緒、`N_m3u8DL (RE)` 引擎就緒、代理模式（直連 / 系統 / 手動）一鍵切換。
+### 1. 桌面端主控中心 (沉浸式 Dark Slate 灰藍工業級 UI)
+> 全向量高精度圖示，全狀態監控一目了然：本機監聽連接埠 `18910` 就緒、`FFmpeg` 就緒、`N_m3u8DL (RE)` 引擎就緒、網路代理即時狀態指示與一鍵切換。
 
 <p align="center">
   <img src="docs/images/app_main_window.png" width="92%" alt="桌面端主控中心實機截圖">
@@ -71,32 +71,58 @@
 
 ---
 
-### 2. 極速並發多任務下載 (實測 24.70 MB/s 極速分段拉取)
-> 多任務佇列並發調度，支援毫秒級斷點續傳。即時呈現分塊下載百分比、動態傳輸速率（實測峰值達 **24.70 MB/s**）與秒級剩餘時間估算。
+### 2. 新建下載任務與深度逆向解析 (智慧代理與獨立並發配置)
+> 支援全網主流影片分享口令與連結一鍵貼上解析。針對單一任務獨立配置並發執行緒數、專用儲存目錄與網路代理模式。
 
 <p align="center">
-  <img src="docs/images/app_download_active.png" width="92%" alt="多任務高並發下載實況">
+  <img src="docs/images/app_new_task.png" width="82%" alt="新建任務與代理配置對話方塊">
 </p>
 
 ---
 
-### 3. 海外串流媒體無感探測 (以 YouTube 為例)
-> 瀏覽各類串流媒體平台播放影片時，播放器右上角無感浮現【下載影片】膠囊。自動解析影片畫質（如 1280x720）、獨立 AUDIO 音訊串流與播放時長，支援一鍵推送到桌面端或複製真實連結。
+### 3. FFmpeg 多媒體專業處理工具箱 (格式轉換與影音後處理)
+> 開箱即用內建專業級媒體工具箱：支援單檔/批次格式轉換（MP4/MKV/TS/MOV）、影音混流、無損音訊擷取、影片無損剪切與媒體探測。
 
 <p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="92%" alt="YouTube 網頁影片一鍵懸浮膠囊探測">
+  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg 專業處理工具箱">
 </p>
 
 ---
 
-### 4. 主流影音網站智慧探測與直推下載
-> 播放網頁影片時，智慧擷取 1080P 高清規格與 MP4 格式，懸浮窗直觀呈現影片參數，點選【推送到星流下載器】即刻自動喚醒客戶端高速下載。
+### 4. 海外串流媒體無感探測 (以 YouTube 為例)
+> 播放各類海外影片時，播放器右上角無感浮現【下載影片】膠囊。自動擷取真實解析度、音訊流與播放時長，自動對齊瀏覽器代理並一鍵直推桌面端。
 
 <p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="92%" alt="主流影片平台探測與直推">
+  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube 網頁影片一鍵懸浮膠囊探測">
 </p>
 
 ---
+
+### 5. 主流網頁影片智慧探測與直推下載 (自動對齊瀏覽器代理)
+> 於網頁播放影片時，播放器右上角無感浮現下載膠囊。直觀呈現真實解析度、時長與格式，一鍵對齊瀏覽器代理並推送至桌面客戶端高速下載。
+
+<p align="center">
+  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="網頁影片智慧懸浮探測卡片">
+</p>
+
+---
+
+### 6. 桌面任務監控與便捷工具中心
+> 點擊懸浮球即刻展開監控面板：即時查看進行中的下載任務進度、全局傳輸速率，並一鍵呼出格式轉換、FFmpeg 工具箱與短影音擷取工作台。
+
+<p align="center">
+  <img src="docs/images/app_floating_panel.png" width="68%" alt="桌面任務監控與工具中心">
+</p>
+
+---
+
+### 7. 靈動微型太空星球懸浮球 (隨時掌握任務動態)
+> 極具科技感的迷你星球懸浮球，支援桌面任意拖曳、貼邊吸附與多級縮放，即時掌握就緒任務數與全局傳輸動態。
+
+<p align="center">
+  <img src="docs/images/app_floating_widget.png" width="28%" alt="桌面迷你懸浮監控掛件">
+</p>
+
 
 ## 📦 軟體版本與下載 (Releases)
 
