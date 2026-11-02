@@ -200,3 +200,13 @@ flowchart TD
 
 본 프로젝트는 [MIT License](LICENSE)에 따라 배포됩니다.<br>
 특별한 감사: [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) 및 [FFmpeg](https://ffmpeg.org/).
+---
+
+## 📬 개발자 문의 및 기술 지원
+
+프로그램 사용 중 문제, 버그, 질문이 발생하거나 개선 사항 및 새로운 기능에 대한 제안이 있으시면 언제든지 이메일로 개발자에게 문의해 주세요:
+
+- **QQ 메일**: [2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+메일을 확인하는 대로 신속하게 답변 및 조치해 드리겠습니다. 여러분의 성원과 피드백에 감사드립니다!

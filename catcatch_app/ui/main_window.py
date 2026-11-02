@@ -14,7 +14,7 @@ from PyQt5.QtWidgets import (
     QApplication, QPushButton, QDialog, QFileDialog, QToolButton,
     QSlider, QInputDialog, QCheckBox
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QSize
 from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPixmap
 
 from catcatch_app.core.config import (
@@ -343,8 +343,9 @@ class MainWindow(QMainWindow):
         # 主题皮肤与背景壁纸
         self.btn_theme = QToolButton(self)
         self.btn_theme.setIcon(get_icon("palette", "#38bdf8", 18))
+        self.btn_theme.setIconSize(QSize(18, 18))
         self.btn_theme.setText(t("theme_bg"))
-        self.btn_theme.setToolTip("快速切换界面主题风格与自定义背景壁纸")
+        self.btn_theme.setToolTip(t("tip_theme_bg"))
         self.btn_theme.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.btn_theme.setPopupMode(QToolButton.InstantPopup)
         self.btn_theme.setMenu(self._create_theme_menu())
@@ -353,8 +354,9 @@ class MainWindow(QMainWindow):
         # 界面多语言切换 (10国主流语言)
         self.btn_lang = QToolButton(self)
         self.btn_lang.setIcon(get_icon("globe", "#38bdf8", 18))
+        self.btn_lang.setIconSize(QSize(18, 18))
         self.btn_lang.setText(t("language"))
-        self.btn_lang.setToolTip("切换界面多语言 (Switch Language)")
+        self.btn_lang.setToolTip(t("tip_language"))
         self.btn_lang.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.btn_lang.setPopupMode(QToolButton.InstantPopup)
         self.btn_lang.setMenu(self._create_language_menu())
@@ -1483,6 +1485,8 @@ class MainWindow(QMainWindow):
             self.act_disclaimer.setIcon(get_icon("info", btn_icon_col, 18))
         if hasattr(self, "btn_theme"):
             self.btn_theme.setIcon(get_icon("palette", accent, 18))
+        if hasattr(self, "btn_lang"):
+            self.btn_lang.setIcon(get_icon("globe", accent, 18))
         if hasattr(self, "btn_more_tools"):
             self.btn_more_tools.setIcon(get_icon("toolbox", accent, 18))
         if hasattr(self, "act_proxy"):

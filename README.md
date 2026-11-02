@@ -356,3 +356,13 @@ StarStream-Pro/
 
 本项目基于 [MIT License](LICENSE) 许可协议开源。<br>
 致谢：[N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) 与 [FFmpeg](https://ffmpeg.org/) 为音视频流媒体处理提供的卓越技术支持。
+---
+
+## 📬 联系作者与技术支持
+
+如果您在使用过程中遇到任何问题、功能 Bug、使用疑惑，或有宝贵的改进建议与功能需求，欢迎随时通过邮件联系作者：
+
+- **QQ 邮箱**：[2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**：[lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+收到邮件后会尽快为您解答与处理！感谢您的支持与反馈！

@@ -212,3 +212,13 @@ flowchart TD
 
 本專案採用 [MIT License](LICENSE) 授權開源。<br>
 特別致謝：[N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) 與 [FFmpeg](https://ffmpeg.org/)。
+---
+
+## 📬 聯絡作者與技術支援
+
+如果您在使用過程中遇到任何問題、功能 Bug、操作疑惑，或有寶貴的改進建議與新功能需求，歡迎隨時透過電子郵件聯絡作者：
+
+- **QQ 信箱**：[2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**：[lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+收到信件後會儘快為您解答與處理！感謝您的支持與反饋！

@@ -102,7 +102,7 @@
       frag_loading: "正在获取本地分片状态...",
       btn_clean_all: "一键清空全部残留分片",
       btn_refresh: "刷新",
-      frag_clean: "当前分片目录干净，无残留切片文件"
+      frag_clean: "当前分片目录干净，无残留切片文件",
       cap_download_video: "下载视频",
       cap_close_badge: "关闭悬浮角标",
       cfg_proxy_addr: "代理地址:",
@@ -192,7 +192,7 @@
       frag_loading: "正在取得本機分片狀態...",
       btn_clean_all: "一鍵清空全部殘留分片",
       btn_refresh: "重新整理",
-      frag_clean: "當前分片目錄乾淨，無殘留切片檔案"
+      frag_clean: "當前分片目錄乾淨，無殘留切片檔案",
       cap_download_video: "下載影片",
       cap_close_badge: "關閉浮動標記",
       cfg_proxy_addr: "代理位址:",
@@ -282,7 +282,7 @@
       frag_loading: "Fetching local segment status...",
       btn_clean_all: "Clean All Residual Segments",
       btn_refresh: "Refresh",
-      frag_clean: "Segment directory is completely clean"
+      frag_clean: "Segment directory is completely clean",
       cap_download_video: "Download Video",
       cap_close_badge: "Close Floating Badge",
       cfg_proxy_addr: "Proxy Address:",
@@ -372,7 +372,7 @@
       frag_loading: "セグメント状態を取得中...",
       btn_clean_all: "残留セグメントを一括削除",
       btn_refresh: "更新",
-      frag_clean: "セグメントディレクトリはクリーンです"
+      frag_clean: "セグメントディレクトリはクリーンです",
       cap_download_video: "動画をダウンロード",
       cap_close_badge: "フローティングバッジを閉じる",
       cfg_proxy_addr: "プロキシアドレス:",
@@ -462,7 +462,7 @@
       frag_loading: "로컬 세그먼트 상태 확인 중...",
       btn_clean_all: "잔여 세그먼트 모두 정리",
       btn_refresh: "새로고침",
-      frag_clean: "세그먼트 디렉터리가 완전히 깨끗합니다"
+      frag_clean: "세그먼트 디렉터리가 완전히 깨끗합니다",
       cap_download_video: "비디오 다운로드",
       cap_close_badge: "플로팅 배지 닫기",
       cfg_proxy_addr: "프록시 주소:",
@@ -552,7 +552,7 @@
       frag_loading: "Vérification des fragments...",
       btn_clean_all: "Vider tous les segments résiduels",
       btn_refresh: "Actualiser",
-      frag_clean: "Le dossier de segments est totalement propre"
+      frag_clean: "Le dossier de segments est totalement propre",
       cap_download_video: "Télécharger la vidéo",
       cap_close_badge: "Fermer le badge flottant",
       cfg_proxy_addr: "Adresse du proxy :",
@@ -642,7 +642,7 @@
       frag_loading: "Segmentstatus wird abgerufen...",
       btn_clean_all: "Alle Segmente bereinigen",
       btn_refresh: "Aktualisieren",
-      frag_clean: "Segmentverzeichnis ist vollständig sauber"
+      frag_clean: "Segmentverzeichnis ist vollständig sauber",
       cap_download_video: "Video herunterladen",
       cap_close_badge: "Schwebendes Abzeichen schließen",
       cfg_proxy_addr: "Proxy-Adresse:",
@@ -732,7 +732,7 @@
       frag_loading: "Obteniendo estado de fragmentos...",
       btn_clean_all: "Limpiar todos los fragmentos residuales",
       btn_refresh: "Actualizar",
-      frag_clean: "El directorio de fragmentos está completamente limpio"
+      frag_clean: "El directorio de fragmentos está completamente limpio",
       cap_download_video: "Descargar vídeo",
       cap_close_badge: "Cerrar distintivo flotante",
       cfg_proxy_addr: "Dirección del proxy:",
@@ -822,7 +822,7 @@
       frag_loading: "Получение статуса фрагментов...",
       btn_clean_all: "Удалить все остаточные сегменты",
       btn_refresh: "Обновить",
-      frag_clean: "Каталог сегментов полностью пуст"
+      frag_clean: "Каталог сегментов полностью пуст",
       cap_download_video: "Скачать видео",
       cap_close_badge: "Закрыть плавающий значок",
       cfg_proxy_addr: "Адрес прокси:",
@@ -912,8 +912,7 @@
       frag_loading: "Obtendo status dos segmentos...",
       btn_clean_all: "Limpar todos os fragmentos residuais",
       btn_refresh: "Atualizar",
-      frag_clean: "O diretório de segmentos está completamente limpo"
-    }
+      frag_clean: "O diretório de segmentos está completamente limpo",
       cap_download_video: "Baixar vídeo",
       cap_close_badge: "Fechar selo flutuante",
       cfg_proxy_addr: "Endereço do proxy:",
@@ -924,7 +923,7 @@
       confirm_clear_records: "Tem certeza de que deseja limpar todos os registros de mídia capturados?",
       unknown: "Desconhecido",
       cap_default_video_title: "Vídeo Web",
-    
+    }
   };
 
   let currentLang = 'zh_CN';

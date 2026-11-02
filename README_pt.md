@@ -117,3 +117,13 @@
 ## 📄 Licença
 
 Distribuído sob a [Licença MIT](LICENSE). Agradecimentos especiais a [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) e [FFmpeg](https://ffmpeg.org/).
+---
+
+## 📬 Contato com o Autor e Suporte Técnico
+
+Se você encontrar algum problema, bug ou tiver dúvidas durante o uso, ou se tiver sugestões de melhorias e pedidos de novos recursos, sinta-se à vontade para entrar em contato com o autor por e-mail:
+
+- **QQ Mail**: [2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+Responderemos e atenderemos às suas dúvidas e sugestões o mais rápido possível! Obrigado pelo seu apoio e feedback!

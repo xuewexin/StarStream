@@ -228,3 +228,13 @@ This is caused by IP mismatch when accessing anti-hotlink protected streams. Kee
 
 Licensed under the [MIT License](LICENSE).  
 Special thanks to [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) and [FFmpeg](https://ffmpeg.org/).
+---
+
+## 📬 Contact Author & Technical Support
+
+If you encounter any issues, bugs, questions during use, or have valuable suggestions and feature requests, feel free to contact the author via email:
+
+- **QQ Mail**: [2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+We will respond and address your questions and feedback as soon as possible! Thank you for your support!

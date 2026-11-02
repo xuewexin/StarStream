@@ -210,3 +210,13 @@ flowchart TD
 
 本プロジェクトは [MIT License](LICENSE) の下で公開されています。<br>
 謝辞：[N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) および [FFmpeg](https://ffmpeg.org/)。
+---
+
+## 📬 作者へのお問い合わせ・サポート
+
+ご利用中に問題や不具合、ご不明な点が発生した場合、または機能改善のご提案やご要望がございましたら、いつでもお気軽に作者までメールでお問い合わせください：
+
+- **QQメール**: [2792893068@qq.com](mailto:2792893068@qq.com)
+- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
+
+メールを確認次第、迅速に回答および対応いたします。皆様の応援とフィードバックに心より感謝申し上げます！

@@ -246,9 +246,10 @@ QToolButton:hover {{
     color: {btn_text_hover};
 }}
 
-QToolButton:pressed {{
-    background-color: {t["accent"]};
-    color: #ffffff;
+QToolButton:pressed, QToolButton:on, QToolButton:checked, QToolButton:open {{
+    background-color: {t["bg_hover"]};
+    border-color: {t["accent"]};
+    color: {btn_text_hover};
 }}
 
 /* 按钮通用控件 */
