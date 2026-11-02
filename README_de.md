@@ -1,0 +1,141 @@
+<div align="center">
+
+<p align="center">
+  <b>Language / Mehrsprachig:</b><br>
+  <a href="README.md">简体中文</a> •
+  <a href="README_zh-TW.md">繁體中文</a> •
+  <a href="README_en.md">English</a> •
+  <a href="README_ja.md">日本語</a> •
+  <a href="README_ko.md">한국어</a> •
+  <a href="README_fr.md">Français</a> •
+  <a href="README_de.md">Deutsch</a> •
+  <a href="README_es.md">Español</a> •
+  <a href="README_ru.md">Русский</a> •
+  <a href="README_pt.md">Português</a>
+</p>
+
+<p align="center">
+  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+</p>
+
+# 🌟 StarStream Pro - Medien-Downloader
+
+**All-in-One Web-Video- & Audio-Sniffer-Erweiterung + Industrieller Multithread-Download-Client + Integrierte N_m3u8DL-RE & FFmpeg-Kerne**
+
+[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
+[![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
+[![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
+[![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](#)
+
+<br>
+
+<p align="center">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20Desktop-Client-StarStream_v3.1.2_Portable.zip%20(Integrierter%20Kern)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+    <img src="https://img.shields.io/badge/🧩%20Browser-Erweiterung-Extension.zip%20(Nur%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Browser-Sniffer-Erweiterung herunterladen">
+  </a>
+</p>
+
+> [!IMPORTANT]
+> ### 💡 Goldenes Duo Handbuch: Desktop-Software und Browser-Erweiterung arbeiten zusammen!
+> - **🧩 Browser-Sniffer-Erweiterung (Frontend-Radar)**: Fängt beim Surfen und Abspielen von Videos automatisch echte M3U8-, DASH- (MPD) und MP4-Datenströme ab und blendet oben rechts im Player eine Download-Kapsel ein;
+> - **💻 Desktop-Client (Backend-Engine)**: Empfängt die übergebenen Videoaufgaben und steuert die integrierten Hochleistungsmotoren **N_m3u8DL-RE** und **FFmpeg** für Downloads mit bis zu 24,7 MB/s und verlustfreie Zusammenführung;
+> - **Perfektes Zusammenspiel (wie IDM und die IDM-Erweiterung)**: Beide Komponenten sind unverzichtbar! Bitte folgen Sie der [Anleitung zur Installation der Browser-Erweiterung](#-anleitung-zur-installation-der-browser-erweiterung).
+
+<p align="center">
+  <a href="#-screens--funktionen">Screenshots</a> •
+  <a href="#-versionen-und-downloads">Downloads</a> •
+  <a href="#-hauptfunktionen">Hauptfunktionen</a> •
+  <a href="#-anleitung-zur-installation-der-browser-erweiterung">Installation</a> •
+  <a href="#-proxy-einstellungen">Proxy</a> •
+  <a href="#-häufig-gestellte-fragen-faq">FAQ</a> •
+  <a href="#-haftungsausschluss">Haftungsausschluss</a>
+</p>
+
+</div>
+
+---
+
+## 📸 Screenshots & Funktionen
+
+### 1. Desktop-Dashboard (Modernes Dark-Slate-Industriedesign)
+> Übersichtliche Überwachung auf einen Blick: Lokaler Port `18910` bereit, `FFmpeg` bereit, `N_m3u8DL (RE)` Engine einsatzbereit und 1-Klick-Proxy-Umschaltung (Direkt / System / Manuell).
+
+<p align="center">
+  <img src="docs/images/app_main_window.png" width="92%" alt="Desktop-Dashboard">
+</p>
+
+---
+
+### 2. Paralleler High-Speed-Download (Getestet mit bis zu 24,70 MB/s)
+> Aufgaben-Warteschlangen mit automatischer Wiederaufnahme. Zeigt Segment-Fortschritt, Echtzeit-Geschwindigkeit (Spitzenwert **24,70 MB/s**) und verbleibende Restzeit an.
+
+<p align="center">
+  <img src="docs/images/app_download_active.png" width="92%" alt="Aktive Downloads">
+</p>
+
+---
+
+## 📦 Versionen und Downloads
+
+| Download-Option | Enthaltene Komponenten | Anwendungsfall | Link |
+|---|---|---|---|
+| **⭐ Empfohlen: StarStream_v3.1.2_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | Portabel, keine Installation nötig, alles integriert | [👉 Portable Version herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
+| **🧩 Separate Browser-Erweiterung (v3.1.2)** | Quellcode der Erweiterung (140 KB), MV3, automatische Proxy-Erkennung | Webvideo-Sniffing, saubere Ansicht des aktiven Tabs | [👉 Extension.zip herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **Offizielle GitHub Releases Seite** | Alle Versionen, Änderungsprotokolle und Checksummen | Versionsverlauf | [👉 Releases ansehen](https://github.com/xuewexin/StarStream/releases) |
+
+---
+
+## ⚡ Hauptfunktionen
+
+| Modul | Beschreibung |
+|---|---|
+| **Universal-Sniffer** | Fängt M3U8 (HLS), MPD (DASH), MP4, FLV, WebM, TS, MP3, AAC und Direktlinks ab. Tiefen-Hooks in `HTMLMediaElement.play`, `Blob`, `MediaSource`, `fetch/XHR`. |
+| **Intelligente Kapsel** | Im Videoplayer eingeblendeter Aktions-Button, der Auflösungen (4K/1080P/720P), Laufzeiten und getrennte Audiostreams erkennt. |
+| **Integrierter Player** | Leichtgewichtiger `hls.min.js`-Player im Erweiterungs-Popup zur Vorschau von Streams vor dem Download. |
+| **Duales Download-System** | **Streaming**: [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) für Segment-Download und Multiplexing.<br>**Direktlink**: Python-Multithread-Range-Downloader. |
+| **Konfiguration pro Video** | Eigener Speicherordner, individuelle Thread-Anzahl (4/8/16/32) und spezifischer Proxy für jedes Video. |
+| **Automatische Proxy-Angleichung** | Gleicht die Ausgangs-IP des Downloaders mit dem Browser ab, um HTTP 403 Forbidden Fehler zuverlässig zu verhindern. |
+| **Stapel-Formatkonverter** | Konvertierungszentrum für mehrere Dateien: Verlustfreies Kopieren (`-c copy`), H.264/H.265-Re-Encoding und Audioextraktion. |
+| **Desktop-Benachrichtigungen** | Popups bei Abschluss oder Fehlern mit Schnellzugriff auf [Wiedergabe], [Ordner öffnen] und [Fehlerdiagnose]. |
+| **Automatische MP4-Konvertierung** | Ruft FFmpeg nach dem Download auf, um Streams in MP4 mit `faststart`-Metadaten umzuwandeln. |
+| **Fehlerdiagnose & Logs** | Analysiert Fehler (`Logs/download_errors.log`) mit konkreten Ratschlägen zu Token-Abläufen, AES-128 und DNS-Problemen. |
+| **Festplatten-Bereinigung** | Scannt und entfernt unvollständige `.tmp`- und `.part`-Fragmente sicher von der Festplatte. |
+
+---
+
+## 🧩 Anleitung zur Installation der Browser-Erweiterung
+
+> ⚠️ Chromium-Browser blockieren die direkte Installation externer `.crx`-Dateien per Drag-and-Drop. **Das Laden über den Entwicklermodus ist der offizielle und dauerhafte Weg.**
+
+### Schritt 1: Erweiterungsseite des Browsers öffnen
+- **Microsoft Edge**: `edge://extensions` in die Adressleiste eingeben und Enter drücken.
+- **Google Chrome**: `chrome://extensions` in die Adressleiste eingeben und Enter drücken.
+
+### Schritt 2: „Entwicklermodus“ aktivieren
+- Schalten Sie oben rechts den Schalter **Entwicklermodus** (Developer mode) ein.
+- Klicken Sie anschließend auf die Schaltfläche **[Entpackte Erweiterung laden]**.
+
+### Schritt 3: Quellordner auswählen
+1. Klicken Sie auf **[Entpackte Erweiterung laden]**.
+2. Wählen Sie den Ordner **`m3u8-sniffer-extension`** aus.
+3. Klicken Sie auf „Ordner auswählen“. Die Erweiterung ist einsatzbereit!
+4. Heften Sie **StarStream Media Sniffer** an Ihre Browser-Symbolleiste.
+
+---
+
+## ⚖️ Haftungsausschluss
+
+1. **Forschung und private Nutzung**: Dieses Projekt dient der technischen Analyse von Netzwerkprotokollen und rechtmäßigen privaten Offline-Sicherungen.
+2. **Urheberrecht**: Bitte beachten Sie geltende Urheberrechte. Eine unbefugte kommerzielle Nutzung oder Weiterverbreitung ist untersagt.
+3. **Haftungsbeschränkung**: Diese Software stellt lediglich Analyse- und Speichertechnologien bereit und hostet keine Medieninhalte.
+
+---
+
+## 📄 Lizenz
+
+Lizenziert unter der [MIT License](LICENSE). Besonderer Dank an [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) und [FFmpeg](https://ffmpeg.org/).

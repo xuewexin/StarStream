@@ -1,6 +1,21 @@
 <div align="center">
 
 <p align="center">
+  <b>Language / 多语言:</b><br>
+  <a href="README.md">简体中文</a> •
+  <a href="README_zh-TW.md">繁體中文</a> •
+  <a href="README_en.md">English</a> •
+  <a href="README_ja.md">日本語</a> •
+  <a href="README_ko.md">한국어</a> •
+  <a href="README_fr.md">Français</a> •
+  <a href="README_de.md">Deutsch</a> •
+  <a href="README_es.md">Español</a> •
+  <a href="README_ru.md">Русский</a> •
+  <a href="README_pt.md">Português</a>
+</p>
+
+
+<p align="center">
   <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
 </p>
 

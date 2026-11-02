@@ -32,6 +32,7 @@ from catcatch_app.ui.icons import get_icon, get_app_icon
 from catcatch_app.ui.styles import THEMES
 from catcatch_app.ui.cache_clean_dialog import CacheCleanDialog
 from catcatch_app.ui.extension_tutorial_dialog import ExtensionTutorialDialog
+from catcatch_app.core.i18n import t, SUPPORTED_LANGUAGES, get_current_language, set_current_language
 
 
 class AsyncProxyTester(QThread):
@@ -400,6 +401,14 @@ class SettingsDialog(QDialog):
         theme_group = QGroupBox("外观与个性化设置")
         t_group_layout = QVBoxLayout(theme_group)
 
+        lang_row = QHBoxLayout()
+        lang_row.addWidget(QLabel("界面语言 / Language:"))
+        self.lang_combo = QComboBox()
+        for code, name in SUPPORTED_LANGUAGES:
+            self.lang_combo.addItem(name, code)
+        lang_row.addWidget(self.lang_combo, 1)
+        t_group_layout.addLayout(lang_row)
+
         t_row = QHBoxLayout()
         t_row.addWidget(QLabel("界面主题风格:"))
         self.theme_combo = QComboBox()
@@ -507,6 +516,11 @@ class SettingsDialog(QDialog):
         self.notify_cb.setChecked(config.get("notify_on_complete", True))
         self.auto_convert_mp4_cb.setChecked(config.get("auto_convert_mp4", True))
         self.attach_metadata_cb.setChecked(config.get("attach_metadata", True))
+
+        cur_lang = get_current_language()
+        l_idx = self.lang_combo.findData(cur_lang)
+        if l_idx >= 0:
+            self.lang_combo.setCurrentIndex(l_idx)
 
         cur_theme = config.get("theme", "dark")
         idx = self.theme_combo.findData(cur_theme)
@@ -788,6 +802,11 @@ class SettingsDialog(QDialog):
         })
         if self.parent() and hasattr(self.parent(), "apply_theme"):
             self.parent().apply_theme()
+
+        chosen_lang = self.lang_combo.currentData() or "zh_CN"
+        if chosen_lang != get_current_language():
+            set_current_language(chosen_lang)
+
         self.accept()
 
     def _open_clean_dialog(self):

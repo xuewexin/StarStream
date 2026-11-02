@@ -19,6 +19,7 @@ from catcatch_app.core.config import config
 from catcatch_app.core.task_manager import task_manager
 from catcatch_app.core.video_parser import parse_video_url
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.core.i18n import t
 
 
 class AsyncParseThread(QThread):
@@ -44,7 +45,7 @@ class AsyncParseThread(QThread):
 class VideoParserDialog(QDialog):
     def __init__(self, parent=None, initial_url=""):
         super().__init__(parent)
-        self.setWindowTitle("全网短视频与主流平台一键提取工作台 - 星流 (StarStream)")
+        self.setWindowTitle(t("vp_window_title"))
         self.setWindowIcon(get_app_icon())
         self.setMinimumWidth(720)
         self.resize(760, 560)
@@ -81,7 +82,7 @@ class VideoParserDialog(QDialog):
         title_row = QHBoxLayout()
         title_icon = QLabel()
         title_icon.setPixmap(get_icon("zap", "#38bdf8", 18).pixmap(18, 18))
-        title_lbl = QLabel("全网主流短视频与网页流媒体一键解析提取")
+        title_lbl = QLabel(t("vp_banner_title"))
         title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
         title_lbl.setStyleSheet("color: #f8fafc;")
         title_row.addWidget(title_icon)
@@ -115,24 +116,24 @@ class VideoParserDialog(QDialog):
         layout.addWidget(header_frame)
 
         # 2. 粘贴输入区域
-        input_group = QGroupBox("输入视频链接或分享文本")
+        input_group = QGroupBox(t("vp_input_group"))
         in_layout = QVBoxLayout(input_group)
         in_layout.setSpacing(8)
 
         self.input_edit = QTextEdit()
         self.input_edit.setMaximumHeight(70)
-        self.input_edit.setPlaceholderText("长按粘贴各大短视频 APP 分享口令（如 7.20 复制打开抖音...）、B站视频网址或任意网页链接...")
+        self.input_edit.setPlaceholderText(t("vp_placeholder"))
         in_layout.addWidget(self.input_edit)
 
         action_row = QHBoxLayout()
-        paste_btn = QPushButton("粘贴剪贴板")
+        paste_btn = QPushButton(t("vp_paste"))
         paste_btn.setIcon(get_icon("copy", "#a1a1aa", 14))
         paste_btn.clicked.connect(self._paste_clipboard)
 
-        clear_btn = QPushButton("清空")
+        clear_btn = QPushButton(t("vp_clear"))
         clear_btn.clicked.connect(lambda: self.input_edit.clear())
 
-        self.parse_btn = QPushButton("立即深度逆向解析")
+        self.parse_btn = QPushButton(t("vp_parse_btn"))
         self.parse_btn.setIcon(get_icon("zap", "#ffffff", 16))
         self.parse_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.parse_btn.setStyleSheet("""
@@ -154,7 +155,7 @@ class VideoParserDialog(QDialog):
         """)
         self.parse_btn.clicked.connect(self._start_parse)
 
-        self.browser_btn = QPushButton("在浏览器中打开并嗅探")
+        self.browser_btn = QPushButton(t("vp_browser_btn"))
         self.browser_btn.setIcon(get_icon("globe", "#94a3b8", 16))
         self.browser_btn.setToolTip("在系统默认浏览器中打开该视频页面，由星流媒体嗅探器插件直接捕获最高画质无水印直链")
         self.browser_btn.setStyleSheet("""
@@ -195,12 +196,12 @@ class VideoParserDialog(QDialog):
         layout.addWidget(self.status_lbl)
 
         # 3. 解析结果卡片展示区
-        self.result_group = QGroupBox("解析结果与导出")
+        self.result_group = QGroupBox(t("vp_result_group"))
         res_layout = QVBoxLayout(self.result_group)
         res_layout.setSpacing(10)
 
         media_card = QHBoxLayout()
-        self.cover_lbl = QLabel("暂无封面")
+        self.cover_lbl = QLabel(t("vp_no_cover"))
         self.cover_lbl.setFixedSize(140, 95)
         self.cover_lbl.setAlignment(Qt.AlignCenter)
         self.cover_lbl.setStyleSheet("background: #18181b; border: 1px dashed #3f3f46; border-radius: 8px; color: #71717a;")
@@ -210,14 +211,14 @@ class VideoParserDialog(QDialog):
         info_col.setSpacing(6)
 
         title_row = QHBoxLayout()
-        title_row.addWidget(QLabel("标题:"))
+        title_row.addWidget(QLabel(t("vp_field_title")))
         self.title_edit = QLineEdit()
         self.title_edit.setPlaceholderText("解析成功后将自动填入真实视频标题")
         title_row.addWidget(self.title_edit, 1)
         info_col.addLayout(title_row)
 
         url_row = QHBoxLayout()
-        url_row.addWidget(QLabel("直链:"))
+        url_row.addWidget(QLabel(t("vp_field_url")))
         self.url_display = QLineEdit()
         self.url_display.setPlaceholderText("提取出的真实无水印 MP4 直链或 M3U8 清单")
         url_row.addWidget(self.url_display, 1)
@@ -233,11 +234,11 @@ class VideoParserDialog(QDialog):
             "color: #94a3b8; "
             "font-size: 11px;"
         )
-        self.tag_platform = QLabel("平台: --")
+        self.tag_platform = QLabel(f"{t('vp_tag_platform')} --")
         self.tag_platform.setStyleSheet(meta_chip_style)
-        self.tag_res = QLabel("画质: --")
+        self.tag_res = QLabel(f"{t('vp_tag_quality')} --")
         self.tag_res.setStyleSheet(meta_chip_style)
-        self.tag_dur = QLabel("时长: --")
+        self.tag_dur = QLabel(f"{t('vp_tag_duration')} --")
         self.tag_dur.setStyleSheet(meta_chip_style)
 
         meta_row.addWidget(self.tag_platform)
@@ -251,7 +252,7 @@ class VideoParserDialog(QDialog):
 
         # 底部下载与复制操作栏
         btn_bar = QHBoxLayout()
-        self.copy_link_btn = QPushButton("复制提取直链")
+        self.copy_link_btn = QPushButton(t("vp_copy_url"))
         self.copy_link_btn.setEnabled(False)
         self.copy_link_btn.setIcon(get_icon("copy", "#a1a1aa", 14))
         self.copy_link_btn.setStyleSheet("""
@@ -275,7 +276,7 @@ class VideoParserDialog(QDialog):
         """)
         self.copy_link_btn.clicked.connect(self._copy_parsed_url)
 
-        self.download_btn = QPushButton("立即添加到星流下载队列")
+        self.download_btn = QPushButton(t("vp_add_download"))
         self.download_btn.setIcon(get_icon("download", "#ffffff", 16))
         self.download_btn.setEnabled(False)
         self.download_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
@@ -325,7 +326,7 @@ class VideoParserDialog(QDialog):
 
         self.parse_btn.setEnabled(False)
         self.pbar.show()
-        self.status_lbl.setText("正在深入逆向目标平台并提取无水印高清视频直链，请稍候...")
+        self.status_lbl.setText(t("vp_parsing_hint"))
         self.status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
 
         eff_proxy = config.get_effective_proxy()
@@ -351,21 +352,21 @@ class VideoParserDialog(QDialog):
         elif "kuaishou" in orig or "kwaicdn" in u: platform = "快手"
         elif "xiaohongshu" in orig or "xhscdn" in u: platform = "小红书"
 
-        self.tag_platform.setText(f"平台: {platform}")
-        self.tag_res.setText(f"画质: {res.get('resolution') or '原画/1080P'}")
+        self.tag_platform.setText(f"{t('vp_tag_platform')} {platform}")
+        self.tag_res.setText(f"{t('vp_tag_quality')} {res.get('resolution') or '原画/1080P'}")
         dur = res.get("duration", 0)
-        self.tag_dur.setText(f"时长: {dur // 60:02d}:{dur % 60:02d}" if dur > 0 else "时长: 未知")
+        self.tag_dur.setText(f"{t('vp_tag_duration')} {dur // 60:02d}:{dur % 60:02d}" if dur > 0 else f"{t('vp_tag_duration')} --")
 
         # 异步加载封面
         cover_url = res.get("cover")
         if cover_url:
             self._load_cover(cover_url)
         else:
-            self.cover_lbl.setText("视频预览就绪")
+            self.cover_lbl.setText(t("vp_no_cover"))
 
         self.copy_link_btn.setEnabled(True)
         self.download_btn.setEnabled(True)
-        self.status_lbl.setText("提取成功！已为您获取最高画质直链，可一键添加到下载队列。")
+        self.status_lbl.setText(t("vp_success_hint"))
         self.status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
 
     def _open_in_browser(self):
@@ -376,7 +377,7 @@ class VideoParserDialog(QDialog):
             QMessageBox.warning(self, "提示", "请在上方输入框输入或粘贴有效的网页链接！")
             return
         webbrowser.open(url)
-        self.status_lbl.setText("已在浏览器中打开页面！星流浏览器插件已在后台待命，播放视频即可自动抓取无水印直链。")
+        self.status_lbl.setText(t("vp_browser_hint"))
         self.status_lbl.setStyleSheet("color: #38bdf8; font-size: 11px;")
 
     def _on_parse_failed(self, msg):
@@ -386,7 +387,7 @@ class VideoParserDialog(QDialog):
             self.status_lbl.setText(f"提示: {msg}")
             self.status_lbl.setStyleSheet("color: #fbbf24; font-size: 11px; font-weight: 500;")
         else:
-            self.status_lbl.setText(f"解析提示: {msg} (若目标平台有严格反爬机制，推荐点击上方【在浏览器中打开并嗅探】)")
+            self.status_lbl.setText(f"解析提示: {msg}")
             self.status_lbl.setStyleSheet("color: #f87171; font-size: 11px;")
 
     def _load_cover(self, url):
@@ -401,7 +402,7 @@ class VideoParserDialog(QDialog):
                         scaled = pix.scaled(140, 95, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
                         self.cover_lbl.setPixmap(scaled)
             except Exception:
-                self.cover_lbl.setText("封面加载失败")
+                self.cover_lbl.setText(t("vp_no_cover"))
         import threading
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -409,7 +410,7 @@ class VideoParserDialog(QDialog):
         url = self.url_display.text().strip()
         if url:
             QApplication.clipboard().setText(url)
-            QMessageBox.information(self, "复制成功", "无水印视频直链已复制到系统剪贴板！")
+            QMessageBox.information(self, "提示", t("vp_copy_success"))
 
     def _submit_to_downloader(self):
         if not self._current_result:
@@ -432,5 +433,5 @@ class VideoParserDialog(QDialog):
         }
 
         task_manager.add_task(task_info, auto_start=True)
-        QMessageBox.information(self, "添加成功", f"任务已加入星流高速下载队列:\n{title}")
+        QMessageBox.information(self, "提示", f"已加入下载队列:\n{title}")
         self.accept()
