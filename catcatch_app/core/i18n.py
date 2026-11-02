@@ -19,6 +19,10 @@ SUPPORTED_LANGUAGES = [
 
 TRANSLATIONS = {
     "zh_CN": {
+        "app_title": "星流媒体嗅探与下载器",
+        "cfg_proxy_default": "跟随全局设置",
+        "cfg_proxy_direct": "直接连接 (不使用代理)",
+
         "status_stats": "总计: {total} | 下载中: {downloading} | 已完成: {completed}",
         "status_total_speed": "总下载速度: {speed}",
         "float_standby": "星流待命",
@@ -242,6 +246,10 @@ TRANSLATIONS = {
     
     },
     "zh_TW": {
+        "app_title": "星流媒體嗅探與下載器",
+        "cfg_proxy_default": "跟隨全域設定",
+        "cfg_proxy_direct": "直接連線 (不使用代理)",
+
         "status_stats": "總計: {total} | 下載中: {downloading} | 已完成: {completed}",
         "status_total_speed": "總下載速度: {speed}",
         "float_standby": "星流待命",
@@ -465,6 +473,10 @@ TRANSLATIONS = {
     
     },
     "en_US": {
+        "app_title": "StarStream Media Sniffer & Downloader",
+        "cfg_proxy_default": "Follow Global Settings",
+        "cfg_proxy_direct": "Direct Connection (No Proxy)",
+
         "status_stats": "Total: {total} | Downloading: {downloading} | Completed: {completed}",
         "status_total_speed": "Total Speed: {speed}",
         "float_standby": "StarStream Standby",
@@ -688,6 +700,10 @@ TRANSLATIONS = {
     
     },
     "ja_JP": {
+        "app_title": "StarStream メディアゲッター＆ダウンローダー",
+        "cfg_proxy_default": "グローバル設定に従う",
+        "cfg_proxy_direct": "直接接続 (プロキシなし)",
+
         "status_stats": "合計: {total} | ダウンロード中: {downloading} | 完了: {completed}",
         "status_total_speed": "総ダウンロード速度: {speed}",
         "float_standby": "待機中",
@@ -911,6 +927,10 @@ TRANSLATIONS = {
     
     },
     "ko_KR": {
+        "app_title": "StarStream 미디어 스니퍼 & 다운로더",
+        "cfg_proxy_default": "전체 설정 따르기",
+        "cfg_proxy_direct": "직접 연결 (프록시 없음)",
+
         "status_stats": "총계: {total} | 다운로드 중: {downloading} | 완료: {completed}",
         "status_total_speed": "총 다운로드 속도: {speed}",
         "float_standby": "대기 중",
@@ -1134,6 +1154,10 @@ TRANSLATIONS = {
     
     },
     "fr_FR": {
+        "app_title": "StarStream Renifleur & Téléchargeur Multimédia",
+        "cfg_proxy_default": "Suivre les paramètres globaux",
+        "cfg_proxy_direct": "Connexion directe (sans proxy)",
+
         "status_stats": "Total : {total} | Téléchargement : {downloading} | Terminé : {completed}",
         "status_total_speed": "Vitesse totale : {speed}",
         "float_standby": "En attente",
@@ -1357,6 +1381,10 @@ TRANSLATIONS = {
     
     },
     "de_DE": {
+        "app_title": "StarStream Medien-Sniffer & Downloader",
+        "cfg_proxy_default": "Globalen Einstellungen folgen",
+        "cfg_proxy_direct": "Direktverbindung (ohne Proxy)",
+
         "status_stats": "Gesamt: {total} | Lädt herunter: {downloading} | Fertig: {completed}",
         "status_total_speed": "Gesamte Downloadrate: {speed}",
         "float_standby": "Bereit",
@@ -1580,6 +1608,10 @@ TRANSLATIONS = {
     
     },
     "es_ES": {
+        "app_title": "StarStream Extractor y Descargador Multimedia",
+        "cfg_proxy_default": "Seguir configuración global",
+        "cfg_proxy_direct": "Conexión directa (sin proxy)",
+
         "status_stats": "Total: {total} | Descargando: {downloading} | Completado: {completed}",
         "status_total_speed": "Velocidad total: {speed}",
         "float_standby": "En espera",
@@ -1803,6 +1835,10 @@ TRANSLATIONS = {
     
     },
     "ru_RU": {
+        "app_title": "StarStream Перехватчик и загрузчик медиа",
+        "cfg_proxy_default": "Следовать глобальным настройкам",
+        "cfg_proxy_direct": "Прямое подключение (без прокси)",
+
         "status_stats": "Всего: {total} | Загрузка: {downloading} | Завершено: {completed}",
         "status_total_speed": "Общая скорость: {speed}",
         "float_standby": "Ожидание",
@@ -2026,6 +2062,10 @@ TRANSLATIONS = {
     
     },
     "pt_BR": {
+        "app_title": "StarStream Sniffer e Baixador Multimídia",
+        "cfg_proxy_default": "Seguir configurações globais",
+        "cfg_proxy_direct": "Conexão direta (sem proxy)",
+
         "status_stats": "Total: {total} | Baixando: {downloading} | Concluído: {completed}",
         "status_total_speed": "Velocidade total: {speed}",
         "float_standby": "Em espera",

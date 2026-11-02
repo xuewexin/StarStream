@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20데스크톱%20클라이언트-StarStream_v3.1.2_Portable.zip%20(코어%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 다운로드">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20데스크톱%20클라이언트-StarStream_v3.2.0_Portable.zip%20(코어%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 다운로드">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension.zip%20(140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="브라우저 스니퍼 확장 다운로드">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | 다운로드 항목 | 포함된 구성 요소 | 권장 용도 | 링크 |
 |---|---|---|---|
-| **⭐ 추천: StarStream_v3.1.2_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 확장 프로그램 소스 | 설치 불필요, 압축 해제 후 즉시 사용 가능 | [👉 포터블 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 브라우저 스니퍼 확장 단독 패키지 (v3.1.2)** | 순수 확장 소스 (140KB), MV3 감지, 프록시 자동 정렬, 재생시간·화질순 정렬 | 웹 비디오 감지, 현재 탭 전용 표시, 내림차순 정렬 | [👉 Extension.zip 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ 추천: StarStream_v3.2.0_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 확장 프로그램 소스 | 설치 불필요, 압축 해제 후 즉시 사용 가능 | [👉 포터블 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 브라우저 스니퍼 확장 단독 패키지 (v3.2.0)** | 순수 확장 소스 (140KB), MV3 감지, 프록시 자동 정렬, 재생시간·화질순 정렬 | 웹 비디오 감지, 현재 탭 전용 표시, 내림차순 정렬 | [👉 Extension.zip 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases 공식 릴리스 페이지** | 전체 릴리스 내역, 업데이트 로그, 파일 확인 | 전체 버전 기록 확인 | [👉 Releases 페이지 방문](https://github.com/xuewexin/StarStream/releases) |
 
 ---

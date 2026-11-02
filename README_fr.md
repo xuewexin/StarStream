@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20Client%20de%20Bureau-StarStream_v3.1.2_Portable.zip%20(Coeur%20Inclus)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20Client%20de%20Bureau-StarStream_v3.2.0_Portable.zip%20(Coeur%20Inclus)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Télécharger StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Extension%20Navigateur-Extension.zip%20(Seulement%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Télécharger l'Extension Navigateur">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | Option de téléchargement | Composants inclus | Cas d'utilisation | Lien |
 |---|---|---|---|
-| **⭐ Recommandé : StarStream_v3.1.2_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Code source extension | Version portable sans installation, tout inclus | [👉 Télécharger le pack portable](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 Extension Navigateur Seule (v3.1.2)** | Code source de l'extension (140 Ko), MV3, alignement proxy automatique | Détection vidéo Web, affichage clair de l'onglet actif | [👉 Télécharger Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ Recommandé : StarStream_v3.2.0_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Code source extension | Version portable sans installation, tout inclus | [👉 Télécharger le pack portable](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 Extension Navigateur Seule (v3.2.0)** | Code source de l'extension (140 Ko), MV3, alignement proxy automatique | Détection vidéo Web, affichage clair de l'onglet actif | [👉 Télécharger Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **Page Officielle GitHub Releases** | Toutes les versions, notes de mise à jour et sommes de contrôle | Historique complet | [👉 Voir les Releases](https://github.com/xuewexin/StarStream/releases) |
 
 ---

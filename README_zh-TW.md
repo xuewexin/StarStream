@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20官方桌面客戶端-StarStream_v3.1.2_Portable.zip%20(內建%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="點擊直接下載 StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20官方桌面客戶端-StarStream_v3.2.0_Portable.zip%20(內建%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="點擊直接下載 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20單獨下載瀏覽器探測插件-Extension.zip%20(僅%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="單獨下載瀏覽器探測插件">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | 下載方式 | 包含組件 | 適用場景 | 下載連結 |
 |---|---|---|---|
-| **⭐ 推薦：StarStream_v3.1.2_Portable.zip 全套免安裝包** | 內建完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 瀏覽器插件源碼 | 免安裝任何環境，解壓即用，全套核心內建 | [👉 下載 Portable 免安裝包](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 必裝搭檔：瀏覽器探測插件獨立包 (v3.1.2)** | 純插件原始碼包 (僅 140KB)，含 MV3 探測/自動匹配瀏覽器代理/畫質時長智慧排序 | 探測網頁影片、當前頁面純淨展示、按時長畫質降序置頂 | [👉 下載 Extension.zip (140KB)](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ 推薦：StarStream_v3.2.0_Portable.zip 全套免安裝包** | 內建完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 瀏覽器插件源碼 | 免安裝任何環境，解壓即用，全套核心內建 | [👉 下載 Portable 免安裝包](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 必裝搭檔：瀏覽器探測插件獨立包 (v3.2.0)** | 純插件原始碼包 (僅 140KB)，含 MV3 探測/自動匹配瀏覽器代理/畫質時長智慧排序 | 探測網頁影片、當前頁面純淨展示、按時長畫質降序置頂 | [👉 下載 Extension.zip (140KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases 官方發行版主頁** | 查看所有發佈版本、更新日誌與資源列表 | 追溯所有更新與校驗包 | [👉 瀏覽 Releases 頁面](https://github.com/xuewexin/StarStream/releases) |
 
 ---

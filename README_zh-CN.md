@@ -32,11 +32,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20官方桌面客户端-StarStream_v3.1.2_Portable.zip%20(内置%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="点击直接下载 StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20官方桌面客户端-StarStream_v3.2.0_Portable.zip%20(内置%20N_m3u8DL%20核心)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="点击直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20单独下载浏览器嗅探插件-Extension.zip%20(仅%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
 </p>
@@ -131,13 +131,13 @@
 
 | 下载方式 | 包含组件 | 适用场景 | 官方下载链接 |
 |---|---|---|---|
-| **⭐ 推荐：StarStream_v3.1.2_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | 免安装任何环境，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.1.2)** | 纯插件源码包 (仅 140KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (140KB)](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ 推荐：StarStream_v3.2.0_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | 免安装任何环境，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.2.0)** | 纯插件源码包 (仅 140KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (140KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases 官方发行版主页** | 查看所有发布版本、更新日志与资产列表 | 追溯所有更新与校验包 | [👉 访问 Releases 页面](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **提示**：独立版 exe **已打包内置最新的 N_m3u8DL-RE 引擎与 FFmpeg**，完全开箱即用，无需单独下载或配置外部命令行工具。
 > 
-> ### 🚀 v3.1.2 核心更新特性
+> ### 🚀 v3.2.0 核心更新特性
 > 1. **代理配置与系统设置核心直达**：主操作栏重构，次级工具收纳至「实用工具 ▾」下拉菜单，新增独立的「代理配置」与「系统设置」核心按钮，彻底告别宽屏窄屏按钮挤出溢出问题；
 > 2. **全矢量 SVG/ICO 纯净图标重构**：全界面彻底剔除 Emoji 符号，所有功能按钮与状态指示全面采用高精度矢量图标，杜绝字符图标重复伪影；
 > 3. **浏览器代理双向自动同步**：扩展插件默认开启「自动匹配浏览器代理」，无论当前浏览器走 Clash、v2rayN、系统全局还是直连，下载任务均实时同步；

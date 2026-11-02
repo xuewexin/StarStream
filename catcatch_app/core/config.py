@@ -9,7 +9,7 @@ import uuid
 import re
 import urllib.request
 
-APP_VERSION = "v3.1.2"
+APP_VERSION = "v3.2.0"
 
 if getattr(sys, 'frozen', False):
     ROOT_DIR = os.path.dirname(os.path.abspath(sys.executable))

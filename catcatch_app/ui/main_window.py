@@ -85,7 +85,7 @@ def parse_speed_to_bytes(spd_str):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"星流媒体下载器 (StarStream Pro) {APP_VERSION} 旗舰版")
+        self.setWindowTitle(f"{t('app_title')} (StarStream Pro) {APP_VERSION}")
         self.setWindowIcon(get_app_icon())
         self.resize(1180, 720)
         self._cached_bg_pixmap = None

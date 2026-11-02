@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20デスクトップクライアント-StarStream_v3.1.2_Portable.zip%20(コア内蔵)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe をダウンロード">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20デスクトップクライアント-StarStream_v3.2.0_Portable.zip%20(コア内蔵)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe をダウンロード">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20ブラウザスニファー拡張機能-Extension.zip%20(わずか140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="ブラウザスニファー拡張機能をダウンロード">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | ダウンロード種別 | 同梱コンポーネント | 利用シーン | リンク |
 |---|---|---|---|
-| **⭐ 推奨：StarStream_v3.1.2_Portable.zip ポータブル版** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 拡張機能ソース一式 | インストール不要、解凍後すぐに全機能利用可能 | [👉 ポータブル版をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 拡張機能単体パッケージ (v3.1.2)** | 拡張機能ソースのみ (140KB)、MV3検知、プロキシ自動整合、再生時間・画質順ソート | Web動画検知、アクティブタブ表示、降順ソート | [👉 Extension.zip (140KB) をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ 推奨：StarStream_v3.2.0_Portable.zip ポータブル版** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 拡張機能ソース一式 | インストール不要、解凍後すぐに全機能利用可能 | [👉 ポータブル版をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 拡張機能単体パッケージ (v3.2.0)** | 拡張機能ソースのみ (140KB)、MV3検知、プロキシ自動整合、再生時間・画質順ソート | Web動画検知、アクティブタブ表示、降順ソート | [👉 Extension.zip (140KB) をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases 公式リリースページ** | 全バージョン、更新履歴、アセットの確認 | 全リリース一覧の確認 | [👉 Releases ページへ](https://github.com/xuewexin/StarStream/releases) |
 
 ---

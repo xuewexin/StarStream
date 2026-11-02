@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20Desktop-Client-StarStream_v3.1.2_Portable.zip%20(Integrierter%20Kern)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20Desktop-Client-StarStream_v3.2.0_Portable.zip%20(Integrierter%20Kern)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Browser-Erweiterung-Extension.zip%20(Nur%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Browser-Sniffer-Erweiterung herunterladen">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | Download-Option | Enthaltene Komponenten | Anwendungsfall | Link |
 |---|---|---|---|
-| **⭐ Empfohlen: StarStream_v3.1.2_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | Portabel, keine Installation nötig, alles integriert | [👉 Portable Version herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 Separate Browser-Erweiterung (v3.1.2)** | Quellcode der Erweiterung (140 KB), MV3, automatische Proxy-Erkennung | Webvideo-Sniffing, saubere Ansicht des aktiven Tabs | [👉 Extension.zip herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ Empfohlen: StarStream_v3.2.0_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | Portabel, keine Installation nötig, alles integriert | [👉 Portable Version herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 Separate Browser-Erweiterung (v3.2.0)** | Quellcode der Erweiterung (140 KB), MV3, automatische Proxy-Erkennung | Webvideo-Sniffing, saubere Ansicht des aktiven Tabs | [👉 Extension.zip herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **Offizielle GitHub Releases Seite** | Alle Versionen, Änderungsprotokolle und Checksummen | Versionsverlauf | [👉 Releases ansehen](https://github.com/xuewexin/StarStream/releases) |
 
 ---

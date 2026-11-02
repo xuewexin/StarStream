@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20Десктоп--клиент-StarStream_v3.1.2_Portable.zip%20(Встроенное%20ядро)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20Десктоп--клиент-StarStream_v3.2.0_Portable.zip%20(Встроенное%20ядро)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Расширение%20для%20браузера-Extension.zip%20(140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Скачать расширение для браузера">
   </a>
 </p>

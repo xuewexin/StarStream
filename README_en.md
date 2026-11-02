@@ -31,11 +31,11 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20Official%20Desktop%20Client-StarStream_v3.1.2_Portable.zip%20(Built--in%20Core)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
+    <img src="https://img.shields.io/badge/⬇️%20Official%20Desktop%20Client-StarStream_v3.2.0_Portable.zip%20(Built--in%20Core)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
     <img src="https://img.shields.io/badge/🧩%20Standalone%20Extension-Extension.zip%20(Only%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Browser Sniffer Extension">
   </a>
 </p>
@@ -128,8 +128,8 @@
 
 | Download Option | Included Components | Best For | Link |
 |---|---|---|---|
-| **⭐ Recommended: StarStream_v3.1.2_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | Portable, zero installation, all cores built-in | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_v3.1.2_Portable.zip) |
-| **🧩 Standalone Extension Package (v3.1.2)** | Pure extension source (140KB), MV3 sniffing, Auto Proxy Matching, Sort by Duration | Web video sniffing, clean active-tab view, descending sort | [👉 Download Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v3.1.2/StarStream_Browser_Extension_v3.1.2.zip) |
+| **⭐ Recommended: StarStream_v3.2.0_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | Portable, zero installation, all cores built-in | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🧩 Standalone Extension Package (v3.2.0)** | Pure extension source (140KB), MV3 sniffing, Auto Proxy Matching, Sort by Duration | Web video sniffing, clean active-tab view, descending sort | [👉 Download Extension.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases Page** | View all release notes, history and asset checksums | Full version history | [👉 Visit Releases](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **Note**: The portable release package **already includes the latest N_m3u8DL-RE engine and FFmpeg**. It works out of the box with zero external configuration needed.
