@@ -32,11 +32,15 @@
 
 <p align="center">
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20Desktop-Client-StarStream_v3.2.0_Portable.zip%20(Integrierter%20Kern)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
+    <img src="https://img.shields.io/badge/⭐%20Portable%20Paket-StarStream_v3.2.0_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20integriert)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable Paket herunterladen">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe">
+    <img src="https://img.shields.io/badge/🚀%20Standalone%20EXE-StarStream.exe%20(Auto--Scan%20Tools)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
-    <img src="https://img.shields.io/badge/🧩%20Browser-Erweiterung-Extension.zip%20(Nur%20140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Browser-Sniffer-Erweiterung herunterladen">
+    <img src="https://img.shields.io/badge/🧩%20Browser--Erweiterung-Extension_v3.2.0.zip%20(165%20KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Erweiterung herunterladen">
   </a>
 </p>
 
@@ -126,11 +130,22 @@
 
 ## 📦 Versionen und Downloads
 
-| Download-Option | Enthaltene Komponenten | Anwendungsfall | Link |
+Sie können die neueste Version von StarStream über die folgenden Kanäle herunterladen:
+
+| Download-Art | Enthaltene Komponenten | Empfohlen für | Download-Link |
 |---|---|---|---|
-| **⭐ Empfohlen: StarStream_v3.2.0_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | Portabel, keine Installation nötig, alles integriert | [👉 Portable Version herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
-| **🧩 Separate Browser-Erweiterung (v3.2.0)** | Quellcode der Erweiterung (140 KB), MV3, automatische Proxy-Erkennung | Webvideo-Sniffing, saubere Ansicht des aktiven Tabs | [👉 Extension.zip herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
+| **⭐ Empfohlen: StarStream_v3.2.0_Portable.zip** | Integrierte **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | **Dringend empfohlen ohne FFmpeg / N_m3u8DL**, sofort einsatzbereit | [👉 Portable-Paket herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🚀 Standalone-EXE: StarStream.exe (77.5MB)** | Eigenständige ausführbare Binärdatei | **Für Benutzer mit vorhandenem FFmpeg oder N_m3u8DL**, automatische Pfaderkennung; **in separatem Ordner starten** | [👉 StarStream.exe herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe) |
+| **🧩 Browser-Erweiterung (v3.2.0)** | Quellpaket der Erweiterung (165 KB), MV3-Sniffer, Proxy-Ausrichtung | Webvideo-Sniffing, saubere Registerkarten, Sortierung | [👉 Extension.zip (165 KB) herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **Offizielle GitHub Releases Seite** | Alle Versionen, Änderungsprotokolle und Checksummen | Versionsverlauf | [👉 Releases ansehen](https://github.com/xuewexin/StarStream/releases) |
+
+> 💡 **Download- und Installationshinweise (Wichtiger Hinweis)**:
+> 1. **Für Benutzer ohne installiertes FFmpeg oder N_m3u8DL**:
+>    👉 **Empfehlung: Laden Sie das Portable-Paket (`StarStream_v3.2.0_Portable.zip`) herunter**! Es enthält alle erforderlichen Tools (`ffmpeg.exe` und `N_m3u8DL-RE.exe`) vorkonfiguriert.
+> 2. **Für Benutzer, die FFmpeg oder N_m3u8DL bereits besitzen**:
+>    👉 **Sie können direkt die eigenständige `StarStream.exe` herunterladen**! StarStream durchsucht beim Start automatisch Ihre Umgebungspfade (`PATH`) nach vorhandenen Tools.
+> 3. **⚠️ Wichtiger Nutzungshinweis**:
+>    Bitte platzieren Sie die eigenständige `StarStream.exe` **vor dem Start in einem sauberen, separaten Ordner (z. B. `D:\StarStream\`)**! Das Programm erstellt Konfigurationsdateien, Datenbanken und Protokolle im selben Ordner.
 
 ---
 

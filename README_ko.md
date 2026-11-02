@@ -32,11 +32,15 @@
 
 <p align="center">
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
-    <img src="https://img.shields.io/badge/⬇️%20데스크톱%20클라이언트-StarStream_v3.2.0_Portable.zip%20(코어%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 다운로드">
+    <img src="https://img.shields.io/badge/⭐%20포터블%20패키지-StarStream_v3.2.0_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable 패키지 다운로드">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe">
+    <img src="https://img.shields.io/badge/🚀%20단일%20실행파일-StarStream.exe%20(엔진%20자동%20스캔)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 직접 다운로드">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
-    <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension.zip%20(140KB)-059669?style=for-the-badge&logo=googlechrome&logoColor=white" alt="브라우저 스니퍼 확장 다운로드">
+    <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension_v3.2.0.zip%20(165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="확장 프로그램 다운로드">
   </a>
 </p>
 
@@ -126,11 +130,22 @@
 
 ## 📦 버전 및 다운로드
 
-| 다운로드 항목 | 포함된 구성 요소 | 권장 용도 | 링크 |
+다음 배포 채널을 통해 최신 버전의 StarStream을 간편하게 다운로드할 수 있습니다:
+
+| 배포 형태 | 포함 구성 요소 | 권장 사용자 | 다운로드 링크 |
 |---|---|---|---|
-| **⭐ 추천: StarStream_v3.2.0_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 확장 프로그램 소스 | 설치 불필요, 압축 해제 후 즉시 사용 가능 | [👉 포터블 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
-| **🧩 브라우저 스니퍼 확장 단독 패키지 (v3.2.0)** | 순수 확장 소스 (140KB), MV3 감지, 프록시 자동 정렬, 재생시간·화질순 정렬 | 웹 비디오 감지, 현재 탭 전용 표시, 내림차순 정렬 | [👉 Extension.zip 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
+| **⭐ 추천: StarStream_v3.2.0_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 브라우저 확장 소스 내장 | **FFmpeg / N_m3u8DL이 없는 사용자에게 강력 권장**, 압축 해제 즉시 사용 가능 | [👉 Portable 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
+| **🚀 단일 실행 파일: StarStream.exe (77.5MB)** | 독립형 단일 실행 바이너리 | **이미 FFmpeg / N_m3u8DL을 보유한 사용자용**, 자동 스캔 내장; **반드시 깨끗한 전용 폴더에 넣고 실행하세요** | [👉 StarStream.exe 직접 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe) |
+| **🧩 브라우저 스니퍼 확장 프로그램 (v3.2.0)** | 순수 확장 프로그램 소스 (165KB), MV3 스니핑, 프록시 자동 정렬 | 웹 비디오 감지, 탭 분리, 재생시간/화질별 내림차순 정렬 | [👉 Extension.zip (165KB) 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
 | **GitHub Releases 공식 릴리스 페이지** | 전체 릴리스 내역, 업데이트 로그, 파일 확인 | 전체 버전 기록 확인 | [👉 Releases 페이지 방문](https://github.com/xuewexin/StarStream/releases) |
+
+> 💡 **다운로드 및 설치 안내 (중요 공지)**:
+> 1. **FFmpeg 및 N_m3u8DL이 설치되어 있지 않은 사용자**:
+>    👉 **포터블 패키지(`StarStream_v3.2.0_Portable.zip`) 다운로드를 강력히 권장합니다**! 필수 엔진인 `ffmpeg.exe` 및 `N_m3u8DL-RE.exe`가 모두 내장되어 있어 압축 해제 후 즉시 사용 가능합니다.
+> 2. **이미 FFmpeg 또는 N_m3u8DL을 보유한 사용자**:
+>    👉 **단일 실행 파일(`StarStream.exe`)을 바로 다운로드하여 사용하실 수 있습니다**! 첫 실행 시 시스템 환경 변수(`PATH`) 및 주요 경로를 자동으로 스캔하여 기존 엔진을 자동 연결합니다.
+> 3. **⚠️ 실행 시 주의사항**:
+>    단일 실행 파일 `StarStream.exe`를 다운로드한 경우, **반드시 새롭고 비어있는 전용 폴더(예: `D:\StarStream\`)에 넣고 실행해 주십시오**! 실행 시 동일 경로에 설정 파일, 데이터베이스, 로그 및 임시 작업 폴더가 자동 생성되므로, 전용 폴더에 두시면 관리가 훨씬 편리합니다.
 
 ---
 
