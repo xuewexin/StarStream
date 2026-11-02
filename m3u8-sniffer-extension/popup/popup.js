@@ -116,8 +116,8 @@
 
   function updateProxyTips() {
     const tipText = detectedProxy.proxyUrl
-      ? `⚡ 检测到当前浏览器代理: ${detectedProxy.proxyUrl}`
-      : (clientEffectiveProxy ? `⚡ 当前客户端生效代理: ${clientEffectiveProxy}` : (detectedProxy.label ? `⚡ 网络环境: ${detectedProxy.label}` : '⚡ 代理: 直连/跟随系统'));
+      ? `浏览器代理: ${detectedProxy.proxyUrl}`
+      : (clientEffectiveProxy ? `客户端代理: ${clientEffectiveProxy}` : (detectedProxy.label ? `网络环境: ${detectedProxy.label}` : '代理: 直连/跟随系统'));
 
     document.querySelectorAll('.cfg-proxy-tip').forEach((el) => {
       el.textContent = tipText;
@@ -343,7 +343,7 @@
         statsEl.textContent = `找到 ${folders.length} 个残留分片文件夹 (共 ${data.count || 0} 个)`;
 
         if (!folders.length) {
-          container.innerHTML = '<div style="color:#4ade80; text-align:center; padding:10px;">✔ 当前分片目录干净，无残留切片文件</div>';
+          container.innerHTML = '<div style="color:#4ade80; text-align:center; padding:10px;">当前分片目录干净，无残留切片文件</div>';
           return;
         }
 
@@ -353,7 +353,7 @@
           itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 4px; border-bottom:1px solid #27272a; font-size:12px;';
           itemDiv.innerHTML = `
             <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;" title="${f.path}">
-              📁 ${f.name}
+              ${f.name}
             </div>
             <div style="color:#38bdf8; font-size:11px; white-space:nowrap;">
               ${f.ts_count} 切片 | ${formatSize(f.size)}
@@ -567,9 +567,9 @@
 
     let tagsHtml = `<span class="tag-badge tag-type">${item.mediaType.toUpperCase()}</span>`;
     if (item.isAd) {
-      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似前贴片广告切片'}">⚠️ 疑似广告${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似前贴片广告切片'}">疑似切片${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
     } else if (item.isFeature) {
-      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">⭐ 正片</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">正片</span>`;
     }
     if (item.resolution) {
       tagsHtml += `<span class="tag-badge tag-res">${item.resolution}</span>`;
@@ -588,18 +588,18 @@
     tagsHtml += `<span class="tag-badge tag-domain">${domain}</span>`;
 
     const proxyTipText = detectedProxy.proxyUrl
-      ? `⚡ 浏览器代理: ${detectedProxy.proxyUrl}`
-      : (clientEffectiveProxy ? `⚡ 本地生效代理: ${clientEffectiveProxy}` : '⚡ 代理: 直连/跟随系统');
+      ? `浏览器代理: ${detectedProxy.proxyUrl}`
+      : (clientEffectiveProxy ? `本地代理: ${clientEffectiveProxy}` : '代理: 直连/跟随系统');
 
     // 动态生成代理下拉列表（优先展示当前存活的本地代理客户端，避免死端口连接拒绝）
     let proxyOptionsHtml = `
-      <option value="auto" selected>🎯 自动匹配可用代理 (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
-      <option value="direct">⚡ 直连 (不走任何代理)</option>
-      <option value="default">💻 跟随客户端全局设置</option>
+      <option value="auto" selected>自动匹配可用代理 (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
+      <option value="direct">直连 (不使用代理)</option>
+      <option value="default">跟随客户端全局设置</option>
     `;
     if (clientDetectedProxies && clientDetectedProxies.length > 0) {
       clientDetectedProxies.forEach((p) => {
-        proxyOptionsHtml += `<option value="${p.url}">🟢 ${p.name}</option>`;
+        proxyOptionsHtml += `<option value="${p.url}">${p.name}</option>`;
       });
     } else {
       proxyOptionsHtml += `
@@ -609,7 +609,7 @@
         <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
       `;
     }
-    proxyOptionsHtml += `<option value="custom">✏️ 手动输入代理地址...</option>`;
+    proxyOptionsHtml += `<option value="custom">手动输入代理地址...</option>`;
 
     card.innerHTML = `
       <div class="card-top">
@@ -622,7 +622,7 @@
       <div class="card-url-box" title="点击复制完整直链">${escapeHtml(item.url)}</div>
       <div class="card-actions">
         <button class="btn-sm btn-primary action-push">下载 (推送)</button>
-        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">⚙️ 配置</button>
+        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">配置</button>
         <button class="btn-sm btn-secondary action-copy-cmd" title="复制 N_m3u8DL-RE 独立运行命令 (免客户端)">复制命令</button>
         <button class="btn-sm btn-secondary action-preview">预览</button>
         <button class="btn-sm btn-secondary action-copy">复制</button>
@@ -630,11 +630,11 @@
       </div>
       <div class="card-config-panel hidden">
         <div class="config-row">
-          <span class="config-label">📁 保存目录:</span>
+          <span class="config-label">保存目录:</span>
           <input type="text" class="config-input cfg-savedir" placeholder="留空使用客户端配置 (如 Downloads)">
         </div>
         <div class="config-row">
-          <span class="config-label">⚡ 并发线程:</span>
+          <span class="config-label">并发线程:</span>
           <select class="config-select cfg-threads">
             <option value="">跟随客户端设置 (默认 16)</option>
             <option value="4">4 线程 (稳定防限流)</option>
@@ -644,7 +644,7 @@
           </select>
         </div>
         <div class="config-row">
-          <span class="config-label">🌐 下载代理:</span>
+          <span class="config-label">下载代理:</span>
           <select class="config-select cfg-proxy">
             ${proxyOptionsHtml}
           </select>
@@ -654,7 +654,7 @@
           <input type="text" class="config-input cfg-custom-proxy" placeholder="例如 http://127.0.0.1:1080 或 http://127.0.0.1:7890">
         </div>
         <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
-        <button class="btn-copy-cli-inside">📋 复制 N_m3u8DL-RE 完整运行命令 (脱离客户端独立运行)</button>
+        <button class="btn-copy-cli-inside">复制 N_m3u8DL-RE 完整运行命令 (脱离客户端独立运行)</button>
       </div>
     `;
 

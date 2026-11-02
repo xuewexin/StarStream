@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QComboBox, QGroupBox, QApplication, QMessageBox,
     QFrame, QTextEdit, QProgressBar
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QColor, QImage
 
 from catcatch_app.core.config import config
@@ -56,49 +56,59 @@ class VideoParserDialog(QDialog):
         self._init_ui()
         if initial_url:
             self.input_edit.setText(initial_url)
-            self._start_parse()
+            QTimer.singleShot(50, self._start_parse)
         else:
-            self._check_clipboard()
+            QTimer.singleShot(50, self._check_clipboard)
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
         layout.setSpacing(14)
         layout.setContentsMargins(22, 18, 22, 18)
 
-        # 1. 顶部平台特性徽章区
+        # 1. 顶部平台特性提示区 (沉稳暗色 slate 风格，消除杂乱配色)
         header_frame = QFrame()
         header_frame.setStyleSheet("""
             QFrame {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1e1b4b, stop:1 #0f172a);
-                border: 1px solid #312e81;
-                border-radius: 10px;
+                background-color: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
                 padding: 10px 14px;
             }
         """)
         h_layout = QVBoxLayout(header_frame)
-        h_layout.setSpacing(6)
+        h_layout.setSpacing(8)
 
         title_row = QHBoxLayout()
         title_icon = QLabel()
-        title_icon.setPixmap(get_icon("zap", "#a5b4fc", 20).pixmap(20, 20))
-        title_lbl = QLabel("全网主流视频无水印一键提取")
-        title_lbl.setFont(QFont("Segoe UI", 12, QFont.Bold))
-        title_lbl.setStyleSheet("color: #a5b4fc;")
+        title_icon.setPixmap(get_icon("zap", "#38bdf8", 18).pixmap(18, 18))
+        title_lbl = QLabel("全网主流短视频与网页流媒体一键解析提取")
+        title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
+        title_lbl.setStyleSheet("color: #f8fafc;")
         title_row.addWidget(title_icon)
         title_row.addWidget(title_lbl, 1)
         h_layout.addLayout(title_row)
 
         badge_row = QHBoxLayout()
+        badge_row.setSpacing(8)
         badges = [
-            ("Bilibili", "B站高清音视频", "#38bdf8"),
-            ("抖音", "抖音无水印原画", "#f43f5e"),
-            ("快手", "快手1080P高清", "#f97316"),
-            ("小红书", "小红书高清无水印", "#ef4444"),
-            ("通用网页", "HTML5/M3U8流探测", "#10b981")
+            "B站 (Bilibili)",
+            "抖音 (无水印)",
+            "快手 (高清)",
+            "小红书 (原画)",
+            "通用网页 (H5/M3U8)"
         ]
-        for name, desc, col in badges:
-            b_lbl = QLabel(f"● {name}: {desc}")
-            b_lbl.setStyleSheet(f"color: {col}; font-size: 11px; font-weight: 600; margin-right: 8px;")
+        chip_style = (
+            "background-color: #0f172a; "
+            "border: 1px solid #334155; "
+            "border-radius: 4px; "
+            "padding: 2px 8px; "
+            "color: #94a3b8; "
+            "font-size: 11px; "
+            "font-weight: 500;"
+        )
+        for b_name in badges:
+            b_lbl = QLabel(b_name)
+            b_lbl.setStyleSheet(chip_style)
             badge_row.addWidget(b_lbl)
         badge_row.addStretch()
         h_layout.addLayout(badge_row)
@@ -127,32 +137,37 @@ class VideoParserDialog(QDialog):
         self.parse_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.parse_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3875f6, stop:1 #8b5cf6);
+                background-color: #2563eb;
                 color: #ffffff;
                 border: none;
                 border-radius: 6px;
                 padding: 7px 18px;
+                font-weight: 600;
             }
             QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #7c3aed);
+                background-color: #1d4ed8;
+            }
+            QPushButton:disabled {
+                background-color: #334155;
+                color: #64748b;
             }
         """)
         self.parse_btn.clicked.connect(self._start_parse)
 
         self.browser_btn = QPushButton("在浏览器中打开并嗅探")
-        self.browser_btn.setIcon(get_icon("globe", "#38bdf8", 16))
+        self.browser_btn.setIcon(get_icon("globe", "#94a3b8", 16))
         self.browser_btn.setToolTip("在系统默认浏览器中打开该视频页面，由星流媒体嗅探器插件直接捕获最高画质无水印直链")
         self.browser_btn.setStyleSheet("""
             QPushButton {
-                background: #1e293b;
-                color: #38bdf8;
-                border: 1px solid #0284c7;
+                background-color: #1e293b;
+                color: #cbd5e1;
+                border: 1px solid #334155;
                 border-radius: 6px;
                 padding: 7px 14px;
                 font-weight: 500;
             }
             QPushButton:hover {
-                background: #0369a1;
+                background-color: #334155;
                 color: #ffffff;
             }
         """)
@@ -209,12 +224,21 @@ class VideoParserDialog(QDialog):
         info_col.addLayout(url_row)
 
         meta_row = QHBoxLayout()
+        meta_row.setSpacing(8)
+        meta_chip_style = (
+            "background-color: #0f172a; "
+            "border: 1px solid #334155; "
+            "border-radius: 4px; "
+            "padding: 2px 8px; "
+            "color: #94a3b8; "
+            "font-size: 11px;"
+        )
         self.tag_platform = QLabel("平台: --")
-        self.tag_platform.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: bold;")
+        self.tag_platform.setStyleSheet(meta_chip_style)
         self.tag_res = QLabel("画质: --")
-        self.tag_res.setStyleSheet("color: #a855f7; font-size: 11px; font-weight: bold;")
+        self.tag_res.setStyleSheet(meta_chip_style)
         self.tag_dur = QLabel("时长: --")
-        self.tag_dur.setStyleSheet("color: #34d399; font-size: 11px;")
+        self.tag_dur.setStyleSheet(meta_chip_style)
 
         meta_row.addWidget(self.tag_platform)
         meta_row.addWidget(self.tag_res)
@@ -230,6 +254,25 @@ class VideoParserDialog(QDialog):
         self.copy_link_btn = QPushButton("复制提取直链")
         self.copy_link_btn.setEnabled(False)
         self.copy_link_btn.setIcon(get_icon("copy", "#a1a1aa", 14))
+        self.copy_link_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1e293b;
+                color: #cbd5e1;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #334155;
+                color: #ffffff;
+            }
+            QPushButton:disabled {
+                background-color: #0f172a;
+                color: #475569;
+                border-color: #1e293b;
+            }
+        """)
         self.copy_link_btn.clicked.connect(self._copy_parsed_url)
 
         self.download_btn = QPushButton("立即添加到星流下载队列")
@@ -238,14 +281,21 @@ class VideoParserDialog(QDialog):
         self.download_btn.setFont(QFont("Segoe UI", 10, QFont.Bold))
         self.download_btn.setStyleSheet("""
             QPushButton {
-                background: #22c55e;
+                background-color: #2563eb;
                 color: #ffffff;
                 border: none;
                 border-radius: 6px;
-                padding: 7px 18px;
+                padding: 7px 20px;
+                font-weight: 600;
             }
-            QPushButton:hover { background: #16a34a; }
-            QPushButton:disabled { background: #3f3f46; color: #71717a; }
+            QPushButton:hover {
+                background-color: #1d4ed8;
+            }
+            QPushButton:disabled {
+                background-color: #1e293b;
+                color: #475569;
+                border: 1px solid #334155;
+            }
         """)
         self.download_btn.clicked.connect(self._submit_to_downloader)
 

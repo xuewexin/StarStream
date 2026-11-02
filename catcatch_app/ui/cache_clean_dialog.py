@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QCheckBox, QGroupBox, QMessageBox,
     QProgressBar, QWidget
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 
 from catcatch_app.core.cache_cleaner import scan_cache, clean_cache
@@ -24,7 +24,7 @@ class CacheCleanDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         self._init_ui()
-        self._refresh_scan()
+        QTimer.singleShot(10, self._refresh_scan)
 
     def _init_ui(self):
         layout = QVBoxLayout(self)

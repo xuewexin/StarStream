@@ -296,17 +296,17 @@
         }
       </style>
       <div class="ms-header" id="ms-header">
-        <span class="ms-logo">🔍 M3U8 Sniffer</span>
+        <span class="ms-logo">M3U8 Sniffer</span>
         <span class="ms-badge" id="ms-count">0</span>
         <div class="ms-header-btns">
-          <button class="ms-btn-icon" id="ms-setup" title="配置">⚙</button>
-          <button class="ms-btn-icon" id="ms-clear" title="清空列表">✕</button>
+          <button class="ms-btn-icon" id="ms-setup" title="配置">设置</button>
+          <button class="ms-btn-icon" id="ms-clear" title="清空列表">清空</button>
           <button class="ms-btn-icon" id="ms-minimize" title="最小化">−</button>
         </div>
       </div>
       <div class="ms-list" id="ms-list">
         <div class="ms-empty">
-          <div class="ms-empty-icon">📡</div>
+          <div class="ms-empty-icon">[M3U8]</div>
           <div>正在监听 M3U8 请求...</div>
           <div class="ms-empty-hint">页面播放视频后地址会自动出现</div>
         </div>
@@ -459,7 +459,7 @@
     if (sniffedItems.length === 0) {
       listEl.innerHTML = `
         <div class="ms-empty">
-          <div class="ms-empty-icon">📡</div>
+          <div class="ms-empty-icon">[M3U8]</div>
           <div>正在监听 M3U8 请求...</div>
           <div class="ms-empty-hint">页面播放视频后地址会自动出现</div>
         </div>`;
@@ -473,10 +473,10 @@
         <div class="ms-card-title">${esc(item.pageTitle || '(未知标题)')}</div>
         <div class="ms-card-url" title="${esc(item.url)}">${esc(item.url.length > 55 ? item.url.slice(0,52)+'...' : item.url)}</div>
         <div class="ms-card-meta">
-          ${item.duration ? `<span class="ms-tag dur">⏱ ${formatDuration(item.duration)}</span>` : ''}
-          ${item.resolution ? `<span class="ms-tag res">📐 ${esc(item.resolution)}</span>` : ''}
-          ${item.referer ? `<span class="ms-tag ref">🔗 ${esc(item.referer.length > 25 ? item.referer.slice(0,22)+'...' : item.referer)}</span>` : ''}
-          <span class="ms-tag ref">🕐 ${formatTime(item.timestamp)}</span>
+          ${item.duration ? `<span class="ms-tag dur">时长: ${formatDuration(item.duration)}</span>` : ''}
+          ${item.resolution ? `<span class="ms-tag res">分辨率: ${esc(item.resolution)}</span>` : ''}
+          ${item.referer ? `<span class="ms-tag ref">来源: ${esc(item.referer.length > 25 ? item.referer.slice(0,22)+'...' : item.referer)}</span>` : ''}
+          <span class="ms-tag ref">时间: ${formatTime(item.timestamp)}</span>
         </div>
         <div class="ms-card-actions">
           <input type="text" class="ms-input-sm ms-dir" value="${esc(settings.saveDir || settings.projectDir)}" placeholder="保存目录">
@@ -484,7 +484,7 @@
             <option value="RE" ${settings.version==='RE'?'selected':''}>RE</option>
             <option value="V3" ${settings.version==='V3'?'selected':''}>V3</option>
           </select>
-          <button class="ms-btn-dl" data-id="${item.id}">⬇ 下载</button>
+          <button class="ms-btn-dl" data-id="${item.id}">下载</button>
         </div>
       </div>
     `).join('');
@@ -497,7 +497,7 @@
 
     const settings = loadSettings();
     if (!settings.configured || !settings.projectDir) {
-      alert('请先完成配置：点击面板标题栏的 ⚙ 按钮，填写 N_m3u8DL 项目目录路径。');
+      alert('请先完成配置：点击面板标题栏的 设置 按钮，填写 N_m3u8DL 项目目录路径。');
       showSetupDialog();
       return;
     }
@@ -548,7 +548,7 @@
     a.click();
     URL.revokeObjectURL(a.href);
 
-    btn.textContent = '✓ 已生成';
+    btn.textContent = '已生成';
     btn.classList.add('done');
   }
 
@@ -626,7 +626,7 @@
         }
       </style>
       <div class="ms-setup-box">
-        <h2>⚙ 首次配置</h2>
+        <h2>首次配置</h2>
         <div class="ms-sub">请填写 N_m3u8DL 所在的目录路径，之后即可正常使用。</div>
         <div class="ms-setup-row">
           <label>项目目录</label>

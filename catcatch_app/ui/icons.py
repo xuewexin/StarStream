@@ -169,8 +169,16 @@ _APP_DIR = os.path.dirname(_ICONS_DIR)
 _MEI = getattr(sys, '_MEIPASS', '')
 
 
+_APP_ICON_CACHE = None
+_ICON_CACHE = {}
+
+
 def get_app_icon():
-    """获取程序官方品牌 Logo QIcon"""
+    """获取程序官方品牌 Logo QIcon (带内存单例缓存，避免频繁磁盘 IO)"""
+    global _APP_ICON_CACHE
+    if _APP_ICON_CACHE is not None:
+        return _APP_ICON_CACHE
+
     candidates = [
         os.path.join(_APP_DIR, "resources", "starstream.ico"),
         os.path.join(_APP_DIR, "resources", "starstream_logo.png")
@@ -181,17 +189,27 @@ def get_app_icon():
 
     for p in candidates:
         if p and os.path.exists(p):
-            return QIcon(p)
-    return get_icon("download", "#3875f6", 32)
+            _APP_ICON_CACHE = QIcon(p)
+            return _APP_ICON_CACHE
+
+    _APP_ICON_CACHE = get_icon("download", "#3875f6", 32)
+    return _APP_ICON_CACHE
 
 
 def get_icon(name, color="#a1a1aa", size=20):
     """
-    动态生成带有指定颜色和尺寸的高清 QIcon
+    动态生成带有指定颜色和尺寸的高清 QIcon (带内存渲染缓存，实现 0ms 瞬间加载)
     """
+    cache_key = (name, color, size)
+    cached = _ICON_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
     svg_template = SVG_ICONS.get(name)
     if not svg_template:
-        return QIcon()
+        empty_icon = QIcon()
+        _ICON_CACHE[cache_key] = empty_icon
+        return empty_icon
 
     svg_content = svg_template.format(color=color).encode("utf-8")
     renderer = QSvgRenderer(QByteArray(svg_content))
@@ -203,4 +221,6 @@ def get_icon(name, color="#a1a1aa", size=20):
     renderer.render(painter)
     painter.end()
 
-    return QIcon(pixmap)
+    icon = QIcon(pixmap)
+    _ICON_CACHE[cache_key] = icon
+    return icon

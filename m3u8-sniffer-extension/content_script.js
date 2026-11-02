@@ -305,9 +305,9 @@
       <div class="catcatch-config-row" style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:#a1a1aa;">
         <span>下载代理:</span>
         <select id="catcatchProxySelect" style="flex:1;background:#27272a;color:#f4f4f5;border:1px solid #3f3f46;border-radius:4px;padding:3px 6px;font-size:11px;outline:none;">
-          <option value="auto" selected>🎯 自动匹配浏览器代理</option>
-          <option value="default">💻 跟随客户端全局设置</option>
-          <option value="direct">⚡ 直连 (不走任何代理)</option>
+          <option value="auto" selected>自动匹配浏览器代理 (推荐)</option>
+          <option value="default">跟随客户端全局设置</option>
+          <option value="direct">直连 (不使用代理)</option>
           <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
           <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
           <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>

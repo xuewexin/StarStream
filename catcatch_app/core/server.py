@@ -66,7 +66,7 @@ input[type="text"]:focus { border-color: #38bdf8; }
 <body>
 <div class="header">
   <div class="brand">
-    <div class="logo-icon">★</div>
+    <div class="logo-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
     <div class="brand-name">星流 StarStream</div>
   </div>
   <div class="badge"><div class="dot"></div>电脑极速互联</div>

@@ -7,6 +7,7 @@ import re
 import subprocess
 import threading
 import sys
+import time
 from .config import config, ROOT_DIR
 
 
@@ -40,10 +41,19 @@ def get_ffmpeg_path():
     return ""
 
 
-def is_ffmpeg_available():
-    """检测 ffmpeg 是否可用"""
+_FFMPEG_STATUS_CACHE = {"time": 0, "ok": False, "msg": ""}
+
+
+def is_ffmpeg_available(force_refresh=False):
+    """检测 ffmpeg 是否可用 (带 60s 内存缓存，避免频繁创建子进程导致按键卡顿)"""
+    global _FFMPEG_STATUS_CACHE
+    now = time.time()
+    if not force_refresh and (now - _FFMPEG_STATUS_CACHE["time"] < 60) and _FFMPEG_STATUS_CACHE["ok"]:
+        return _FFMPEG_STATUS_CACHE["ok"], _FFMPEG_STATUS_CACHE["msg"]
+
     path = get_ffmpeg_path()
     if not path:
+        _FFMPEG_STATUS_CACHE = {"time": now, "ok": False, "msg": "未找到 ffmpeg.exe"}
         return False, "未找到 ffmpeg.exe"
 
     creationflags = 0
@@ -56,7 +66,7 @@ def is_ffmpeg_available():
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            timeout=5,
+            timeout=3,
             creationflags=creationflags
         )
         stdout_str = proc.stdout.decode("utf-8", errors="replace") if proc.stdout else ""
@@ -65,9 +75,13 @@ def is_ffmpeg_available():
 
         if proc.returncode == 0 or "ffmpeg version" in out_text.lower():
             first_line = out_text.splitlines()[0] if out_text else "FFmpeg 已就绪"
+            _FFMPEG_STATUS_CACHE = {"time": now, "ok": True, "msg": first_line}
             return True, first_line
     except Exception as e:
+        _FFMPEG_STATUS_CACHE = {"time": now, "ok": False, "msg": str(e)}
         return False, str(e)
+
+    _FFMPEG_STATUS_CACHE = {"time": now, "ok": False, "msg": "FFmpeg 启动异常"}
     return False, "FFmpeg 启动异常"
 
 

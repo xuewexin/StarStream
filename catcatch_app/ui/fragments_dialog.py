@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QWidget
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 
 from catcatch_app.core.config import get_temp_segments_dir
 from catcatch_app.core.cache_cleaner import (
@@ -28,7 +28,7 @@ class FragmentsDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         self._init_ui()
-        self.refresh_list()
+        QTimer.singleShot(10, self.refresh_list)
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -114,38 +114,42 @@ class FragmentsDialog(QDialog):
     def refresh_list(self):
         self.lbl_path.setText(get_temp_segments_dir())
         folders = get_fragment_folders()
-        self.table.setRowCount(len(folders))
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(folders))
 
-        total_bytes = sum(f["size"] for f in folders)
-        total_ts = sum(f["ts_count"] for f in folders)
+            total_bytes = sum(f["size"] for f in folders)
+            total_ts = sum(f["ts_count"] for f in folders)
 
-        self.lbl_stats.setText(f"当前共找到 {len(folders)} 个分片文件夹 | 切片文件: {total_ts} 个 | 占用空间: {format_size(total_bytes)}")
+            self.lbl_stats.setText(f"当前共找到 {len(folders)} 个分片文件夹 | 切片文件: {total_ts} 个 | 占用空间: {format_size(total_bytes)}")
 
-        for row, f in enumerate(folders):
-            item_name = QTableWidgetItem(f["name"])
-            item_name.setData(Qt.UserRole, f["path"])
-            item_name.setToolTip(f["path"])
+            for row, f in enumerate(folders):
+                item_name = QTableWidgetItem(f["name"])
+                item_name.setData(Qt.UserRole, f["path"])
+                item_name.setToolTip(f["path"])
 
-            item_cnt = QTableWidgetItem(f"{f['ts_count']} 个")
-            item_cnt.setTextAlignment(Qt.AlignCenter)
+                item_cnt = QTableWidgetItem(f"{f['ts_count']} 个")
+                item_cnt.setTextAlignment(Qt.AlignCenter)
 
-            item_sz = QTableWidgetItem(format_size(f["size"]))
-            item_sz.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
+                item_sz = QTableWidgetItem(format_size(f["size"]))
+                item_sz.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-            item_time = QTableWidgetItem(f["mod_time"])
-            item_time.setTextAlignment(Qt.AlignCenter)
+                item_time = QTableWidgetItem(f["mod_time"])
+                item_time.setTextAlignment(Qt.AlignCenter)
 
-            state_str = "根目录遗留 (待清理)" if f.get("is_orphan") else "分片目录"
-            item_state = QTableWidgetItem(state_str)
-            item_state.setTextAlignment(Qt.AlignCenter)
-            if f.get("is_orphan"):
-                item_state.setForeground(Qt.red)
+                state_str = "根目录遗留 (待清理)" if f.get("is_orphan") else "分片目录"
+                item_state = QTableWidgetItem(state_str)
+                item_state.setTextAlignment(Qt.AlignCenter)
+                if f.get("is_orphan"):
+                    item_state.setForeground(Qt.red)
 
-            self.table.setItem(row, 0, item_name)
-            self.table.setItem(row, 1, item_cnt)
-            self.table.setItem(row, 2, item_sz)
-            self.table.setItem(row, 3, item_time)
-            self.table.setItem(row, 4, item_state)
+                self.table.setItem(row, 0, item_name)
+                self.table.setItem(row, 1, item_cnt)
+                self.table.setItem(row, 2, item_sz)
+                self.table.setItem(row, 3, item_time)
+                self.table.setItem(row, 4, item_state)
+        finally:
+            self.table.setUpdatesEnabled(True)
 
     def _open_in_explorer(self):
         d = get_temp_segments_dir()

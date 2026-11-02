@@ -247,7 +247,7 @@ class MainWindow(QMainWindow):
         toolbar.addAction(self.act_new)
 
         # 全网短视频提取工作台
-        self.act_parser = QAction(get_icon("zap", "#f59e0b", 18), "短视频提取", self)
+        self.act_parser = QAction(get_icon("zap", "#38bdf8", 18), "短视频提取", self)
         self.act_parser.setToolTip("全网主流短视频无水印解析提取 (抖音/快手/B站4K/小红书/网页视频等)")
         self.act_parser.triggered.connect(self._action_open_video_parser)
         toolbar.addAction(self.act_parser)
@@ -401,13 +401,13 @@ class MainWindow(QMainWindow):
         tools_root.setExpanded(True)
 
         self.node_parser = QTreeWidgetItem(tools_root, ["短视频提取工作台", "tool_parser"])
-        self.node_parser.setIcon(0, get_icon("zap", "#f59e0b", 16))
+        self.node_parser.setIcon(0, get_icon("zap", "#a1a1aa", 16))
 
         self.node_batch = QTreeWidgetItem(tools_root, ["批量格式转换", "tool_batch"])
-        self.node_batch.setIcon(0, get_icon("refresh", "#38bdf8", 16))
+        self.node_batch.setIcon(0, get_icon("refresh", "#a1a1aa", 16))
 
         self.node_ffmpeg = QTreeWidgetItem(tools_root, ["FFmpeg 工具箱", "tool_ffmpeg"])
-        self.node_ffmpeg.setIcon(0, get_icon("toolbox", "#d4d4d8", 16))
+        self.node_ffmpeg.setIcon(0, get_icon("toolbox", "#a1a1aa", 16))
 
         self.tree.setCurrentItem(self.node_all)
 
@@ -660,9 +660,13 @@ class MainWindow(QMainWindow):
         tasks = task_manager.get_all_tasks()
         filtered = [t for t in tasks if self._filter_task(t)]
 
-        self.table.setRowCount(len(filtered))
-        for row, t in enumerate(filtered):
-            self._render_row(row, t)
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.setRowCount(len(filtered))
+            for row, t in enumerate(filtered):
+                self._render_row(row, t)
+        finally:
+            self.table.setUpdatesEnabled(True)
 
     def _render_row(self, row, t):
         cur_theme = THEMES.get(config.get("theme", "dark"), THEMES["dark"])
@@ -746,12 +750,14 @@ class MainWindow(QMainWindow):
 
         # 6. 下载进度条
         prog = float(t.get("progress", 0.0))
-        pbar = QProgressBar()
-        pbar.setRange(0, 100)
+        pbar = self.table.cellWidget(row, 6)
+        if not pbar or not isinstance(pbar, QProgressBar):
+            pbar = QProgressBar()
+            pbar.setRange(0, 100)
+            pbar.setTextVisible(True)
+            self.table.setCellWidget(row, 6, pbar)
         pbar.setValue(int(prog))
         pbar.setFormat(f"{prog:.1f}%")
-        pbar.setTextVisible(True)
-        self.table.setCellWidget(row, 6, pbar)
 
         # 7. 实时下载速度
         spd_str = t.get("speed", "")
@@ -1154,12 +1160,28 @@ class MainWindow(QMainWindow):
         dlg.exec_()
 
     def _action_start_selected(self):
-        for t_id in self._get_selected_task_ids():
-            task_manager.start_task(t_id)
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        self.table.setUpdatesEnabled(False)
+        try:
+            for t_id in ids:
+                task_manager.start_task(t_id)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.refresh_table()
 
     def _action_pause_selected(self):
-        for t_id in self._get_selected_task_ids():
-            task_manager.pause_task(t_id)
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        self.table.setUpdatesEnabled(False)
+        try:
+            for t_id in ids:
+                task_manager.pause_task(t_id)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.refresh_table()
 
     def _set_proxy_for_selected(self, ids, proxy_str):
         for t_id in ids:
@@ -1192,8 +1214,15 @@ class MainWindow(QMainWindow):
             self._delete_tasks(ids, delete_file=False)
 
     def _delete_tasks(self, ids, delete_file=False):
-        for t_id in ids:
-            task_manager.remove_task(t_id, delete_file=delete_file)
+        if not ids:
+            return
+        self.table.setUpdatesEnabled(False)
+        try:
+            for t_id in ids:
+                task_manager.remove_task(t_id, delete_file=delete_file)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.refresh_table()
 
     def _action_open_dir(self):
         ids = self._get_selected_task_ids()
