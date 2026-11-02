@@ -25,9 +25,12 @@
     const generic = [
       'dplayer', 'ckplayer', 'artplayer', 'xgplayer', 'aliplayer', 'player',
       'video', 'iframe', 'play', 'mp4', 'm3u8', 'media', '播放器', '视频播放',
+      '全屏视频播放器', '全屏播放器', 'html5视频播放器', '网页视频播放器',
       '无标题', 'untitled', 'index', 'default'
     ];
-    return generic.includes(t) || generic.some(g => t === `${g}.html` || t === `${g}.php`);
+    if (generic.includes(t) || generic.some(g => t === `${g}.html` || t === `${g}.php`)) return true;
+    if (t.includes('播放器') || t.includes('player') || t === '全屏视频' || t === '视频播放') return true;
+    return false;
   }
 
   function cleanVideoTitle(raw, fallbackTabTitle) {
@@ -109,6 +112,29 @@
 
   function showFloatingBarForMedia(mediaEl) {
     if (mediaEl.__catcatch_dismissed) return;
+
+    // 监听播放器的实际播放元数据，将真实的视频时长和分辨率实时同步回后台
+    function syncRealMetadata() {
+      const dur = Math.floor(mediaEl.duration || 0);
+      const res = (mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '';
+      if (dur > 0 || res) {
+        chrome.runtime.sendMessage({
+          action: 'UPDATE_MEDIA_METADATA',
+          data: {
+            duration: dur,
+            resolution: res,
+            videoSrc: mediaEl.currentSrc || mediaEl.src || ''
+          }
+        }).catch(() => {});
+      }
+    }
+    if (!mediaEl.__catcatch_meta_bound) {
+      mediaEl.__catcatch_meta_bound = true;
+      mediaEl.addEventListener('durationchange', syncRealMetadata);
+      mediaEl.addEventListener('loadedmetadata', syncRealMetadata);
+      mediaEl.addEventListener('playing', syncRealMetadata);
+    }
+    syncRealMetadata();
 
     const rect = mediaEl.getBoundingClientRect();
     if (rect.width < 160 || rect.height < 100) return;
@@ -208,8 +234,9 @@
       }, (res) => {
         const tabTitle = (res && res.tabTitle) || '';
         if (res && res.media && res.media.length > 0) {
-          // 智能过滤广告切片: 过滤标记为 isAd 的流
-          const nonAds = res.media.filter((i) => !i.isAd);
+          // 智能过滤广告切片: 过滤标记为 isAd 的流（若播放器实际时长 > 45秒，避免误把正片过滤）
+          const durSec = Math.floor(mediaEl.duration || 0);
+          const nonAds = res.media.filter((i) => !i.isAd || durSec > 45);
           const pool = nonAds.length > 0 ? nonAds : res.media;
           // 默认获取画质最高和时长最长的正片
           pool.sort((a, b) => {

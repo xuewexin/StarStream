@@ -374,7 +374,7 @@ async function parseM3u8Metadata(entry) {
 
   if (resolution || duration > 0 || hasKey) {
     const { mediaList = [] } = await chrome.storage.local.get("mediaList");
-    const item = mediaList.find((it) => it.id === entry.id);
+    const item = mediaList.find((it) => it.id === entry.id || it.url === entry.url);
     if (item) {
       if (resolution) item.resolution = resolution;
       if (duration > 0) item.duration = Math.round(duration);
@@ -383,10 +383,15 @@ async function parseM3u8Metadata(entry) {
         item.keyUrl = keyUrl;
       }
 
-      // 广告识别 1: 时长在 5~45 秒且带广告特征或小于 25 秒
-      if (item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
+      const hasEndlist = text.includes("#EXT-X-ENDLIST");
+      // 广告识别 1: 必须有明确结束符且时长极短，或显式命中广告正则，避免误杀动态初始流
+      if (hasEndlist && item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
         item.isAd = true;
         item.adReason = `疑似片头广告切片 (${item.duration}秒)`;
+      } else if (item.duration > 45) {
+        item.isAd = false;
+        item.adReason = "";
+        item.isFeature = true;
       }
 
       // 广告识别 2: 同标签页动态对比判定 (若存在 >= 5 分钟的主流，短于 60 秒的判定为广告切片)
@@ -445,6 +450,39 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       chrome.action.setBadgeText({ tabId, text: "" });
     }
     chrome.action.setBadgeText({ text: "" });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (req.action === "UPDATE_MEDIA_METADATA" && req.data) {
+    const dur = Number(req.data.duration) || 0;
+    const res = req.data.resolution || "";
+    const tabId = sender.tab ? sender.tab.id : -1;
+    if (tabId >= 0 && (dur > 0 || res)) {
+      chrome.storage.local.get("mediaList").then(async ({ mediaList = [] }) => {
+        let changed = false;
+        mediaList.forEach((it) => {
+          if (it.tabId === tabId && (it.mediaType === "m3u8" || it.url === req.data.videoSrc)) {
+            if (dur > 0 && dur > (it.duration || 0)) {
+              it.duration = dur;
+              changed = true;
+              if (dur > 45) {
+                it.isAd = false;
+                it.adReason = "";
+                it.isFeature = true;
+              }
+            }
+            if (res && (!it.resolution || it.resolution === "高清流" || it.resolution === "高清")) {
+              it.resolution = res;
+              changed = true;
+            }
+          }
+        });
+        if (changed) {
+          await chrome.storage.local.set({ mediaList });
+        }
+      });
+    }
     sendResponse({ success: true });
     return true;
   }
