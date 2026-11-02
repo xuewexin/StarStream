@@ -26,6 +26,7 @@ from PyQt5.QtGui import (
 from catcatch_app.core.config import config
 from catcatch_app.core.task_manager import task_manager
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.core.i18n import t
 
 
 class FloatingDashboardPanel(QWidget):
@@ -73,7 +74,7 @@ class FloatingDashboardPanel(QWidget):
         top_row = QHBoxLayout()
         top_row.setSpacing(8)
 
-        title_lbl = QLabel("星流 · 任务监控与工具中心")
+        title_lbl = QLabel(t("float_dash_title"))
         title_lbl.setFont(QFont("Segoe UI", 11, QFont.Bold))
         title_lbl.setStyleSheet("color: #38bdf8; border: none;")
         top_row.addWidget(title_lbl)
@@ -95,7 +96,7 @@ class FloatingDashboardPanel(QWidget):
         close_btn = QPushButton()
         close_btn.setIcon(get_icon("close", "#94a3b8", 12))
         close_btn.setFixedSize(22, 22)
-        close_btn.setToolTip("关闭监控面板")
+        close_btn.setToolTip("Close")
         close_btn.setStyleSheet("""
             QPushButton {
                 background: transparent;
@@ -114,7 +115,7 @@ class FloatingDashboardPanel(QWidget):
         card_layout.addLayout(top_row)
 
         # 2. 实时任务监控区 (滚动容器)
-        sec_title = QLabel("当前下载任务")
+        sec_title = QLabel(t("float_dash_current"))
         sec_title.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none;")
         card_layout.addWidget(sec_title)
 
@@ -609,13 +610,13 @@ class FloatingWidget(QWidget):
         # 顶部测控网速
         p.setPen(QColor(56, 189, 248) if self.active_count > 0 else QColor(148, 163, 184))
         p.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        text_speed = self.speed_str if self.active_count > 0 else "星流待命"
+        text_speed = self.speed_str if self.active_count > 0 else t("float_standby")
         p.drawText(QRectF(70, 14, 88, 18), Qt.AlignCenter, text_speed)
 
         # 中间状态文字
         p.setPen(QColor(226, 232, 240))
         p.setFont(QFont("Segoe UI", 8))
-        text_sub = f"{self.active_count} 项极速下载" if self.active_count > 0 else f"{self.total_count} 项就绪"
+        text_sub = t("float_active", count=self.active_count) if self.active_count > 0 else t("float_ready", count=self.total_count)
         p.drawText(QRectF(70, 31, 88, 16), Qt.AlignCenter, text_sub)
 
         # 底部微型进度光条
@@ -729,12 +730,12 @@ class FloatingWidget(QWidget):
 
         p.setPen(QColor(56, 189, 248) if self.active_count > 0 else QColor(148, 163, 184))
         p.setFont(QFont("Segoe UI", 9, QFont.Bold))
-        text_speed = self.speed_str if self.active_count > 0 else "空闲游弋中"
+        text_speed = self.speed_str if self.active_count > 0 else t("float_standby")
         p.drawText(QRectF(82, 20, 76, 20), Qt.AlignCenter, text_speed)
 
         p.setPen(QColor(203, 213, 225))
         p.setFont(QFont("Segoe UI", 8))
-        text_sub = f"{self.active_count} 项下载中" if self.active_count > 0 else f"{self.total_count} 项就绪"
+        text_sub = t("float_active", count=self.active_count) if self.active_count > 0 else t("float_ready", count=self.total_count)
         p.drawText(QRectF(82, 38, 76, 20), Qt.AlignCenter, text_sub)
 
     # =========================================================================
@@ -877,12 +878,12 @@ class FloatingWidget(QWidget):
 
         p.setPen(QColor(56, 189, 248) if self.active_count > 0 else QColor(148, 163, 184))
         p.setFont(QFont("Segoe UI", 8, QFont.Bold))
-        text_speed = self.speed_str if self.active_count > 0 else "就绪"
+        text_speed = self.speed_str if self.active_count > 0 else t("float_standby")
         p.drawText(QRectF(82, 32, 70, 18), Qt.AlignCenter, text_speed)
 
         p.setPen(QColor(203, 213, 225))
         p.setFont(QFont("Segoe UI", 7))
-        text_sub = f"{self.active_count} 项正在下" if self.active_count > 0 else "星流挂件"
+        text_sub = t("float_active", count=self.active_count) if self.active_count > 0 else t("float_ready", count=self.total_count)
         p.drawText(QRectF(82, 48, 70, 18), Qt.AlignCenter, text_sub)
 
     # --- 鼠标拖拽移动与微面板弹出交互 ---
@@ -947,29 +948,29 @@ class FloatingWidget(QWidget):
         menu = QMenu(self)
 
         # 皮肤形象切换子菜单
-        skin_menu = menu.addMenu(get_icon("palette", "#38bdf8", 14), "挂件外观形象")
+        skin_menu = menu.addMenu(get_icon("palette", "#38bdf8", 14), t("float_menu_skin"))
 
-        act_core = skin_menu.addAction("星流 · 量子星核 (默认炫酷主题)")
+        act_core = skin_menu.addAction("星流 · 量子星核 (Quantum Core)")
         act_core.setCheckable(True)
         act_core.setChecked(self.skin == "starstream_core")
         act_core.triggered.connect(lambda: self._set_skin("starstream_core"))
 
-        act_sphere = skin_menu.addAction("流光动态水球 (迅雷/IDM风格)")
+        act_sphere = skin_menu.addAction("流光动态水球 (Water Sphere)")
         act_sphere.setCheckable(True)
         act_sphere.setChecked(self.skin == "water_sphere")
         act_sphere.triggered.connect(lambda: self._set_skin("water_sphere"))
 
-        act_neon = skin_menu.addAction("极光赛博胶囊 (极简科技风格)")
+        act_neon = skin_menu.addAction("极光赛博胶囊 (Cyber Capsule)")
         act_neon.setCheckable(True)
         act_neon.setChecked(self.skin == "neon_capsule")
         act_neon.triggered.connect(lambda: self._set_skin("neon_capsule"))
 
-        act_fish = skin_menu.addAction("灵动大肥鱼 (萌宠风格)")
+        act_fish = skin_menu.addAction("灵动大肥鱼 (DeepSeek Fish)")
         act_fish.setCheckable(True)
         act_fish.setChecked(self.skin == "deepseek_fish")
         act_fish.triggered.connect(lambda: self._set_skin("deepseek_fish"))
 
-        act_custom = skin_menu.addAction("自定义挂件形象...")
+        act_custom = skin_menu.addAction("自定义形象 (Custom Mascot)...")
         act_custom.setCheckable(True)
         act_custom.setChecked(self.skin == "custom_mascot")
         act_custom.triggered.connect(lambda: self._set_skin("custom_mascot"))
@@ -978,8 +979,8 @@ class FloatingWidget(QWidget):
         act_import.triggered.connect(self._action_import_custom_image)
 
         # 缩放倍率子菜单
-        scale_menu = menu.addMenu(get_icon("monitor", "#38bdf8", 14), "挂件缩放比例")
-        for sc, label in [(0.8, "小 (80%)"), (1.0, "标准 (100%)"), (1.2, "大 (120%)"), (1.5, "特大 (150%)")]:
+        scale_menu = menu.addMenu(get_icon("monitor", "#38bdf8", 14), t("float_menu_scale"))
+        for sc, label in [(0.8, "80%"), (1.0, "100%"), (1.2, "120%"), (1.5, "150%")]:
             act_sc = scale_menu.addAction(label)
             act_sc.setCheckable(True)
             act_sc.setChecked(abs(self.scale_factor - sc) < 0.05)
@@ -987,30 +988,32 @@ class FloatingWidget(QWidget):
 
         menu.addSeparator()
 
-        act_panel = menu.addAction(get_icon("monitor", "#38bdf8", 14), "显示极速监控微面板")
+        act_panel = menu.addAction(get_icon("monitor", "#38bdf8", 14), t("float_menu_panel"))
         act_panel.triggered.connect(self._toggle_dashboard)
 
-        act_top = menu.addAction(get_icon("check", "#38bdf8", 14), "窗口保持置顶")
+        act_top = menu.addAction(get_icon("check", "#38bdf8", 14), t("float_menu_top"))
         act_top.setCheckable(True)
         is_on_top = bool(self.windowFlags() & Qt.WindowStaysOnTopHint)
         act_top.setChecked(is_on_top)
         act_top.triggered.connect(self._toggle_always_on_top)
 
-        act_show = menu.addAction(get_icon("play", "#3875f6", 14), "打开星流主界面")
+        act_show = menu.addAction(get_icon("play", "#3875f6", 14), t("float_menu_show_main"))
         act_show.triggered.connect(self.request_show_main.emit)
 
         menu.addSeparator()
 
-        act_start_all = menu.addAction(get_icon("play", "#4ade80", 14), "全部开始下载")
+        act_start_all = menu.addAction(get_icon("play", "#4ade80", 14), t("float_menu_start_all"))
         act_start_all.triggered.connect(self._action_start_all)
 
-        act_pause_all = menu.addAction(get_icon("pause", "#f59e0b", 14), "全部暂停下载")
+        act_pause_all = menu.addAction(get_icon("pause", "#f59e0b", 14), t("float_menu_pause_all"))
         act_pause_all.triggered.connect(self._action_pause_all)
 
         menu.addSeparator()
 
-        act_hide = menu.addAction(get_icon("delete", "#f87171", 14), "关闭桌面悬浮窗")
+        act_hide = menu.addAction(get_icon("delete", "#f87171", 14), t("float_menu_close"))
         act_hide.triggered.connect(self._action_close_floating)
+
+        menu.exec_(event.globalPos())
 
         menu.exec_(event.globalPos())
 

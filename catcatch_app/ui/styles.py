@@ -210,12 +210,25 @@ QWidget#centralWidget, QWidget#rightContainer, QSplitter {{
     background-color: {bg_central};
 }}
 
-/* 顶部主工具栏 */
+/* 顶部主工具栏与自适应扩展 */
 QToolBar {{
     background-color: {bg_panel_css};
     border-bottom: 1px solid {t["border"]};
-    padding: 6px 12px;
-    spacing: 6px;
+    padding: 5px 8px;
+    spacing: 4px;
+}}
+
+QToolBarExtension {{
+    background-color: {bg_card_css};
+    border: 1px solid {t["border"]};
+    border-radius: 6px;
+    padding: 4px;
+    margin: 2px;
+}}
+
+QToolBarExtension:hover {{
+    background-color: {t["bg_hover"]};
+    border-color: {t["accent"]};
 }}
 
 QToolButton {{
@@ -223,7 +236,7 @@ QToolButton {{
     color: {t["text_secondary"]};
     border: 1px solid transparent;
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 5px 8px;
     font-weight: 500;
 }}
 

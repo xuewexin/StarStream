@@ -240,45 +240,45 @@ class MainWindow(QMainWindow):
         self.status_bar.addPermanentWidget(self.lbl_global_speed)
 
     def _create_toolbar(self):
-        toolbar = QToolBar("主操作栏")
-        toolbar.setMovable(False)
-        toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.addToolBar(toolbar)
+        self.toolbar = QToolBar("主操作栏")
+        self.toolbar.setMovable(False)
+        self.toolbar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.addToolBar(self.toolbar)
 
         # 新建任务
         self.act_new = QAction(get_icon("add", "#f4f4f5", 18), t("new_download"), self)
         self.act_new.setShortcut("Ctrl+N")
         self.act_new.triggered.connect(self._action_new_task)
-        toolbar.addAction(self.act_new)
+        self.toolbar.addAction(self.act_new)
 
         # 全网短视频提取工作台
         self.act_parser = QAction(get_icon("zap", "#38bdf8", 18), t("video_parser"), self)
         self.act_parser.setToolTip("全网主流短视频无水印解析提取 (抖音/快手/B站4K/小红书/网页视频等)")
         self.act_parser.triggered.connect(self._action_open_video_parser)
-        toolbar.addAction(self.act_parser)
+        self.toolbar.addAction(self.act_parser)
 
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
 
         # 开始 / 暂停 / 删除
         self.act_start = QAction(get_icon("play", "#3875f6", 18), t("start"), self)
         self.act_start.triggered.connect(self._action_start_selected)
-        toolbar.addAction(self.act_start)
+        self.toolbar.addAction(self.act_start)
 
         self.act_pause = QAction(get_icon("pause", "#d4d4d8", 18), t("pause"), self)
         self.act_pause.triggered.connect(self._action_pause_selected)
-        toolbar.addAction(self.act_pause)
+        self.toolbar.addAction(self.act_pause)
 
         self.act_delete = QAction(get_icon("delete", "#f87171", 18), t("delete"), self)
         self.act_delete.setShortcut("Delete")
         self.act_delete.triggered.connect(self._action_delete_selected)
-        toolbar.addAction(self.act_delete)
+        self.toolbar.addAction(self.act_delete)
 
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
 
         # 打开所在文件夹
         self.act_open_dir = QAction(get_icon("folder", "#d4d4d8", 18), t("open_dir"), self)
         self.act_open_dir.triggered.connect(self._action_open_dir)
-        toolbar.addAction(self.act_open_dir)
+        self.toolbar.addAction(self.act_open_dir)
 
         # 实用工具下拉菜单 (将次级工具紧凑收纳，避免工具栏横向溢出挤掉设置与代理按钮)
         self.btn_more_tools = QToolButton(self)
@@ -321,23 +321,23 @@ class MainWindow(QMainWindow):
         self.act_disclaimer.triggered.connect(self._action_show_disclaimer)
 
         self.btn_more_tools.setMenu(tools_menu)
-        toolbar.addWidget(self.btn_more_tools)
+        self.toolbar.addWidget(self.btn_more_tools)
 
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
 
         # 核心直达: 代理配置 (直接呼出网络与多节点代理设置)
         self.act_proxy = QAction(get_icon("globe", "#38bdf8", 18), t("proxy_settings"), self)
         self.act_proxy.setToolTip("网络与多节点代理配置 (支持直连/跟随系统/本地代理池扫描及一键测速)")
         self.act_proxy.triggered.connect(self._action_proxy_settings)
-        toolbar.addAction(self.act_proxy)
+        self.toolbar.addAction(self.act_proxy)
 
         # 核心直达: 系统设置 (呼出核心路径与并发偏好设置)
         self.act_settings = QAction(get_icon("settings", "#38bdf8", 18), t("sys_settings"), self)
         self.act_settings.setToolTip("系统核心设置 (存储路径、下载引擎、并发调度与偏好)")
         self.act_settings.triggered.connect(lambda: self._action_settings(0))
-        toolbar.addAction(self.act_settings)
+        self.toolbar.addAction(self.act_settings)
 
-        toolbar.addSeparator()
+        self.toolbar.addSeparator()
 
         # 主题皮肤与背景壁纸
         self.btn_theme = QToolButton(self)
@@ -347,7 +347,7 @@ class MainWindow(QMainWindow):
         self.btn_theme.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.btn_theme.setPopupMode(QToolButton.InstantPopup)
         self.btn_theme.setMenu(self._create_theme_menu())
-        toolbar.addWidget(self.btn_theme)
+        self.toolbar.addWidget(self.btn_theme)
 
         # 界面多语言切换 (10国主流语言)
         self.btn_lang = QToolButton(self)
@@ -357,18 +357,70 @@ class MainWindow(QMainWindow):
         self.btn_lang.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.btn_lang.setPopupMode(QToolButton.InstantPopup)
         self.btn_lang.setMenu(self._create_language_menu())
-        toolbar.addWidget(self.btn_lang)
+        self.toolbar.addWidget(self.btn_lang)
 
         # 搜索框
         spacer = QWidget()
-        spacer.setFixedWidth(16)
-        toolbar.addWidget(spacer)
+        spacer.setFixedWidth(8)
+        self.toolbar.addWidget(spacer)
 
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText(t("search_placeholder"))
-        self.search_edit.setFixedWidth(180)
+        self.search_edit.setFixedWidth(160)
         self.search_edit.textChanged.connect(self._on_search_text_changed)
-        toolbar.addWidget(self.search_edit)
+        self.toolbar.addWidget(self.search_edit)
+
+        # 初始根据窗口宽度自适应工具栏
+        self._adapt_toolbar()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._adapt_toolbar(event.size().width())
+
+    def _adapt_toolbar(self, width=None):
+        if not hasattr(self, "toolbar") or not self.toolbar:
+            return
+        if width is None:
+            width = self.width()
+
+        is_compact = width < 1200
+        is_narrow = width < 1000
+        is_ultra_compact = width < 850
+
+        # 1. 动态调节搜索框占用宽度
+        if is_ultra_compact:
+            self.search_edit.setFixedWidth(90)
+        elif is_narrow:
+            self.search_edit.setFixedWidth(120)
+        elif is_compact:
+            self.search_edit.setFixedWidth(140)
+        else:
+            self.search_edit.setFixedWidth(180)
+
+        # 2. 核心操作按键文字/纯图标自适应
+        # 只要宽度小于 1200px，操作按键切换为精致图标展示，保证右侧设置/语言/壁纸不被挤出屏幕
+        acts_to_compact = [
+            self.act_start, self.act_pause, self.act_delete,
+            self.act_open_dir, self.act_proxy, self.act_settings
+        ]
+        for act in acts_to_compact:
+            btn = self.toolbar.widgetForAction(act)
+            if btn and isinstance(btn, QToolButton):
+                btn.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
+
+        # 特别窄的情况下，视频提取与实用工具也紧凑化
+        btn_parser = self.toolbar.widgetForAction(self.act_parser)
+        if btn_parser and isinstance(btn_parser, QToolButton):
+            btn_parser.setToolButtonStyle(Qt.ToolButtonIconOnly if is_narrow else Qt.ToolButtonTextBesideIcon)
+
+        if hasattr(self, "btn_more_tools") and self.btn_more_tools:
+            self.btn_more_tools.setToolButtonStyle(Qt.ToolButtonIconOnly if is_narrow else Qt.ToolButtonTextBesideIcon)
+
+        if hasattr(self, "btn_theme") and self.btn_theme:
+            self.btn_theme.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
+
+        if hasattr(self, "btn_lang") and self.btn_lang:
+            self.btn_lang.setToolButtonStyle(Qt.ToolButtonIconOnly if is_compact else Qt.ToolButtonTextBesideIcon)
 
     def _build_tree_nodes(self):
         self.tree.clear()
@@ -788,6 +840,13 @@ class MainWindow(QMainWindow):
 
         # 7. 实时下载速度
         spd_str = t_task.get("speed", "")
+        st_val = t_task.get("status", "waiting")
+        if st_val == "completed" or spd_str in ["完成", "Completed", "Done"]:
+            spd_str = t("st_completed")
+        elif st_val == "paused" or spd_str in ["已暂停", "Paused"]:
+            spd_str = t("st_paused")
+        elif st_val == "error" or spd_str in ["失败", "Failed", "Error"]:
+            spd_str = t("st_failed")
         self._set_cell_item(row, 7, spd_str, color=QColor("#38bdf8" if not is_light else "#0284c7"), align=Qt.AlignRight | Qt.AlignVCenter)
 
         # 8. 剩余时间
@@ -862,7 +921,15 @@ class MainWindow(QMainWindow):
             # 7: 实时速度
             it_spd = self.table.item(row, 7)
             if it_spd:
-                it_spd.setText(task.get("speed", ""))
+                spd_val = task.get("speed", "")
+                st_val = task.get("status", "waiting")
+                if st_val == "completed" or spd_val in ["完成", "Completed", "Done"]:
+                    spd_val = t("st_completed")
+                elif st_val == "paused" or spd_val in ["已暂停", "Paused"]:
+                    spd_val = t("st_paused")
+                elif st_val == "error" or spd_val in ["失败", "Failed", "Error"]:
+                    spd_val = t("st_failed")
+                it_spd.setText(spd_val)
             
             # 8: 剩余时间
             it_eta = self.table.item(row, 8)
@@ -977,16 +1044,16 @@ class MainWindow(QMainWindow):
         active_count = len(downloading_tasks)
         completed_count = sum(1 for t in tasks if t["status"] == "completed")
 
-        self.lbl_stats.setText(f"总计: {total_tasks} | 下载中: {active_count} | 已完成: {completed_count}")
+        self.lbl_stats.setText(t("status_stats", total=total_tasks, downloading=active_count, completed=completed_count))
 
         total_speed_bytes = sum(parse_speed_to_bytes(t.get("speed", "")) for t in downloading_tasks)
         if total_speed_bytes > 0:
-            sp_display = f"总下载速度: {format_size(total_speed_bytes)}/s"
+            sp_display = t("status_total_speed", speed=f"{format_size(total_speed_bytes)}/s")
             self.lbl_global_speed.setText(sp_display)
         else:
             speeds = [t.get("speed", "") for t in downloading_tasks if t.get("speed")]
             if speeds:
-                sp_display = f"总下载速度: {' + '.join(speeds[:2])}"
+                sp_display = t("status_total_speed", speed=' + '.join(speeds[:2]))
                 self.lbl_global_speed.setText(sp_display)
             else:
                 sp_display = "0.00 KB/s"
@@ -994,7 +1061,9 @@ class MainWindow(QMainWindow):
 
         # 同步悬浮窗实时网速与任务统计
         if hasattr(self, "floating_widget") and self.floating_widget.isVisible():
-            self.floating_widget.update_stats(sp_display.replace("总下载速度: ", ""), active_count, total_tasks)
+            prefix = t("status_total_speed", speed="").strip()
+            clean_sp = sp_display.replace(prefix, "").strip(": ").strip()
+            self.floating_widget.update_stats(clean_sp, active_count, total_tasks)
 
     def _show_context_menu(self, pos):
         ids = self._get_selected_task_ids()
@@ -1528,5 +1597,9 @@ class MainWindow(QMainWindow):
         self._update_ffmpeg_label()
         self._update_nm3u8dl_label()
         self._update_proxy_label()
+        self._update_status_stats()
+        self._adapt_toolbar()
         self._build_tree_nodes()
+        if hasattr(self, "tray") and self.tray:
+            self._init_tray()
         self.refresh_table()

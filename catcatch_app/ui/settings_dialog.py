@@ -143,15 +143,15 @@ class SettingsDialog(QDialog):
         core_layout.setContentsMargins(12, 12, 12, 12)
         core_layout.setSpacing(12)
 
-        path_group = QGroupBox("存储路径与外部引擎")
+        path_group = QGroupBox(t("st_group_paths"))
         path_layout = QVBoxLayout(path_group)
         path_layout.setSpacing(10)
 
         # 保存目录
         r1 = QHBoxLayout()
-        r1.addWidget(QLabel("下载目录:"))
+        r1.addWidget(QLabel(t("st_save_dir")))
         self.save_edit = QLineEdit()
-        btn_save = QPushButton("浏览...")
+        btn_save = QPushButton(t("browse"))
         btn_save.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_save.clicked.connect(self._browse_save_dir)
         r1.addWidget(self.save_edit)
@@ -160,12 +160,12 @@ class SettingsDialog(QDialog):
 
         # 临时分片目录
         r1_sub = QHBoxLayout()
-        r1_sub.addWidget(QLabel("分片目录:"))
+        r1_sub.addWidget(QLabel(t("st_temp_dir")))
         self.temp_edit = QLineEdit()
-        btn_temp = QPushButton("浏览...")
+        btn_temp = QPushButton(t("browse"))
         btn_temp.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_temp.clicked.connect(self._browse_temp_dir)
-        btn_open_temp = QPushButton("整理分片...")
+        btn_open_temp = QPushButton(t("st_btn_organize_frags"))
         btn_open_temp.setIcon(get_icon("stream", "#a1a1aa", 16))
         btn_open_temp.clicked.connect(self._open_fragments_mgr)
         r1_sub.addWidget(self.temp_edit)
@@ -175,12 +175,12 @@ class SettingsDialog(QDialog):
 
         # FFmpeg
         r2 = QHBoxLayout()
-        r2.addWidget(QLabel("FFmpeg 路径:"))
+        r2.addWidget(QLabel(t("st_ffmpeg_path")))
         self.ff_edit = QLineEdit()
-        btn_ff = QPushButton("浏览...")
+        btn_ff = QPushButton(t("browse"))
         btn_ff.setIcon(get_icon("toolbox", "#a1a1aa", 16))
         btn_ff.clicked.connect(self._browse_ffmpeg)
-        btn_test_ff = QPushButton("校验")
+        btn_test_ff = QPushButton(t("st_btn_validate"))
         btn_test_ff.setIcon(get_icon("check", "#a1a1aa", 16))
         btn_test_ff.clicked.connect(self._test_ffmpeg)
         r2.addWidget(self.ff_edit)
@@ -190,16 +190,16 @@ class SettingsDialog(QDialog):
 
         # M3U8 CLI 引擎选择与路径
         r3 = QHBoxLayout()
-        r3.addWidget(QLabel("流媒体下载引擎:"))
+        r3.addWidget(QLabel(t("st_engine_select")))
         self.engine_combo = QComboBox()
         self.engine_combo.addItems([
-            "N_m3u8DL-RE (推荐)",
+            "N_m3u8DL-RE",
             "N_m3u8DL-CLI v3.0.2",
-            "内置 Python 原生并发引擎"
+            "Native Stream Engine"
         ])
         r3.addWidget(self.engine_combo, 1)
 
-        btn_rescan_tools = QPushButton("全盘重新探测引擎")
+        btn_rescan_tools = QPushButton(t("st_rescan_tools"))
         btn_rescan_tools.setIcon(get_icon("refresh", "#a1a1aa", 16))
         btn_rescan_tools.clicked.connect(self._rescan_tools)
         r3.addWidget(btn_rescan_tools)
@@ -207,13 +207,13 @@ class SettingsDialog(QDialog):
 
         # N_m3u8DL-RE 路径与官方获取
         r4 = QHBoxLayout()
-        r4.addWidget(QLabel("N_m3u8DL-RE 路径:"))
+        r4.addWidget(QLabel(t("st_re_path")))
         self.re_edit = QLineEdit()
-        self.re_edit.setPlaceholderText("自动搜寻或手动指定 N_m3u8DL-RE.exe")
-        btn_re = QPushButton("浏览...")
+        self.re_edit.setPlaceholderText(t("st_re_placeholder"))
+        btn_re = QPushButton(t("browse"))
         btn_re.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_re.clicked.connect(self._browse_re)
-        btn_dl_re = QPushButton("获取最新版本 N_m3u8DL-RE")
+        btn_dl_re = QPushButton(t("st_get_re"))
         btn_dl_re.setIcon(get_icon("download", "#93c5fd", 16))
         btn_dl_re.setStyleSheet("background-color: #1e3a8a; color: #93c5fd; font-weight: 500;")
         btn_dl_re.clicked.connect(self._download_nm3u8dl)
@@ -225,10 +225,10 @@ class SettingsDialog(QDialog):
         core_layout.addWidget(path_group)
 
         # 媒体格式与自动转码 (FFmpeg)
-        media_group = QGroupBox("媒体格式与自动转码 (FFmpeg 引擎)")
+        media_group = QGroupBox(t("st_group_media"))
         media_layout = QVBoxLayout(media_group)
-        self.auto_convert_mp4_cb = QCheckBox("自动将下载的视频/短视频/流媒体转封装为标准 MP4 格式 (集成 FFmpeg + faststart 极速起播)")
-        self.attach_metadata_cb = QCheckBox("保存文件名自动附带媒体规格信息 (格式: 视频名称 [分辨率] [时长].mp4)")
+        self.auto_convert_mp4_cb = QCheckBox(t("st_auto_mp4"))
+        self.attach_metadata_cb = QCheckBox(t("st_attach_meta"))
         media_layout.addWidget(self.auto_convert_mp4_cb)
         media_layout.addWidget(self.attach_metadata_cb)
         core_layout.addWidget(media_group)
@@ -241,16 +241,16 @@ class SettingsDialog(QDialog):
         proxy_layout.setContentsMargins(12, 12, 12, 12)
         proxy_layout.setSpacing(10)
 
-        proxy_group = QGroupBox("代理模式与节点配置")
+        proxy_group = QGroupBox(t("st_group_proxy"))
         pg_layout = QVBoxLayout(proxy_group)
         pg_layout.setSpacing(10)
 
         # 代理模式单选
         mode_row = QHBoxLayout()
         self.btn_group = QButtonGroup(self)
-        self.radio_none = QRadioButton("不使用代理 (直连)")
-        self.radio_system = QRadioButton("跟随系统代理")
-        self.radio_manual = QRadioButton("手动选择代理节点")
+        self.radio_none = QRadioButton(t("st_proxy_direct"))
+        self.radio_system = QRadioButton(t("st_proxy_system"))
+        self.radio_manual = QRadioButton(t("st_proxy_manual"))
 
         self.btn_group.addButton(self.radio_none, 0)
         self.btn_group.addButton(self.radio_system, 1)
@@ -274,11 +274,11 @@ class SettingsDialog(QDialog):
         manual_layout.setSpacing(8)
 
         sel_row = QHBoxLayout()
-        sel_row.addWidget(QLabel("当前活动代理节点:"))
+        sel_row.addWidget(QLabel(t("st_active_proxy")))
         self.active_proxy_combo = QComboBox()
         self.active_proxy_combo.currentIndexChanged.connect(self._on_active_proxy_changed)
         sel_row.addWidget(self.active_proxy_combo, 1)
-        btn_test_active = QPushButton("测试当前代理")
+        btn_test_active = QPushButton(t("st_test_proxy"))
         btn_test_active.setIcon(get_icon("check", "#a1a1aa", 16))
         btn_test_active.clicked.connect(self._test_active_proxy)
         sel_row.addWidget(btn_test_active)
@@ -287,7 +287,7 @@ class SettingsDialog(QDialog):
         # 代理节点列表
         self.proxy_table = QTableWidget()
         self.proxy_table.setColumnCount(3)
-        self.proxy_table.setHorizontalHeaderLabels(["节点名称", "代理地址 (HTTP/SOCKS5)", "操作"])
+        self.proxy_table.setHorizontalHeaderLabels([t("st_col_node_name"), t("st_col_node_url"), t("st_col_action")])
         self.proxy_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Interactive)
         self.proxy_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.proxy_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
@@ -298,13 +298,13 @@ class SettingsDialog(QDialog):
         manual_layout.addWidget(self.proxy_table)
 
         btn_proxy_row = QHBoxLayout()
-        self.btn_add_proxy = QPushButton("添加新代理...")
+        self.btn_add_proxy = QPushButton(t("st_add_proxy"))
         self.btn_add_proxy.setIcon(get_icon("add", "#a1a1aa", 16))
         self.btn_add_proxy.clicked.connect(self._add_proxy)
-        self.btn_del_proxy = QPushButton("删除选中")
+        self.btn_del_proxy = QPushButton(t("st_del_proxy"))
         self.btn_del_proxy.setIcon(get_icon("delete", "#a1a1aa", 16))
         self.btn_del_proxy.clicked.connect(self._del_proxy)
-        self.btn_scan_proxy = QPushButton("自动扫描本机在线代理")
+        self.btn_scan_proxy = QPushButton(t("st_scan_proxy"))
         self.btn_scan_proxy.setIcon(get_icon("refresh", "#a1a1aa", 16))
         self.btn_scan_proxy.clicked.connect(self._auto_scan_active_proxies)
         btn_proxy_row.addWidget(self.btn_add_proxy)
@@ -321,7 +321,7 @@ class SettingsDialog(QDialog):
         proxy_layout.addWidget(proxy_group)
 
         # 浏览器扩展同步提示
-        lbl_ext_proxy_sync = QLabel("提示：星流浏览器插件已默认开启「自动匹配浏览器代理」，抓取任务时将与浏览器当前代理环境保持自动同步。")
+        lbl_ext_proxy_sync = QLabel(t("st_ext_proxy_sync_tip"))
         lbl_ext_proxy_sync.setStyleSheet("color: #71717a; font-size: 11px;")
         proxy_layout.addWidget(lbl_ext_proxy_sync)
         proxy_layout.addStretch()
@@ -332,42 +332,42 @@ class SettingsDialog(QDialog):
         perf_layout.setContentsMargins(12, 12, 12, 12)
         perf_layout.setSpacing(12)
 
-        perf_group = QGroupBox("并发调度与端口")
+        perf_group = QGroupBox(t("st_group_perf"))
         p_layout = QVBoxLayout(perf_group)
 
         p_row = QHBoxLayout()
-        p_row.addWidget(QLabel("最大并发任务数:"))
+        p_row.addWidget(QLabel(t("st_max_tasks")))
         self.max_tasks_spin = QSpinBox()
         self.max_tasks_spin.setRange(1, 10)
         p_row.addWidget(self.max_tasks_spin)
 
-        p_row.addWidget(QLabel("单任务并发线程数:"))
+        p_row.addWidget(QLabel(t("st_max_threads")))
         self.max_threads_spin = QSpinBox()
         self.max_threads_spin.setRange(1, 64)
         p_row.addWidget(self.max_threads_spin)
 
-        p_row.addWidget(QLabel("通信监听端口:"))
+        p_row.addWidget(QLabel(t("st_port")))
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1024, 65535)
         p_row.addWidget(self.port_spin)
         p_layout.addLayout(p_row)
 
         c_row = QHBoxLayout()
-        self.del_tmp_cb = QCheckBox("下载完成后自动清理临时分片目录")
-        self.auto_start_cb = QCheckBox("插件推送任务后自动开始下载")
-        self.notify_cb = QCheckBox("任务完成与失败时展示桌面弹窗提醒")
+        self.del_tmp_cb = QCheckBox(t("st_del_tmp"))
+        self.auto_start_cb = QCheckBox(t("st_auto_start"))
+        self.notify_cb = QCheckBox(t("st_notify"))
         c_row.addWidget(self.del_tmp_cb)
         c_row.addWidget(self.auto_start_cb)
         c_row.addWidget(self.notify_cb)
         p_layout.addLayout(c_row)
         perf_layout.addWidget(perf_group)
 
-        ext_group = QGroupBox("磁盘缓存与嗅探扩展")
+        ext_group = QGroupBox(t("st_group_cache"))
         ext_layout = QVBoxLayout(ext_group)
 
         cache_row = QHBoxLayout()
-        cache_row.addWidget(QLabel("磁盘缓存与临时碎片:"))
-        btn_clean_cache = QPushButton("扫描并清理缓存...")
+        cache_row.addWidget(QLabel(t("st_cache_label")))
+        btn_clean_cache = QPushButton(t("st_scan_clean"))
         btn_clean_cache.setIcon(get_icon("clean", "#a1a1aa", 16))
         btn_clean_cache.clicked.connect(self._open_clean_dialog)
         cache_row.addWidget(btn_clean_cache)
@@ -375,13 +375,13 @@ class SettingsDialog(QDialog):
         ext_layout.addLayout(cache_row)
 
         ext_row = QHBoxLayout()
-        ext_row.addWidget(QLabel("星流嗅探扩展目录:"))
+        ext_row.addWidget(QLabel(t("st_ext_dir")))
         self.ext_edit = QLineEdit()
-        self.ext_edit.setPlaceholderText("自动识别插件文件夹路径 (支持自定义)")
-        btn_browse_ext = QPushButton("浏览...")
+        self.ext_edit.setPlaceholderText(t("st_ext_placeholder"))
+        btn_browse_ext = QPushButton(t("browse"))
         btn_browse_ext.setIcon(get_icon("folder", "#a1a1aa", 16))
         btn_browse_ext.clicked.connect(self._browse_extension_dir)
-        btn_ext = QPushButton("安装教学与安全跳转指引...")
+        btn_ext = QPushButton(t("st_ext_tutorial"))
         btn_ext.setIcon(get_icon("extension", "#38bdf8", 16))
         btn_ext.clicked.connect(self._open_extension_tutorial)
         ext_row.addWidget(self.ext_edit, 1)
@@ -398,11 +398,11 @@ class SettingsDialog(QDialog):
         theme_layout.setContentsMargins(12, 12, 12, 12)
         theme_layout.setSpacing(12)
 
-        theme_group = QGroupBox("外观与个性化设置")
+        theme_group = QGroupBox(t("st_group_theme"))
         t_group_layout = QVBoxLayout(theme_group)
 
         lang_row = QHBoxLayout()
-        lang_row.addWidget(QLabel("界面语言 / Language:"))
+        lang_row.addWidget(QLabel(t("st_lang")))
         self.lang_combo = QComboBox()
         for code, name in SUPPORTED_LANGUAGES:
             self.lang_combo.addItem(name, code)
@@ -410,7 +410,7 @@ class SettingsDialog(QDialog):
         t_group_layout.addLayout(lang_row)
 
         t_row = QHBoxLayout()
-        t_row.addWidget(QLabel("界面主题风格:"))
+        t_row.addWidget(QLabel(t("st_theme")))
         self.theme_combo = QComboBox()
         for k, v in THEMES.items():
             self.theme_combo.addItem(f"{v['name']}", k)
@@ -418,13 +418,13 @@ class SettingsDialog(QDialog):
         t_group_layout.addLayout(t_row)
 
         bg_row = QHBoxLayout()
-        bg_row.addWidget(QLabel("自定义背景壁纸:"))
+        bg_row.addWidget(QLabel(t("st_bg_image")))
         self.bg_edit = QLineEdit()
-        self.bg_edit.setPlaceholderText("留空为纯色主题，支持选择任意本地图片 (JPG/PNG/WebP/BMP)")
-        btn_browse_bg = QPushButton("浏览图片...")
+        self.bg_edit.setPlaceholderText(t("st_bg_placeholder"))
+        btn_browse_bg = QPushButton(t("st_browse_img"))
         btn_browse_bg.setIcon(get_icon("image", "#a1a1aa", 16))
         btn_browse_bg.clicked.connect(self._browse_bg_image)
-        btn_clear_bg = QPushButton("清除壁纸")
+        btn_clear_bg = QPushButton(t("st_clear_bg"))
         btn_clear_bg.setIcon(get_icon("clean", "#a1a1aa", 16))
         btn_clear_bg.clicked.connect(self._clear_bg_image)
         bg_row.addWidget(self.bg_edit, 1)
@@ -433,7 +433,7 @@ class SettingsDialog(QDialog):
         t_group_layout.addLayout(bg_row)
 
         op_row = QHBoxLayout()
-        op_row.addWidget(QLabel("壁纸遮罩浓度:"))
+        op_row.addWidget(QLabel(t("st_bg_opacity")))
         self.opacity_slider = QSlider(Qt.Horizontal)
         self.opacity_slider.setRange(10, 90)
         self.opacity_slider.setValue(45)
@@ -444,7 +444,7 @@ class SettingsDialog(QDialog):
         op_row.addWidget(self.lbl_opacity_val)
         t_group_layout.addLayout(op_row)
 
-        lbl_theme_hint = QLabel("提示：设置自定义背景后，界面表格与面板将自动开启高透毛玻璃效果；遮罩浓度越高，文字辨识度越高。")
+        lbl_theme_hint = QLabel(t("st_theme_tip"))
         lbl_theme_hint.setStyleSheet("color: #71717a; font-size: 11px;")
         t_group_layout.addWidget(lbl_theme_hint)
 
