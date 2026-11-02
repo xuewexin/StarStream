@@ -322,6 +322,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             "ffmpeg_info": ff_msg,
             "ffmpeg_path": get_ffmpeg_path(),
             "save_dir": config.get("save_dir"),
+            "language": config.get("language", "zh_CN"),
             "temp_segments_dir": get_temp_segments_dir(),
             "effective_proxy": config.get_effective_proxy(),
             "detected_proxies": detect_local_active_proxies(),

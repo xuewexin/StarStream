@@ -14,7 +14,7 @@
         <svg class="brand-svg" viewBox="0 0 24 24" fill="none" stroke="#3875f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
         </svg>
-        <span class="brand-title">星流媒体嗅探器</span>
+        <span class="brand-title" id="brandTitle">星流媒体嗅探器</span>
       </div>
       <div class="header-status">
         <div id="clientStatusBadge" class="status-pill offline" title="本地下载器连接状态">
@@ -23,6 +23,16 @@
         </div>
       </div>
       <div class="header-tools">
+        <div class="lang-dropdown-wrap" style="position:relative;display:inline-block;">
+          <button id="btnLang" class="btn-icon" title="切换语言 / Switch Language">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </button>
+          <div id="langMenu" class="lang-menu hidden" style="position:absolute;top:100%;right:0;background:#18191d;border:1px solid #334155;border-radius:6px;box-shadow:0 8px 16px rgba(0,0,0,0.5);z-index:9999;min-width:150px;padding:4px 0;"></div>
+        </div>
         <button id="btnFragments" class="btn-icon" title="分片文件夹管理 (整理与清空切片)">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -141,7 +151,7 @@
     <!-- 设置抽屉面板 -->
     <div id="settingsPanel" class="settings-drawer hidden">
       <div class="drawer-header">
-        <span>嗅探与连接设置</span>
+        <span id="settingsTitle">嗅探与连接设置</span>
         <button id="closeSettingsBtn" class="btn-icon">
           <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -151,31 +161,35 @@
       </div>
       <div class="drawer-body">
         <div class="setting-item">
-          <label>本地客户端通信端口:</label>
+          <label id="lblSettingLang">扩展界面语言 / Language:</label>
+          <select id="settingLang" class="input-text" style="background:#27272a;color:#f4f4f5;border:1px solid #3f3f46;border-radius:4px;padding:4px 6px;width:100%;outline:none;margin-top:4px;"></select>
+        </div>
+        <div class="setting-item">
+          <label id="lblSettingPort">本地客户端通信端口:</label>
           <input type="number" id="settingPort" value="18910" class="input-text">
         </div>
         <div class="setting-item">
-          <label class="checkbox-row">
-            <input type="checkbox" id="settingFilterFragments" checked> <strong>仅抓取整个视频</strong> (过滤海量无用切片与未知碎片)
+          <label class="checkbox-row" id="lblSettingFilterFrags">
+            <input type="checkbox" id="settingFilterFragments" checked> <span><strong>仅抓取整个视频</strong> (过滤海量无用切片与未知碎片)</span>
           </label>
         </div>
         <div class="setting-item">
-          <label class="checkbox-row">
-            <input type="checkbox" id="settingAutoPurge" checked> <strong>页面关闭或刷新时自动消除</strong> 对应网页抓取的视频
+          <label class="checkbox-row" id="lblSettingAutoPurge">
+            <input type="checkbox" id="settingAutoPurge" checked> <span><strong>页面关闭或刷新时自动消除</strong> 对应网页抓取的视频</span>
           </label>
         </div>
         <div class="setting-item">
-          <label class="checkbox-row">
-            <input type="checkbox" id="settingAutoPush"> 嗅探到媒体时自动推送到本地客户端下载
+          <label class="checkbox-row" id="lblSettingAutoPush">
+            <input type="checkbox" id="settingAutoPush"> <span>嗅探到媒体时自动推送到本地客户端下载</span>
           </label>
         </div>
         <div class="setting-item">
-          <label>过滤小文件 (KB，0 表示不过滤):</label>
+          <label id="lblSettingMinSize">过滤小文件 (KB，0 表示不过滤):</label>
           <input type="number" id="settingMinSize" value="0" class="input-text">
         </div>
         <div class="client-help-box">
-          <div class="help-title">分片切片存放管理</div>
-          <p>所有下载中临时分片集中存放在软件根目录 <strong>Temp_Segments</strong> 文件夹下，下载成功后自动合并，可随时在右上角文件夹图标中整理和删除。</p>
+          <div class="help-title" id="helpTitle">分片切片存放管理</div>
+          <p id="helpDesc">所有下载中临时分片集中存放在软件根目录 <strong>Temp_Segments</strong> 文件夹下，下载成功后自动合并，可随时在右上角文件夹图标中整理和删除。</p>
         </div>
       </div>
       <div class="drawer-footer">
@@ -184,6 +198,7 @@
     </div>
   </div>
 
+  <script src="../i18n.js"></script>
   <script src="hls.min.js"></script>
   <script src="popup.js"></script>
 </body>

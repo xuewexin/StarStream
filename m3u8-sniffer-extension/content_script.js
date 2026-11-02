@@ -15,6 +15,17 @@
   }
   injectHookScript();
 
+  if (typeof ExtI18n !== 'undefined') {
+    ExtI18n.initLang();
+  }
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.extension_language && typeof ExtI18n !== 'undefined') {
+        ExtI18n.setLang(changes.extension_language.newValue);
+      }
+    });
+  } catch (e) {}
+
   // 严格过滤已知切片分片
   const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
@@ -293,6 +304,7 @@
 
     let currentTitle = cleanVideoTitle(document.title);
     const rect = anchorBtn.getBoundingClientRect();
+    const t = (k, def) => (typeof ExtI18n !== 'undefined' ? ExtI18n.t(k) : def);
 
     const panel = document.createElement('div');
     panel.className = 'catcatch-floating-panel';
@@ -301,23 +313,23 @@
 
     panel.innerHTML = `
       <div class="catcatch-panel-title" title="${currentTitle}">${currentTitle}</div>
-      <div id="catcatchPanelContent" class="catcatch-panel-info">正在定位真实视频流...</div>
+      <div id="catcatchPanelContent" class="catcatch-panel-info">${t('cap_locating', '正在定位真实视频流...')}</div>
       <div class="catcatch-config-row" style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:11px;color:#a1a1aa;">
-        <span>下载代理:</span>
+        <span>${t('cap_proxy_label', '下载代理:')}</span>
         <select id="catcatchProxySelect" style="flex:1;background:#27272a;color:#f4f4f5;border:1px solid #3f3f46;border-radius:4px;padding:3px 6px;font-size:11px;outline:none;">
-          <option value="auto" selected>自动匹配浏览器代理 (推荐)</option>
-          <option value="default">跟随客户端全局设置</option>
-          <option value="direct">直连 (不使用代理)</option>
+          <option value="auto" selected>${t('cfg_proxy_auto', '自动匹配浏览器代理 (推荐)')}</option>
+          <option value="default">${t('cfg_proxy_default', '跟随客户端全局设置')}</option>
+          <option value="direct">${t('cfg_proxy_direct', '直连 (不使用代理)')}</option>
           <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
           <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
           <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
         </select>
       </div>
       <div class="catcatch-panel-actions">
-        <button id="catcatchPushBtn" class="catcatch-btn primary" disabled>推送到星流下载器</button>
-        <button id="catcatchCopyCmdBtn" class="catcatch-btn" disabled>复制命令</button>
-        <button id="catcatchCopyBtn" class="catcatch-btn" disabled>复制链接</button>
-        <button id="catcatchCloseBtn" class="catcatch-btn">关闭</button>
+        <button id="catcatchPushBtn" class="catcatch-btn primary" disabled>${t('cap_push_btn', '推送到星流下载器')}</button>
+        <button id="catcatchCopyCmdBtn" class="catcatch-btn" disabled>${t('cap_copy_cmd', '复制命令')}</button>
+        <button id="catcatchCopyBtn" class="catcatch-btn" disabled>${t('cap_copy_link', '复制链接')}</button>
+        <button id="catcatchCloseBtn" class="catcatch-btn">${t('cap_close', '关闭')}</button>
       </div>
     `;
 
@@ -336,7 +348,7 @@
     closeBtn.addEventListener('click', () => removeFloatingBar());
 
     if (!mediaInfo) {
-      contentDiv.innerHTML = `<span style="color:#fbbf24;">未抓取到流地址，请点击播放视频后重试</span>`;
+      contentDiv.innerHTML = `<span style="color:#fbbf24;">${t('cap_no_stream', '未抓取到流地址，请点击播放视频后重试')}</span>`;
       return;
     }
 
@@ -351,8 +363,8 @@
     }
 
     const durSec = Math.floor(mediaEl.duration || 0);
-    const durStr = durSec > 0 ? `${Math.floor(durSec / 60)}分${durSec % 60}秒` : '';
-    const resStr = mediaInfo.resolution || ((mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '高清流');
+    const durStr = durSec > 0 ? `${Math.floor(durSec / 60)}${t('cap_min', '分')}${durSec % 60}${t('cap_sec', '秒')}` : '';
+    const resStr = mediaInfo.resolution || ((mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : t('cap_hd_stream', '高清流'));
 
     contentDiv.innerHTML = `
       <span class="catcatch-badge accent">${mediaInfo.format}</span>
@@ -374,13 +386,13 @@
       cmd += ` -H "Referer: ${window.location.href}" -H "User-Agent: ${navigator.userAgent}"`;
 
       navigator.clipboard.writeText(cmd).then(() => {
-        copyCmdBtn.textContent = '已复制命令';
-        setTimeout(() => (copyCmdBtn.textContent = '复制命令'), 1500);
+        copyCmdBtn.textContent = t('cap_copied_cmd', '已复制命令');
+        setTimeout(() => (copyCmdBtn.textContent = t('cap_copy_cmd', '复制命令')), 1500);
       });
     });
 
     pushBtn.addEventListener('click', async () => {
-      pushBtn.textContent = '正在推送...';
+      pushBtn.textContent = t('cap_pushing', '正在推送...');
       pushBtn.disabled = true;
 
       const pVal = proxySelect.value;
@@ -427,7 +439,7 @@
           body: JSON.stringify(taskData)
         });
         if (resp.ok) {
-          pushBtn.textContent = '已加入下载队列';
+          pushBtn.textContent = t('cap_pushed', '已加入下载队列');
           pushBtn.className = 'catcatch-btn success';
           setTimeout(() => removeFloatingBar(), 1500);
           return;
@@ -438,10 +450,10 @@
           data: taskData
         }, (res) => {
           if (res && res.success) {
-            pushBtn.textContent = '已加入下载队列';
+            pushBtn.textContent = t('cap_pushed', '已加入下载队列');
             pushBtn.className = 'catcatch-btn success';
           } else {
-            pushBtn.textContent = '客户端未连接';
+            pushBtn.textContent = t('cap_client_offline', '客户端未连接');
           }
           setTimeout(() => removeFloatingBar(), 1500);
         });
@@ -450,8 +462,8 @@
 
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(mediaInfo.url).then(() => {
-        copyBtn.textContent = '已复制';
-        setTimeout(() => (copyBtn.textContent = '复制链接'), 1500);
+        copyBtn.textContent = t('cap_copied_link', '已复制');
+        setTimeout(() => (copyBtn.textContent = t('cap_copy_link', '复制链接')), 1500);
       });
     });
   }

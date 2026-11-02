@@ -37,7 +37,140 @@
   const settingsPanel = document.getElementById('settingsPanel');
   const fragmentsModal = document.getElementById('fragmentsModal');
 
+  function applyI18nUI() {
+    if (typeof ExtI18n === 'undefined') return;
+    const t = ExtI18n.t;
+    const el = (id) => document.getElementById(id);
+
+    if (el('brandTitle')) el('brandTitle').textContent = t('brand_title');
+    if (el('clientStatusText')) el('clientStatusText').textContent = clientOnline ? t('status_online') : t('status_offline');
+    if (el('btnFragments')) el('btnFragments').title = t('tip_fragments');
+    if (el('btnSettings')) el('btnSettings').title = t('tip_settings');
+    if (el('btnClear')) el('btnClear').title = t('tip_clear');
+    if (el('btnLang')) el('btnLang').title = t('tip_lang');
+
+    if (el('scopeCurrentTab')) el('scopeCurrentTab').textContent = t('scope_current');
+    if (el('scopeAllTabs')) el('scopeAllTabs').textContent = t('scope_all');
+
+    const tabAll = document.querySelector('.tab-item[data-cat="all"]');
+    if (tabAll && tabAll.childNodes[0]) tabAll.childNodes[0].textContent = t('tab_all') + ' ';
+    const tabM3u8 = document.querySelector('.tab-item[data-cat="m3u8"]');
+    if (tabM3u8 && tabM3u8.childNodes[0]) tabM3u8.childNodes[0].textContent = t('tab_stream') + ' ';
+    const tabVideo = document.querySelector('.tab-item[data-cat="video"]');
+    if (tabVideo && tabVideo.childNodes[0]) tabVideo.childNodes[0].textContent = t('tab_video') + ' ';
+    const tabAudio = document.querySelector('.tab-item[data-cat="audio"]');
+    if (tabAudio && tabAudio.childNodes[0]) tabAudio.childNodes[0].textContent = t('tab_audio') + ' ';
+    const tabOther = document.querySelector('.tab-item[data-cat="other"]');
+    if (tabOther && tabOther.childNodes[0]) tabOther.childNodes[0].textContent = t('tab_other') + ' ';
+
+    const selAllLabel = document.querySelector('.search-bar label:nth-child(1)');
+    if (selAllLabel && selAllLabel.childNodes.length > 1) {
+      selAllLabel.childNodes[selAllLabel.childNodes.length - 1].textContent = ' ' + t('select_all');
+    }
+    const filterAdsLabel = document.querySelector('.search-bar label:nth-child(2)');
+    if (filterAdsLabel && filterAdsLabel.childNodes.length > 1) {
+      filterAdsLabel.title = t('filter_ads');
+      filterAdsLabel.childNodes[filterAdsLabel.childNodes.length - 1].textContent = ' ' + t('filter_ads');
+    }
+
+    if (el('searchInput')) el('searchInput').placeholder = t('search_placeholder');
+    if (el('btnBatchPush')) el('btnBatchPush').textContent = t('batch_push');
+    if (el('btnBatchCopy')) el('btnBatchCopy').textContent = t('batch_copy');
+    if (el('btnBatchDelete')) el('btnBatchDelete').textContent = t('batch_delete');
+
+    const emptyTitle = document.querySelector('.empty-title');
+    if (emptyTitle) emptyTitle.textContent = t('empty_title');
+    const emptyDesc = document.querySelector('.empty-desc');
+    if (emptyDesc) emptyDesc.textContent = t('empty_desc');
+
+    if (el('previewTitle')) el('previewTitle').textContent = t('btn_preview');
+    const fragTitle = document.querySelector('#fragmentsModal .modal-title');
+    if (fragTitle) fragTitle.textContent = t('frag_title');
+    if (el('btnCleanAllFrags')) el('btnCleanAllFrags').textContent = t('btn_clean_all');
+    if (el('btnRefreshFrags')) el('btnRefreshFrags').textContent = t('btn_refresh');
+
+    if (el('settingsTitle')) el('settingsTitle').textContent = t('settings_title');
+    if (el('lblSettingLang')) el('lblSettingLang').textContent = t('setting_lang');
+    if (el('lblSettingPort')) el('lblSettingPort').textContent = t('setting_port');
+    const f1 = document.querySelector('#lblSettingFilterFrags span');
+    if (f1) f1.textContent = t('setting_filter_frags');
+    const f2 = document.querySelector('#lblSettingAutoPurge span');
+    if (f2) f2.textContent = t('setting_auto_purge');
+    const f3 = document.querySelector('#lblSettingAutoPush span');
+    if (f3) f3.textContent = t('setting_auto_push');
+    if (el('lblSettingMinSize')) el('lblSettingMinSize').textContent = t('setting_min_size');
+    if (el('helpTitle')) el('helpTitle').textContent = t('setting_help_title');
+    if (el('helpDesc')) el('helpDesc').textContent = t('setting_help_desc');
+    if (el('saveSettingsBtn')) el('saveSettingsBtn').textContent = t('btn_save_settings');
+  }
+
+  function initLanguageUI() {
+    if (typeof ExtI18n === 'undefined') return;
+    const langSelect = document.getElementById('settingLang');
+    const langMenu = document.getElementById('langMenu');
+    const btnLang = document.getElementById('btnLang');
+
+    if (langSelect) {
+      langSelect.innerHTML = '';
+      ExtI18n.SUPPORTED_LANGS.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.code;
+        opt.textContent = l.name;
+        if (l.code === ExtI18n.getLang()) opt.selected = true;
+        langSelect.appendChild(opt);
+      });
+      langSelect.onchange = () => switchLanguage(langSelect.value);
+    }
+
+    if (langMenu) {
+      langMenu.innerHTML = '';
+      ExtI18n.SUPPORTED_LANGS.forEach(l => {
+        const item = document.createElement('div');
+        item.style.cssText = 'padding:6px 14px;font-size:12px;color:#cbd5e1;cursor:pointer;white-space:nowrap;transition:background 0.2s;';
+        if (l.code === ExtI18n.getLang()) {
+          item.style.color = '#38bdf8';
+          item.style.fontWeight = 'bold';
+        }
+        item.textContent = l.name;
+        item.onmouseenter = () => item.style.backgroundColor = '#1e293b';
+        item.onmouseleave = () => item.style.backgroundColor = 'transparent';
+        item.onclick = (e) => {
+          e.stopPropagation();
+          langMenu.classList.add('hidden');
+          switchLanguage(l.code);
+        };
+        langMenu.appendChild(item);
+      });
+    }
+
+    if (btnLang && langMenu) {
+      btnLang.onclick = (e) => {
+        e.stopPropagation();
+        langMenu.classList.toggle('hidden');
+      };
+      document.addEventListener('click', () => {
+        langMenu.classList.add('hidden');
+      });
+    }
+  }
+
+  function switchLanguage(langCode) {
+    if (typeof ExtI18n === 'undefined') return;
+    localStorage.setItem('user_manual_lang', '1');
+    ExtI18n.setLang(langCode);
+    const langSelect = document.getElementById('settingLang');
+    if (langSelect) langSelect.value = langCode;
+    initLanguageUI();
+    applyI18nUI();
+    renderList();
+  }
+
   document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof ExtI18n !== 'undefined') {
+      await ExtI18n.initLang();
+      initLanguageUI();
+      applyI18nUI();
+    }
     // 1. 获取当前活动窗口的标签页 ID 与所有仍存活的标签页集合
     await initTabTracking();
 
@@ -306,10 +439,18 @@
         const data = await resp.json();
         clientOnline = true;
         clientStatusBadge.className = 'status-pill online';
-        clientStatusText.textContent = '客户端已连接';
+        clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_online') : '客户端已连接';
         if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
         if (data.effective_proxy) clientEffectiveProxy = data.effective_proxy;
         if (data.temp_segments_dir) clientTempDir = data.temp_segments_dir;
+        if (data.language && !localStorage.getItem('user_manual_lang') && typeof ExtI18n !== 'undefined') {
+          if (data.language !== ExtI18n.getLang()) {
+            ExtI18n.setLang(data.language);
+            initLanguageUI();
+            applyI18nUI();
+            renderList();
+          }
+        }
         updateProxyTips();
         return;
       }
@@ -317,7 +458,7 @@
 
     clientOnline = false;
     clientStatusBadge.className = 'status-pill offline';
-    clientStatusText.textContent = '客户端离线';
+    clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_offline') : '客户端离线';
     clientStatusBadge.onclick = () => {
       settingsPanel.classList.remove('hidden');
     };
@@ -332,18 +473,19 @@
   async function loadFragmentsStatus() {
     const statsEl = document.getElementById('fragStats');
     const container = document.getElementById('fragListContainer');
-    statsEl.textContent = '正在获取本地分片状态...';
-    container.innerHTML = '<div style="color:#71717a; text-align:center; padding:10px;">加载中...</div>';
+    const t = typeof ExtI18n !== 'undefined' ? ExtI18n.t : (k => k);
+    statsEl.textContent = t('frag_loading');
+    container.innerHTML = '<div style="color:#71717a; text-align:center; padding:10px;">...</div>';
 
     try {
       const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'GET' });
       if (res.ok) {
         const data = await res.json();
         const folders = data.folders || [];
-        statsEl.textContent = `找到 ${folders.length} 个残留分片文件夹 (共 ${data.count || 0} 个)`;
+        statsEl.textContent = `${folders.length} (total: ${data.count || 0})`;
 
         if (!folders.length) {
-          container.innerHTML = '<div style="color:#4ade80; text-align:center; padding:10px;">当前分片目录干净，无残留切片文件</div>';
+          container.innerHTML = `<div style="color:#4ade80; text-align:center; padding:10px;">${t('frag_clean')}</div>`;
           return;
         }
 
@@ -356,7 +498,7 @@
               ${f.name}
             </div>
             <div style="color:#38bdf8; font-size:11px; white-space:nowrap;">
-              ${f.ts_count} 切片 | ${formatSize(f.size)}
+              ${f.ts_count} | ${formatSize(f.size)}
             </div>
           `;
           container.appendChild(itemDiv);
@@ -365,21 +507,19 @@
       }
     } catch (e) {}
 
-    statsEl.textContent = '请先启动本地桌面客户端以读取分片文件夹';
-    container.innerHTML = '<div style="color:#f87171; text-align:center; padding:10px;">客户端未连接 (127.0.0.1:18910)</div>';
+    statsEl.textContent = t('status_offline');
+    container.innerHTML = `<div style="color:#f87171; text-align:center; padding:10px;">${t('cap_client_offline')} (127.0.0.1:18910)</div>`;
   }
 
   async function cleanAllFragments() {
-    if (!confirm('确定要清空全部未完成的分片临时切片吗？')) return;
+    if (!confirm('Clear all segments?')) return;
     try {
       const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'DELETE' });
       if (res.ok) {
-        alert('分片文件夹已清空！');
         loadFragmentsStatus();
         return;
       }
     } catch (e) {}
-    alert('操作失败，请确认客户端已在后台启动。');
   }
 
   async function loadSettings() {
@@ -388,6 +528,10 @@
     document.getElementById('settingPort').value = clientPort;
     document.getElementById('settingAutoPush').checked = !!settings.autoPush;
     document.getElementById('settingMinSize').value = settings.minSizeKB || 0;
+    if (typeof ExtI18n !== 'undefined') {
+      const sel = document.getElementById('settingLang');
+      if (sel) sel.value = ExtI18n.getLang();
+    }
   }
 
   async function saveSettings() {
@@ -399,6 +543,13 @@
     await chrome.storage.local.set({
       settings: { serverPort: port, autoPush, minSizeKB, filterFragments: true, onlyLiveTabs: true }
     });
+
+    if (typeof ExtI18n !== 'undefined') {
+      const sel = document.getElementById('settingLang');
+      if (sel && sel.value !== ExtI18n.getLang()) {
+        switchLanguage(sel.value);
+      }
+    }
 
     settingsPanel.classList.add('hidden');
     await checkClientStatus();
@@ -536,7 +687,7 @@
     const count = selectedIds.size;
     if (count > 0) {
       batchBar.classList.remove('hidden');
-      batchCountText.textContent = `已选 ${count} 项`;
+      batchCountText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('batch_selected', count) : `已选 ${count} 项`;
     } else {
       batchBar.classList.add('hidden');
     }
@@ -561,15 +712,16 @@
     const card = document.createElement('div');
     card.className = 'media-card';
 
+    const t = typeof ExtI18n !== 'undefined' ? ExtI18n.t : (k => k);
     const isChecked = selectedIds.has(item.id);
     const domain = getDomain(item.url);
     const title = item.pageTitle || '未命名媒体';
 
     let tagsHtml = `<span class="tag-badge tag-type">${item.mediaType.toUpperCase()}</span>`;
     if (item.isAd) {
-      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似前贴片广告切片'}">疑似切片${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || '疑似切片'}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
     } else if (item.isFeature) {
-      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">正片</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="当前页面时长最长的主视频">${t('tag_feature')}</span>`;
     }
     if (item.resolution) {
       tagsHtml += `<span class="tag-badge tag-res">${item.resolution}</span>`;
@@ -593,9 +745,9 @@
 
     // 动态生成代理下拉列表（优先展示当前存活的本地代理客户端，避免死端口连接拒绝）
     let proxyOptionsHtml = `
-      <option value="auto" selected>自动匹配可用代理 (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
-      <option value="direct">直连 (不使用代理)</option>
-      <option value="default">跟随客户端全局设置</option>
+      <option value="auto" selected>${t('cfg_proxy_auto')} (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
+      <option value="direct">${t('cfg_proxy_direct')}</option>
+      <option value="default">${t('cfg_proxy_default')}</option>
     `;
     if (clientDetectedProxies && clientDetectedProxies.length > 0) {
       clientDetectedProxies.forEach((p) => {
@@ -609,7 +761,7 @@
         <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
       `;
     }
-    proxyOptionsHtml += `<option value="custom">手动输入代理地址...</option>`;
+    proxyOptionsHtml += `<option value="custom">${t('cfg_proxy_custom')}</option>`;
 
     card.innerHTML = `
       <div class="card-top">
@@ -621,40 +773,40 @@
       <div class="card-tags">${tagsHtml}</div>
       <div class="card-url-box" title="点击复制完整直链">${escapeHtml(item.url)}</div>
       <div class="card-actions">
-        <button class="btn-sm btn-primary action-push">下载 (推送)</button>
-        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">配置</button>
-        <button class="btn-sm btn-secondary action-copy-cmd" title="复制 N_m3u8DL-RE 独立运行命令 (免客户端)">复制命令</button>
-        <button class="btn-sm btn-secondary action-preview">预览</button>
-        <button class="btn-sm btn-secondary action-copy">复制</button>
-        <button class="btn-sm btn-danger action-del">删除</button>
+        <button class="btn-sm btn-primary action-push">${t('btn_push')}</button>
+        <button class="btn-sm btn-secondary action-config" title="配置该视频独立保存目录、线程数与代理">${t('btn_config')}</button>
+        <button class="btn-sm btn-secondary action-copy-cmd" title="复制 N_m3u8DL-RE 独立运行命令 (免客户端)">${t('btn_copy_cmd')}</button>
+        <button class="btn-sm btn-secondary action-preview">${t('btn_preview')}</button>
+        <button class="btn-sm btn-secondary action-copy">${t('btn_copy')}</button>
+        <button class="btn-sm btn-danger action-del">${t('btn_delete')}</button>
       </div>
       <div class="card-config-panel hidden">
         <div class="config-row">
-          <span class="config-label">保存目录:</span>
-          <input type="text" class="config-input cfg-savedir" placeholder="留空使用客户端配置 (如 Downloads)">
+          <span class="config-label">${t('cfg_savedir')}</span>
+          <input type="text" class="config-input cfg-savedir" placeholder="${t('cfg_savedir_placeholder')}">
         </div>
         <div class="config-row">
-          <span class="config-label">并发线程:</span>
+          <span class="config-label">${t('cfg_threads')}</span>
           <select class="config-select cfg-threads">
-            <option value="">跟随客户端设置 (默认 16)</option>
-            <option value="4">4 线程 (稳定防限流)</option>
-            <option value="8">8 线程 (平衡加速)</option>
-            <option value="16">16 线程 (极速推荐)</option>
-            <option value="32">32 线程 (极限并发)</option>
+            <option value="">${t('cfg_threads_follow')}</option>
+            <option value="4">${t('cfg_threads_4')}</option>
+            <option value="8">${t('cfg_threads_8')}</option>
+            <option value="16">${t('cfg_threads_16')}</option>
+            <option value="32">${t('cfg_threads_32')}</option>
           </select>
         </div>
         <div class="config-row">
-          <span class="config-label">下载代理:</span>
+          <span class="config-label">${t('cfg_proxy')}</span>
           <select class="config-select cfg-proxy">
             ${proxyOptionsHtml}
           </select>
         </div>
         <div class="config-row cfg-custom-proxy-row hidden">
           <span class="config-label">代理地址:</span>
-          <input type="text" class="config-input cfg-custom-proxy" placeholder="例如 http://127.0.0.1:1080 或 http://127.0.0.1:7890">
+          <input type="text" class="config-input cfg-custom-proxy" placeholder="${t('cfg_custom_proxy_placeholder')}">
         </div>
         <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
-        <button class="btn-copy-cli-inside">复制 N_m3u8DL-RE 完整运行命令 (脱离客户端独立运行)</button>
+        <button class="btn-copy-cli-inside">${t('btn_copy_cli')}</button>
       </div>
     `;
 

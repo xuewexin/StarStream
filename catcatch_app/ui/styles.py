@@ -328,7 +328,7 @@ QTreeWidget::item:hover {{
 
 QTreeWidget::item:selected {{
     background-color: {bg_item_selected};
-    color: {t["accent"]};
+    color: #ffffff;
     font-weight: 600;
 }}
 
@@ -338,7 +338,7 @@ QTableWidget {{
     border: none;
     gridline-color: {t["border_subtle"]};
     selection-background-color: {bg_item_selected};
-    selection-color: {t["text"]};
+    selection-color: #ffffff;
     outline: none;
 }}
 
@@ -350,6 +350,7 @@ QTableWidget::item {{
 
 QTableWidget::item:selected {{
     background-color: {bg_item_selected};
+    color: #ffffff;
 }}
 
 QHeaderView::section {{

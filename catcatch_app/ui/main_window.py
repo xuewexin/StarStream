@@ -432,21 +432,21 @@ class MainWindow(QMainWindow):
         self.tray.setToolTip("星流媒体下载器 (StarStream Pro)")
 
         tray_menu = QMenu()
-        act_show = QAction("显示主界面", self)
+        act_show = QAction(t("tray_show"), self)
         act_show.triggered.connect(self._restore_and_activate)
-        act_new = QAction("新建下载...", self)
+        act_new = QAction(t("tray_new"), self)
         act_new.triggered.connect(self._action_new_task)
-        act_clean = QAction("清理缓存...", self)
+        act_clean = QAction(t("tray_clean"), self)
         act_clean.triggered.connect(self._action_clean_cache)
-        act_ff = QAction("FFmpeg 工具箱", self)
+        act_ff = QAction(t("tray_ff"), self)
         act_ff.triggered.connect(self._action_ffmpeg_toolbox)
-        act_quit = QAction("退出程序", self)
+        act_quit = QAction(t("tray_quit"), self)
         act_quit.triggered.connect(self.quit_app)
 
         tray_menu.addAction(act_show)
         tray_menu.addAction(act_new)
         tray_menu.addAction(act_clean)
-        act_ext = QAction("插件安装与使用教学...", self)
+        act_ext = QAction(t("tray_ext"), self)
         act_ext.triggered.connect(self._action_extension_tutorial)
         tray_menu.addAction(act_ext)
         tray_menu.addAction(act_ff)
@@ -672,16 +672,46 @@ class MainWindow(QMainWindow):
         return True
 
     def refresh_table(self):
+        # 智能防抖合并 16ms 内的高频刷新，避免连续操作阻塞界面导致按钮卡顿
+        if not hasattr(self, "_refresh_timer"):
+            self._refresh_timer = QTimer(self)
+            self._refresh_timer.setSingleShot(True)
+            self._refresh_timer.timeout.connect(self._do_refresh_table)
+        if not self._refresh_timer.isActive():
+            self._refresh_timer.start(16)
+
+    def _do_refresh_table(self):
         tasks = task_manager.get_all_tasks()
         filtered = [t for t in tasks if self._filter_task(t)]
 
         self.table.setUpdatesEnabled(False)
         try:
-            self.table.setRowCount(len(filtered))
+            cur_count = self.table.rowCount()
+            new_count = len(filtered)
+            if cur_count != new_count:
+                self.table.setRowCount(new_count)
             for row, t in enumerate(filtered):
                 self._render_row(row, t)
         finally:
             self.table.setUpdatesEnabled(True)
+
+    def _set_cell_item(self, row, col, text, color=None, font=None, align=None, tooltip=None, role_data=None):
+        item = self.table.item(row, col)
+        if item is None:
+            item = QTableWidgetItem()
+            self.table.setItem(row, col, item)
+        item.setText(str(text))
+        if color is not None:
+            item.setForeground(color)
+        if font is not None:
+            item.setFont(font)
+        if align is not None:
+            item.setTextAlignment(align)
+        if tooltip is not None:
+            item.setToolTip(tooltip)
+        if role_data is not None:
+            item.setData(Qt.UserRole, role_data)
+        return item
 
     def _render_row(self, row, t_task):
         cur_theme = THEMES.get(config.get("theme", "dark"), THEMES["dark"])
@@ -690,55 +720,41 @@ class MainWindow(QMainWindow):
         text_sec_col = QColor(cur_theme.get("text_secondary", "#cbd5e1"))
 
         # 0. 序号
-        item_id = QTableWidgetItem(str(row + 1))
-        item_id.setTextAlignment(Qt.AlignCenter)
-        item_id.setData(Qt.UserRole, t_task["id"])
-        item_id.setForeground(text_sec_col)
-        self.table.setItem(row, 0, item_id)
+        self._set_cell_item(row, 0, str(row + 1), color=text_sec_col, align=Qt.AlignCenter, role_data=t_task["id"])
 
         # 1. 任务名称
         title = t_task.get("title") or t_task.get("save_name") or "未命名"
-        item_title = QTableWidgetItem(title)
-        item_title.setToolTip(t_task.get("url", ""))
-        item_title.setForeground(text_col)
-        self.table.setItem(row, 1, item_title)
+        self._set_cell_item(row, 1, title, color=text_col, tooltip=t_task.get("url", ""))
 
         # 2. 规格/分辨率
         res = t_task.get("resolution", "")
-        item_res = QTableWidgetItem(res if res else "-")
-        item_res.setTextAlignment(Qt.AlignCenter)
+        res_text = res if res else "-"
+        res_color = text_sec_col
+        res_font = None
         if "4K" in res or "2160" in res:
-            item_res.setForeground(QColor("#f43f5e"))
-            item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            res_color = QColor("#f43f5e")
+            res_font = QFont("Segoe UI", 9, QFont.Bold)
         elif "1080" in res:
-            item_res.setForeground(QColor("#a855f7" if not is_light else "#7c3aed"))
-            item_res.setFont(QFont("Segoe UI", 9, QFont.Bold))
+            res_color = QColor("#a855f7" if not is_light else "#7c3aed")
+            res_font = QFont("Segoe UI", 9, QFont.Bold)
         elif "720" in res:
-            item_res.setForeground(QColor("#38bdf8" if not is_light else "#0284c7"))
-        else:
-            item_res.setForeground(text_sec_col)
-        self.table.setItem(row, 2, item_res)
+            res_color = QColor("#38bdf8" if not is_light else "#0284c7")
+        self._set_cell_item(row, 2, res_text, color=res_color, font=res_font, align=Qt.AlignCenter)
 
         # 3. 视频时长
         dur = t_task.get("duration", "")
-        item_dur = QTableWidgetItem(dur if dur else "-")
-        item_dur.setTextAlignment(Qt.AlignCenter)
-        item_dur.setForeground(text_sec_col)
-        self.table.setItem(row, 3, item_dur)
+        self._set_cell_item(row, 3, dur if dur else "-", color=text_sec_col, align=Qt.AlignCenter)
 
         # 4. 类型
         mtype = t_task.get("media_type", "file").upper()
-        item_type = QTableWidgetItem(f"[{mtype}]")
-        item_type.setTextAlignment(Qt.AlignCenter)
+        type_col = text_sec_col
         if mtype == "M3U8":
-            item_type.setForeground(QColor("#a78bfa" if not is_light else "#6366f1"))
+            type_col = QColor("#a78bfa" if not is_light else "#6366f1")
         elif mtype in ["VIDEO", "MP4"]:
-            item_type.setForeground(QColor("#3875f6" if not is_light else "#2563eb"))
+            type_col = QColor("#3875f6" if not is_light else "#2563eb")
         elif mtype in ["AUDIO", "MP3"]:
-            item_type.setForeground(QColor("#34d399" if not is_light else "#059669"))
-        else:
-            item_type.setForeground(text_sec_col)
-        self.table.setItem(row, 4, item_type)
+            type_col = QColor("#34d399" if not is_light else "#059669")
+        self._set_cell_item(row, 4, f"[{mtype}]", color=type_col, align=Qt.AlignCenter)
 
         # 5. 文件大小
         tot = t_task.get("total_bytes", 0)
@@ -757,11 +773,7 @@ class MainWindow(QMainWindow):
             size_str = format_size(tot)
         else:
             size_str = t("st_unknown")
-
-        item_size = QTableWidgetItem(size_str)
-        item_size.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        item_size.setForeground(text_col)
-        self.table.setItem(row, 5, item_size)
+        self._set_cell_item(row, 5, size_str, color=text_col, align=Qt.AlignRight | Qt.AlignVCenter)
 
         # 6. 下载进度条
         prog = float(t_task.get("progress", 0.0))
@@ -776,16 +788,10 @@ class MainWindow(QMainWindow):
 
         # 7. 实时下载速度
         spd_str = t_task.get("speed", "")
-        item_spd = QTableWidgetItem(spd_str)
-        item_spd.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        item_spd.setForeground(QColor("#38bdf8" if not is_light else "#0284c7"))
-        self.table.setItem(row, 7, item_spd)
+        self._set_cell_item(row, 7, spd_str, color=QColor("#38bdf8" if not is_light else "#0284c7"), align=Qt.AlignRight | Qt.AlignVCenter)
 
         # 8. 剩余时间
-        item_eta = QTableWidgetItem(t_task.get("eta", ""))
-        item_eta.setTextAlignment(Qt.AlignCenter)
-        item_eta.setForeground(text_sec_col)
-        self.table.setItem(row, 8, item_eta)
+        self._set_cell_item(row, 8, t_task.get("eta", ""), color=text_sec_col, align=Qt.AlignCenter)
 
         # 9. 状态
         status = t_task.get("status", "waiting")
@@ -806,10 +812,8 @@ class MainWindow(QMainWindow):
                 "error": (t("st_failed"), "#f87171")
             }
         text_status, color_status = status_map.get(status, (status, "#f8fafc" if not is_light else "#0f172a"))
-        item_st = QTableWidgetItem(text_status)
-        item_st.setTextAlignment(Qt.AlignCenter)
-        item_st.setForeground(QColor(color_status))
 
+        tip = ""
         if status == "error":
             err_title = t_task.get("error_reason") or t_task.get("error_msg") or "下载异常"
             err_hint = t_task.get("error_hint", "")
@@ -817,11 +821,7 @@ class MainWindow(QMainWindow):
             if err_hint:
                 tip += f"\n\n【排查建议】\n{err_hint}"
             tip += "\n\n(双击此任务或右键菜单可查看详细运行日志与诊断)"
-            item_st.setToolTip(tip)
-        else:
-            item_st.setToolTip("")
-
-        self.table.setItem(row, 9, item_st)
+        self._set_cell_item(row, 9, text_status, color=QColor(color_status), align=Qt.AlignCenter, tooltip=tip)
 
         # 10. 添加时间
         item_time = QTableWidgetItem(t_task.get("created_at", ""))
@@ -1002,22 +1002,22 @@ class MainWindow(QMainWindow):
             return
 
         menu = QMenu(self)
-        act_run = menu.addAction(get_icon("play", "#3875f6", 14), "立即开始 / 恢复")
+        act_run = menu.addAction(get_icon("play", "#3875f6", 14), t("ctx_start"))
         act_run.triggered.connect(self._action_start_selected)
 
-        act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), "暂停任务")
+        act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), t("ctx_pause"))
         act_pau.triggered.connect(self._action_pause_selected)
 
         menu.addSeparator()
 
         # --- 针对选中任务的独立代理切换子菜单 ---
-        menu_proxy = menu.addMenu(get_icon("globe", "#38bdf8", 14), "切换下载代理节点")
+        menu_proxy = menu.addMenu(get_icon("globe", "#38bdf8", 14), t("ctx_proxy"))
 
-        act_direct = menu_proxy.addAction(get_icon("check", "#a1a1aa", 12), "直连 (不使用任何代理)")
+        act_direct = menu_proxy.addAction(get_icon("check", "#a1a1aa", 12), t("ctx_direct"))
         act_direct.triggered.connect(lambda: self._set_proxy_for_selected(ids, "DIRECT"))
 
         eff_p = config.get_effective_proxy()
-        eff_desc = f"跟随全局设置 ({eff_p if eff_p else '直连'})"
+        eff_desc = f"{t('cfg_proxy_default', default='跟随全局设置')} ({eff_p if eff_p else t('ctx_direct')})"
         act_global = menu_proxy.addAction(get_icon("settings", "#a1a1aa", 12), eff_desc)
         act_global.triggered.connect(lambda: self._set_proxy_for_selected(ids, "GLOBAL"))
 
@@ -1039,46 +1039,46 @@ class MainWindow(QMainWindow):
                     act_local.triggered.connect(lambda checked=False, u=act["url"]: self._set_proxy_for_selected(ids, u))
 
         menu_proxy.addSeparator()
-        act_custom = menu_proxy.addAction(get_icon("edit", "#f59e0b", 12), "输入自定义代理地址...")
+        act_custom = menu_proxy.addAction(get_icon("edit", "#f59e0b", 12), t("ctx_custom_proxy"))
         act_custom.triggered.connect(lambda: self._prompt_custom_proxy_for_selected(ids))
 
         menu.addSeparator()
 
         # --- 边下边播实时画面预览 (针对下载中/有临时分片未完成的任务) ---
-        act_preview = menu.addAction(get_icon("play", "#38bdf8", 14), "边下边播 (实时画面快速预览)")
+        act_preview = menu.addAction(get_icon("play", "#38bdf8", 14), t("ctx_preview"))
         act_preview.triggered.connect(self._action_preview_selected)
 
         menu.addSeparator()
 
-        act_open_f = menu.addAction(get_icon("video", "#d4d4d8", 14), "打开播放文件")
+        act_open_f = menu.addAction(get_icon("video", "#d4d4d8", 14), t("ctx_open_file"))
         act_open_f.triggered.connect(self._action_play_file)
 
-        act_open_d = menu.addAction(get_icon("folder", "#d4d4d8", 14), "打开所在目录")
+        act_open_d = menu.addAction(get_icon("folder", "#d4d4d8", 14), t("ctx_open_dir"))
         act_open_d.triggered.connect(self._action_open_dir)
 
         menu.addSeparator()
 
-        act_ff = menu.addAction(get_icon("toolbox", "#d4d4d8", 14), "FFmpeg 视音频处理 (转码/提取/修复)")
+        act_ff = menu.addAction(get_icon("toolbox", "#d4d4d8", 14), t("ctx_ffmpeg"))
         act_ff.triggered.connect(self._action_ffmpeg_toolbox_for_selected)
 
-        act_batch = menu.addAction(get_icon("refresh", "#38bdf8", 14), "批量格式转换选中的媒体...")
+        act_batch = menu.addAction(get_icon("refresh", "#38bdf8", 14), t("ctx_convert"))
         act_batch.triggered.connect(self._action_batch_convert_for_selected)
 
-        act_copy = menu.addAction(get_icon("copy", "#d4d4d8", 14), "复制下载链接")
+        act_copy = menu.addAction(get_icon("copy", "#d4d4d8", 14), t("ctx_copy_link"))
         act_copy.triggered.connect(self._action_copy_url)
 
         menu.addSeparator()
 
-        act_log = menu.addAction(get_icon("log", "#38bdf8", 14), "查看任务日志与错误诊断...")
+        act_log = menu.addAction(get_icon("log", "#38bdf8", 14), t("ctx_view_log"))
         act_log.triggered.connect(self._action_view_task_log)
 
         menu.addSeparator()
 
-        act_del = menu.addAction(get_icon("delete", "#f87171", 14), "从列表中删除")
+        act_del = menu.addAction(get_icon("delete", "#f87171", 14), t("ctx_del_list"))
         act_del.triggered.connect(lambda: self._delete_tasks(ids, delete_file=False))
 
-        act_del_all = menu.addAction(get_icon("delete", "#f87171", 14), "删除任务及文件")
-        act_del_all.triggered.connect(lambda: self._delete_tasks(ids, delete_file=True))
+        act_del_all = menu.addAction(get_icon("delete", "#f87171", 14), t("ctx_del_file"))
+        act_del_all.triggered.connect(self._action_delete_tasks_with_files)
 
         menu.exec_(self.table.mapToGlobal(pos))
 
@@ -1222,11 +1222,22 @@ class MainWindow(QMainWindow):
         if not ids:
             return
         ret = QMessageBox.question(
-            self, "确认删除", f"确定要删除选中的 {len(ids)} 个任务吗？",
+            self, t("confirm_del_title"), t("confirm_del_msg", count=len(ids)),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
         )
         if ret == QMessageBox.Yes:
             self._delete_tasks(ids, delete_file=False)
+
+    def _action_delete_tasks_with_files(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        ret = QMessageBox.question(
+            self, t("confirm_del_title"), t("confirm_del_file_msg", count=len(ids)),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if ret == QMessageBox.Yes:
+            self._delete_tasks(ids, delete_file=True)
 
     def _delete_tasks(self, ids, delete_file=False):
         if not ids:

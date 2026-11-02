@@ -120,7 +120,7 @@ class AsyncProxyTester(QThread):
 class SettingsDialog(QDialog):
     def __init__(self, parent=None, initial_tab=0):
         super().__init__(parent)
-        self.setWindowTitle("系统与多节点代理配置中心 - 星流下载器")
+        self.setWindowTitle(t("settings_window_title"))
         self.setWindowIcon(get_app_icon())
         self.resize(720, 520)
         self.setMinimumWidth(680)
@@ -452,10 +452,10 @@ class SettingsDialog(QDialog):
         theme_layout.addStretch()
 
         # 添加到 QTabWidget
-        self.tab_widget.addTab(tab_core, get_icon("folder", "#38bdf8", 16), "核心与媒体格式")
-        self.tab_widget.addTab(tab_proxy, get_icon("globe", "#38bdf8", 16), "网络与多节点代理")
-        self.tab_widget.addTab(tab_perf, get_icon("settings", "#38bdf8", 16), "并发与扩展管理")
-        self.tab_widget.addTab(tab_theme, get_icon("palette", "#38bdf8", 16), "外观与壁纸")
+        self.tab_widget.addTab(tab_core, get_icon("folder", "#38bdf8", 16), t("tab_core"))
+        self.tab_widget.addTab(tab_proxy, get_icon("globe", "#38bdf8", 16), t("tab_proxy"))
+        self.tab_widget.addTab(tab_perf, get_icon("settings", "#38bdf8", 16), t("tab_perf"))
+        self.tab_widget.addTab(tab_theme, get_icon("palette", "#38bdf8", 16), t("tab_appearance"))
 
         if 0 <= initial_tab < self.tab_widget.count():
             self.tab_widget.setCurrentIndex(initial_tab)
@@ -465,9 +465,9 @@ class SettingsDialog(QDialog):
         # 底部操作按钮
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        cancel_btn = QPushButton("取消")
+        cancel_btn = QPushButton(t("cancel"))
         cancel_btn.clicked.connect(self.reject)
-        save_btn = QPushButton("保存设置")
+        save_btn = QPushButton(t("save_settings"))
         save_btn.setProperty("class", "primary")
         save_btn.clicked.connect(self._save_settings)
 

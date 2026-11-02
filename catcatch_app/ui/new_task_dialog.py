@@ -16,6 +16,7 @@ from catcatch_app.core.config import config
 from catcatch_app.core.task_manager import task_manager
 from catcatch_app.core.video_parser import parse_video_url
 from catcatch_app.ui.icons import get_icon, get_app_icon
+from catcatch_app.core.i18n import t
 
 
 class VideoParseWorker(QThread):
@@ -41,7 +42,7 @@ class VideoParseWorker(QThread):
 class NewTaskDialog(QDialog):
     def __init__(self, parent=None, initial_url="", initial_title=""):
         super().__init__(parent)
-        self.setWindowTitle("新建下载任务 - 星流下载器")
+        self.setWindowTitle(t("nt_title"))
         self.setWindowIcon(get_app_icon())
         self.setMinimumWidth(620)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
@@ -56,13 +57,13 @@ class NewTaskDialog(QDialog):
 
         # 1. 链接输入与全网一键解析
         url_layout = QVBoxLayout()
-        url_label = QLabel("下载链接 (URL / M3U8 / MPD / 视音频直链 / 网页视频分享文本):")
+        url_label = QLabel(t("nt_url_label"))
         url_row = QHBoxLayout()
         self.url_edit = QLineEdit(initial_url)
-        self.url_edit.setPlaceholderText("可粘贴视频直链、M3U8、或 B站 / 抖音 / 快手 / 小红书等网页分享链接...")
+        self.url_edit.setPlaceholderText(t("nt_url_placeholder"))
         self.url_edit.textChanged.connect(self._on_url_changed)
 
-        self.parse_btn = QPushButton("全网一键解析")
+        self.parse_btn = QPushButton(t("nt_parse_btn"))
         self.parse_btn.setIcon(get_icon("zap", "#38bdf8", 14))
         self.parse_btn.setToolTip("一键逆向解析目标网页，提取真实原画 MP4 直链或 M3U8 清单")
         self.parse_btn.clicked.connect(self._trigger_parse)
@@ -80,17 +81,17 @@ class NewTaskDialog(QDialog):
         # 2. 文件名与格式类型
         row2 = QHBoxLayout()
         name_layout = QVBoxLayout()
-        name_label = QLabel("保存文件名:")
+        name_label = QLabel(t("nt_filename"))
         self.name_edit = QLineEdit(initial_title)
-        self.name_edit.setPlaceholderText("留空自动解析")
+        self.name_edit.setPlaceholderText(t("nt_filename_placeholder"))
         name_layout.addWidget(name_label)
         name_layout.addWidget(self.name_edit)
         row2.addLayout(name_layout, 3)
 
         type_layout = QVBoxLayout()
-        type_label = QLabel("资源类型:")
+        type_label = QLabel(t("nt_type"))
         self.type_combo = QComboBox()
-        self.type_combo.addItems(["自动识别", "M3U8 流媒体", "普通视频 (MP4/WebM)", "音频 (MP3/AAC)", "常规文件"])
+        self.type_combo.addItems([t("media_types"), t("stream_media"), t("video_files"), t("audio_files"), t("regular_files")])
         type_layout.addWidget(type_label)
         type_layout.addWidget(self.type_combo)
         row2.addLayout(type_layout, 2)
@@ -98,10 +99,10 @@ class NewTaskDialog(QDialog):
 
         # 3. 保存路径
         path_layout = QVBoxLayout()
-        path_label = QLabel("保存目录:")
+        path_label = QLabel(t("nt_save_dir"))
         path_row = QHBoxLayout()
         self.path_edit = QLineEdit(config.get("save_dir"))
-        self.browse_btn = QPushButton("浏览...")
+        self.browse_btn = QPushButton(t("browse"))
         self.browse_btn.setIcon(get_icon("folder", "#a1a1aa", 16))
         self.browse_btn.clicked.connect(self._browse_dir)
         path_row.addWidget(self.path_edit)
@@ -111,17 +112,17 @@ class NewTaskDialog(QDialog):
         layout.addLayout(path_layout)
 
         # 4. 高级参数 (防盗链 / Referer / 代理选择)
-        self.adv_group = QGroupBox("网络与代理设置")
+        self.adv_group = QGroupBox(t("tab_proxy"))
         adv_layout = QVBoxLayout(self.adv_group)
 
         # 代理模式选择
         p_row = QHBoxLayout()
-        p_row.addWidget(QLabel("下载代理:"))
+        p_row.addWidget(QLabel(t("nt_proxy")))
         self.proxy_combo = QComboBox()
         self._populate_proxy_combo()
         p_row.addWidget(self.proxy_combo, 1)
 
-        p_row.addWidget(QLabel("并发线程:"))
+        p_row.addWidget(QLabel(t("nt_threads")))
         self.thread_spin = QSpinBox()
         self.thread_spin.setRange(1, 64)
         self.thread_spin.setValue(config.get("max_threads_per_task", 16))
@@ -156,9 +157,9 @@ class NewTaskDialog(QDialog):
         # 5. 底部按钮
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
-        self.cancel_btn = QPushButton("取消")
+        self.cancel_btn = QPushButton(t("nt_cancel_btn"))
         self.cancel_btn.clicked.connect(self.reject)
-        self.download_btn = QPushButton("开始下载")
+        self.download_btn = QPushButton(t("nt_download_btn"))
         self.download_btn.setIcon(get_icon("download", "#ffffff", 16))
         self.download_btn.setProperty("class", "primary")
         self.download_btn.clicked.connect(self._start_download)
@@ -172,14 +173,14 @@ class NewTaskDialog(QDialog):
         
         # 默认项：跟随全局配置
         eff = config.get_effective_proxy()
-        eff_desc = f"全局设置 (当前: {eff if eff else '直连'})"
+        eff_desc = f"{t('cfg_proxy_default')} ({eff if eff else t('ctx_direct')})"
         self.proxy_combo.addItem(eff_desc, "__DEFAULT__")
-        self.proxy_combo.addItem("强制直连 (不使用任何代理)", "__NONE__")
-        self.proxy_combo.addItem("跟随 Windows 系统代理", "__SYSTEM__")
+        self.proxy_combo.addItem(t("cfg_proxy_direct"), "__NONE__")
+        self.proxy_combo.addItem(t("status_proxy_system"), "__SYSTEM__")
 
         # 追加自定义代理列表
         for p in config.get_proxies_list():
-            self.proxy_combo.addItem(f"节点: {p.get('name')} ({p.get('url')})", p.get("url"))
+            self.proxy_combo.addItem(f"{p.get('name')} ({p.get('url')})", p.get("url"))
 
     def _check_clipboard(self, initial_url):
         if initial_url:

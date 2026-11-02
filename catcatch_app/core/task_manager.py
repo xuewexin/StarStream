@@ -35,6 +35,7 @@ class TaskManager(QObject):
         self._tasks = []
         self._active_workers = {}  # task_id -> task_instance
         self._lock = threading.RLock()
+        self._save_timer = None
         self.load_tasks()
 
     def load_tasks(self):
@@ -52,7 +53,18 @@ class TaskManager(QObject):
             except Exception as e:
                 print(f"[TaskManager] 加载历史任务失败: {e}")
 
-    def save_tasks(self):
+    def save_tasks(self, immediate=False):
+        """保存任务列表，默认防抖延迟写入，避免连续操作阻塞界面主线程"""
+        if immediate:
+            self._do_save_tasks()
+            return
+        if self._save_timer and self._save_timer.is_alive():
+            return
+        self._save_timer = threading.Timer(0.3, self._do_save_tasks)
+        self._save_timer.daemon = True
+        self._save_timer.start()
+
+    def _do_save_tasks(self):
         try:
             with self._lock:
                 saved_list = []

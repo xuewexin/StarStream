@@ -374,7 +374,7 @@ class VideoParserDialog(QDialog):
         m = re.search(r'https?://[^\s<>"]+', text)
         url = m.group(0) if m else text
         if not url.startswith("http"):
-            QMessageBox.warning(self, "提示", "请在上方输入框输入或粘贴有效的网页链接！")
+            QMessageBox.warning(self, t("notice"), "请在上方输入框输入或粘贴有效的网页链接！")
             return
         webbrowser.open(url)
         self.status_lbl.setText(t("vp_browser_hint"))
@@ -384,10 +384,10 @@ class VideoParserDialog(QDialog):
         self.parse_btn.setEnabled(True)
         self.pbar.hide()
         if "安全防护" in msg or "风控" in msg or "浏览器" in msg:
-            self.status_lbl.setText(f"提示: {msg}")
+            self.status_lbl.setText(f"{t('notice')}: {msg}")
             self.status_lbl.setStyleSheet("color: #fbbf24; font-size: 11px; font-weight: 500;")
         else:
-            self.status_lbl.setText(f"解析提示: {msg}")
+            self.status_lbl.setText(f"{t('notice')}: {msg}")
             self.status_lbl.setStyleSheet("color: #f87171; font-size: 11px;")
 
     def _load_cover(self, url):
@@ -400,9 +400,9 @@ class VideoParserDialog(QDialog):
                     pix.loadFromData(data)
                     if not pix.isNull():
                         scaled = pix.scaled(140, 95, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
-                        self.cover_lbl.setPixmap(scaled)
+                        QTimer.singleShot(0, lambda: self.cover_lbl.setPixmap(scaled))
             except Exception:
-                self.cover_lbl.setText(t("vp_no_cover"))
+                QTimer.singleShot(0, lambda: self.cover_lbl.setText(t("vp_no_cover")))
         import threading
         threading.Thread(target=_fetch, daemon=True).start()
 
@@ -410,7 +410,7 @@ class VideoParserDialog(QDialog):
         url = self.url_display.text().strip()
         if url:
             QApplication.clipboard().setText(url)
-            QMessageBox.information(self, "提示", t("vp_copy_success"))
+            QMessageBox.information(self, t("notice"), t("vp_copy_success"))
 
     def _submit_to_downloader(self):
         if not self._current_result:
@@ -433,5 +433,5 @@ class VideoParserDialog(QDialog):
         }
 
         task_manager.add_task(task_info, auto_start=True)
-        QMessageBox.information(self, "提示", f"已加入下载队列:\n{title}")
+        QMessageBox.information(self, t("notice"), f"{t('pushed_queue')}:\n{title}")
         self.accept()
