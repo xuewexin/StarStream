@@ -141,6 +141,9 @@ class FloatingDashboardPanel(QWidget):
         """)
 
         self.task_list_widget = QWidget()
+        self.task_list_widget.setStyleSheet("background: transparent; border: none;")
+        if self.scroll.viewport():
+            self.scroll.viewport().setStyleSheet("background: transparent; border: none;")
         self.task_list_layout = QVBoxLayout(self.task_list_widget)
         self.task_list_layout.setContentsMargins(6, 6, 6, 6)
         self.task_list_layout.setSpacing(6)

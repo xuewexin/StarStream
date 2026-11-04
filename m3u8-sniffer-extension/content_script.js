@@ -26,6 +26,15 @@
     });
   } catch (e) {}
 
+  function toBase64(str) {
+    if (!str) return '';
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e) {
+      return btoa(str);
+    }
+  }
+
   // 严格过滤已知切片分片
   const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
@@ -353,7 +362,8 @@
       <div class="catcatch-panel-actions">
         <button id="catcatchPushBtn" class="catcatch-btn primary" disabled>${t('cap_push_btn', '推送到星流下载器')}</button>
         <button id="catcatchCopyCmdBtn" class="catcatch-btn" disabled>${t('cap_copy_cmd', '复制命令')}</button>
-        <button id="catcatchCopyBtn" class="catcatch-btn" disabled>${t('cap_copy_link', '复制链接')}</button>
+        <button id="catcatchCopyBtn" class="catcatch-btn" disabled>${t('cap_copy_link', '复制原链')}</button>
+        <button id="catcatchCopyB64Btn" class="catcatch-btn" disabled>${t('cap_copy_b64', '复制Base64')}</button>
         <button id="catcatchCloseBtn" class="catcatch-btn">${t('cap_close', '关闭')}</button>
       </div>
     `;
@@ -368,6 +378,7 @@
     const pushBtn = panel.querySelector('#catcatchPushBtn');
     const copyCmdBtn = panel.querySelector('#catcatchCopyCmdBtn');
     const copyBtn = panel.querySelector('#catcatchCopyBtn');
+    const copyB64Btn = panel.querySelector('#catcatchCopyB64Btn');
     const closeBtn = panel.querySelector('#catcatchCloseBtn');
 
     closeBtn.addEventListener('click', () => removeFloatingBar());
@@ -400,6 +411,7 @@
     pushBtn.disabled = false;
     copyCmdBtn.disabled = false;
     copyBtn.disabled = false;
+    copyB64Btn.disabled = false;
 
     copyCmdBtn.addEventListener('click', () => {
       const pChoice = proxySelect.value;
@@ -487,8 +499,16 @@
 
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(mediaInfo.url).then(() => {
-        copyBtn.textContent = t('cap_copied_link', '已复制');
-        setTimeout(() => (copyBtn.textContent = t('cap_copy_link', '复制链接')), 1500);
+        copyBtn.textContent = t('cap_copied_link', '已复制原链');
+        setTimeout(() => (copyBtn.textContent = t('cap_copy_link', '复制原链')), 1500);
+      });
+    });
+
+    copyB64Btn.addEventListener('click', () => {
+      const b64 = toBase64(mediaInfo.url);
+      navigator.clipboard.writeText(b64).then(() => {
+        copyB64Btn.textContent = t('cap_copied_b64', '已复制Base64');
+        setTimeout(() => (copyB64Btn.textContent = t('cap_copy_b64', '复制Base64')), 1500);
       });
     });
   }

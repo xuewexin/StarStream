@@ -19,6 +19,11 @@ SUPPORTED_LANGUAGES = [
 
 TRANSLATIONS = {
     "zh_CN": {
+        "ctx_copy_base64": "复制 Base64 编码链接",
+        "status_copied_base64": "Base64 编码链接已复制到剪贴板",
+        "vp_copy_base64": "复制 Base64 链接",
+        "vp_copy_b64_success": "已复制 Base64 编码链接到剪贴板！",
+
         "app_title": "星流媒体嗅探与下载器",
         "cfg_proxy_default": "跟随全局设置",
         "cfg_proxy_direct": "直接连接 (不使用代理)",
@@ -246,6 +251,11 @@ TRANSLATIONS = {
     
     },
     "zh_TW": {
+        "ctx_copy_base64": "複製 Base64 編碼連結",
+        "status_copied_base64": "Base64 編碼連結已複製到剪貼簿",
+        "vp_copy_base64": "複製 Base64 連結",
+        "vp_copy_b64_success": "已複製 Base64 編碼連結到剪貼簿！",
+
         "app_title": "星流媒體嗅探與下載器",
         "cfg_proxy_default": "跟隨全域設定",
         "cfg_proxy_direct": "直接連線 (不使用代理)",
@@ -473,6 +483,11 @@ TRANSLATIONS = {
     
     },
     "en_US": {
+        "ctx_copy_base64": "Copy Base64 Encoded URL",
+        "status_copied_base64": "Base64 encoded URL copied to clipboard",
+        "vp_copy_base64": "Copy Base64 URL",
+        "vp_copy_b64_success": "Base64 encoded video URL copied to clipboard!",
+
         "app_title": "StarStream Media Sniffer & Downloader",
         "cfg_proxy_default": "Follow Global Settings",
         "cfg_proxy_direct": "Direct Connection (No Proxy)",
@@ -700,6 +715,11 @@ TRANSLATIONS = {
     
     },
     "ja_JP": {
+        "ctx_copy_base64": "Base64エンコードURLをコピー",
+        "status_copied_base64": "Base64エンコードURLをクリップボードにコピーしました",
+        "vp_copy_base64": "Base64リンクをコピー",
+        "vp_copy_b64_success": "Base64エンコードされた動画URLをコピーしました！",
+
         "app_title": "StarStream メディアゲッター＆ダウンローダー",
         "cfg_proxy_default": "グローバル設定に従う",
         "cfg_proxy_direct": "直接接続 (プロキシなし)",
@@ -927,6 +947,11 @@ TRANSLATIONS = {
     
     },
     "ko_KR": {
+        "ctx_copy_base64": "Base64 인코딩 링크 복사",
+        "status_copied_base64": "Base64 인코딩 링크가 클립보드에 복사되었습니다",
+        "vp_copy_base64": "Base64 링크 복사",
+        "vp_copy_b64_success": "Base64 인코딩 동영상 링크가 클립보드에 복사되었습니다!",
+
         "app_title": "StarStream 미디어 스니퍼 & 다운로더",
         "cfg_proxy_default": "전체 설정 따르기",
         "cfg_proxy_direct": "직접 연결 (프록시 없음)",
@@ -1154,6 +1179,11 @@ TRANSLATIONS = {
     
     },
     "fr_FR": {
+        "ctx_copy_base64": "Copier l'URL encodée en Base64",
+        "status_copied_base64": "URL encodée en Base64 copiée dans le presse-papiers",
+        "vp_copy_base64": "Copier le lien Base64",
+        "vp_copy_b64_success": "Lien vidéo encodé en Base64 copié dans le presse-papiers !",
+
         "app_title": "StarStream Renifleur & Téléchargeur Multimédia",
         "cfg_proxy_default": "Suivre les paramètres globaux",
         "cfg_proxy_direct": "Connexion directe (sans proxy)",
@@ -1381,6 +1411,11 @@ TRANSLATIONS = {
     
     },
     "de_DE": {
+        "ctx_copy_base64": "Base64-kodierte URL kopieren",
+        "status_copied_base64": "Base64-kodierte URL in Zwischenablage kopiert",
+        "vp_copy_base64": "Base64-Link kopieren",
+        "vp_copy_b64_success": "Base64-kodierte Video-URL in Zwischenablage kopiert!",
+
         "app_title": "StarStream Medien-Sniffer & Downloader",
         "cfg_proxy_default": "Globalen Einstellungen folgen",
         "cfg_proxy_direct": "Direktverbindung (ohne Proxy)",
@@ -1608,6 +1643,11 @@ TRANSLATIONS = {
     
     },
     "es_ES": {
+        "ctx_copy_base64": "Copiar URL codificada en Base64",
+        "status_copied_base64": "URL codificada en Base64 copiada al portapapeles",
+        "vp_copy_base64": "Copiar enlace Base64",
+        "vp_copy_b64_success": "¡Enlace de vídeo codificado en Base64 copiado al portapapeles!",
+
         "app_title": "StarStream Extractor y Descargador Multimedia",
         "cfg_proxy_default": "Seguir configuración global",
         "cfg_proxy_direct": "Conexión directa (sin proxy)",
@@ -1835,6 +1875,11 @@ TRANSLATIONS = {
     
     },
     "ru_RU": {
+        "ctx_copy_base64": "Копировать ссылку в Base64",
+        "status_copied_base64": "Ссылка в Base64 скопирована в буфер обмена",
+        "vp_copy_base64": "Копировать ссылку Base64",
+        "vp_copy_b64_success": "Ссылка на видео в кодировке Base64 скопирована в буфер обмена!",
+
         "app_title": "StarStream Перехватчик и загрузчик медиа",
         "cfg_proxy_default": "Следовать глобальным настройкам",
         "cfg_proxy_direct": "Прямое подключение (без прокси)",
@@ -2062,6 +2107,11 @@ TRANSLATIONS = {
     
     },
     "pt_BR": {
+        "ctx_copy_base64": "Copiar URL codificada em Base64",
+        "status_copied_base64": "URL codificada em Base64 copiada para a área de transferência",
+        "vp_copy_base64": "Copiar link Base64",
+        "vp_copy_b64_success": "Link do vídeo codificado em Base64 copiado para a área de transferência!",
+
         "app_title": "StarStream Sniffer e Baixador Multimídia",
         "cfg_proxy_default": "Seguir configurações globais",
         "cfg_proxy_direct": "Conexão direta (sem proxy)",

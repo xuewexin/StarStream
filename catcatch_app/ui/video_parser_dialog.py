@@ -276,6 +276,30 @@ class VideoParserDialog(QDialog):
         """)
         self.copy_link_btn.clicked.connect(self._copy_parsed_url)
 
+        self.copy_b64_btn = QPushButton(t("vp_copy_base64"))
+        self.copy_b64_btn.setEnabled(False)
+        self.copy_b64_btn.setIcon(get_icon("code", "#38bdf8", 14))
+        self.copy_b64_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #1e293b;
+                color: #cbd5e1;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background-color: #334155;
+                color: #ffffff;
+            }
+            QPushButton:disabled {
+                background-color: #0f172a;
+                color: #475569;
+                border-color: #1e293b;
+            }
+        """)
+        self.copy_b64_btn.clicked.connect(self._copy_parsed_b64_url)
+
         self.download_btn = QPushButton(t("vp_add_download"))
         self.download_btn.setIcon(get_icon("download", "#ffffff", 16))
         self.download_btn.setEnabled(False)
@@ -301,6 +325,7 @@ class VideoParserDialog(QDialog):
         self.download_btn.clicked.connect(self._submit_to_downloader)
 
         btn_bar.addWidget(self.copy_link_btn)
+        btn_bar.addWidget(self.copy_b64_btn)
         btn_bar.addStretch()
         btn_bar.addWidget(self.download_btn)
         res_layout.addLayout(btn_bar)
@@ -365,6 +390,7 @@ class VideoParserDialog(QDialog):
             self.cover_lbl.setText(t("vp_no_cover"))
 
         self.copy_link_btn.setEnabled(True)
+        self.copy_b64_btn.setEnabled(True)
         self.download_btn.setEnabled(True)
         self.status_lbl.setText(t("vp_success_hint"))
         self.status_lbl.setStyleSheet("color: #4ade80; font-size: 11px;")
@@ -411,6 +437,14 @@ class VideoParserDialog(QDialog):
         if url:
             QApplication.clipboard().setText(url)
             QMessageBox.information(self, t("notice"), t("vp_copy_success"))
+
+    def _copy_parsed_b64_url(self):
+        url = self.url_display.text().strip()
+        if url:
+            import base64
+            b64_str = base64.b64encode(url.encode("utf-8")).decode("utf-8")
+            QApplication.clipboard().setText(b64_str)
+            QMessageBox.information(self, t("notice"), t("vp_copy_b64_success"))
 
     def _submit_to_downloader(self):
         if not self._current_result:

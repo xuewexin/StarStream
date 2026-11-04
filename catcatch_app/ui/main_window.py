@@ -1139,6 +1139,9 @@ class MainWindow(QMainWindow):
         act_copy = menu.addAction(get_icon("copy", "#d4d4d8", 14), t("ctx_copy_link"))
         act_copy.triggered.connect(self._action_copy_url)
 
+        act_copy_b64 = menu.addAction(get_icon("code", "#38bdf8", 14), t("ctx_copy_base64"))
+        act_copy_b64.triggered.connect(self._action_copy_base64_url)
+
         menu.addSeparator()
 
         act_log = menu.addAction(get_icon("log", "#38bdf8", 14), t("ctx_view_log"))
@@ -1377,7 +1380,18 @@ class MainWindow(QMainWindow):
         task = task_manager.get_task(ids[0])
         if task and task.get("url"):
             QApplication.clipboard().setText(task["url"])
-            self.statusBar().showMessage("链接已复制", 2000)
+            self.statusBar().showMessage(t("status_copied_link", default="原下载链接已复制"), 2000)
+
+    def _action_copy_base64_url(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task = task_manager.get_task(ids[0])
+        if task and task.get("url"):
+            import base64
+            b64_str = base64.b64encode(task["url"].encode("utf-8")).decode("utf-8")
+            QApplication.clipboard().setText(b64_str)
+            self.statusBar().showMessage(t("status_copied_base64"), 2000)
 
     def _action_manage_fragments(self):
         dlg = FragmentsDialog(self)

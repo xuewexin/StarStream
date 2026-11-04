@@ -32,16 +32,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.0_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_v3.2.1_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.1_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20独立单文件-StarStream.exe%20(自动扫描前置引擎)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip">
-    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.0.zip%20(仅%20165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_Browser_Extension_v3.2.1.zip">
+    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.1.zip%20(仅%20165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
   &nbsp;&nbsp;
   <a href="#-同类开源项目横向对比与选型指南-comparison--alternatives">
@@ -139,14 +139,14 @@
 
 | 下载方式 | 包含组件 | 适用场景 | 官方下载链接 |
 |---|---|---|---|
-| **⭐ 推荐：StarStream_v3.2.0_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | **强烈推荐未安装 FFmpeg / N_m3u8DL 的用户**，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_v3.2.0_Portable.zip) |
-| **🚀 独立单文件版：StarStream.exe (77.5MB)** | 最新编译独立单文件可执行程序 (内置全部依赖) | **适合本地已有 FFmpeg 或 N_m3u8DL 的用户**，自动全盘扫描识别依赖；**请放入独立空白文件夹运行** | [👉 点击直接下载 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream.exe) |
-| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.2.0)** | 纯插件源码包 (仅 165KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (165KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.0/StarStream_Browser_Extension_v3.2.0.zip) |
+| **⭐ 推荐：StarStream_v3.2.1_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | **强烈推荐未安装 FFmpeg / N_m3u8DL 的用户**，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_v3.2.1_Portable.zip) |
+| **🚀 独立单文件版：StarStream.exe (77.5MB)** | 最新编译独立单文件可执行程序 (内置全部依赖) | **适合本地已有 FFmpeg 或 N_m3u8DL 的用户**，自动全盘扫描识别依赖；**请放入独立空白文件夹运行** | [👉 点击直接下载 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream.exe) |
+| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.2.1)** | 纯插件源码包 (仅 165KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (165KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_Browser_Extension_v3.2.1.zip) |
 | **GitHub Releases 官方发行版主页** | 查看所有发布版本、更新日志与资产列表 | 追溯所有更新与校验包 | [👉 访问 Releases 页面](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **下载与使用重要建议 (必读指南)**：
 > 1. **未安装 FFmpeg 与 N_m3u8DL 的用户**：
->    👉 **强烈建议直接下载【便携完整包 (`StarStream_v3.2.0_Portable.zip`)】**！便携包内已预置并配置好了全部必需的 `ffmpeg.exe` 与 `N_m3u8DL-RE.exe` 核心引擎，解压即可直接使用，无需任何环境配置。
+>    👉 **强烈建议直接下载【便携完整包 (`StarStream_v3.2.1_Portable.zip`)】**！便携包内已预置并配置好了全部必需的 `ffmpeg.exe` 与 `N_m3u8DL-RE.exe` 核心引擎，解压即可直接使用，无需任何环境配置。
 > 2. **本地已有 FFmpeg 或 N_m3u8DL 的用户**：
 >    👉 **可以直接下载单文件【独立主程序 (`StarStream.exe`)】**！星流在首次启动时会自动全盘扫描系统环境变量（`PATH`）与常见目录，智能识别并自动挂载这两个前置依赖工具，无需重复配置。
 > 3. **⚠️ 运行注意事项 (强烈建议)**：

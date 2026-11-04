@@ -26,6 +26,12 @@
 
   const TRANSLATIONS = {
     zh_CN: {
+      btn_copy_b64: "复制Base64",
+      tip_copy_b64: "复制 Base64 编码的视频直链",
+      cap_copy_b64: "复制Base64",
+      cap_copied_b64: "已复制Base64",
+      batch_copy_b64: "复制Base64",
+
       brand_title: "星流媒体嗅探器",
       status_online: "客户端已连接",
       status_offline: "客户端离线",
@@ -116,6 +122,12 @@
     
     },
     zh_TW: {
+      btn_copy_b64: "複製Base64",
+      tip_copy_b64: "複製 Base64 編碼的影片直鏈",
+      cap_copy_b64: "複製Base64",
+      cap_copied_b64: "已複製Base64",
+      batch_copy_b64: "複製Base64",
+
       brand_title: "星流媒體探測器",
       status_online: "客戶端已連線",
       status_offline: "客戶端離線",
@@ -206,6 +218,12 @@
     
     },
     en_US: {
+      btn_copy_b64: "Copy Base64",
+      tip_copy_b64: "Copy Base64-encoded video URL",
+      cap_copy_b64: "Copy Base64",
+      cap_copied_b64: "Base64 Copied",
+      batch_copy_b64: "Copy Base64",
+
       brand_title: "StarStream Sniffer",
       status_online: "Client Online",
       status_offline: "Client Offline",
@@ -296,6 +314,12 @@
     
     },
     ja_JP: {
+      btn_copy_b64: "Base64コピー",
+      tip_copy_b64: "Base64エンコードされた動画リンクをコピー",
+      cap_copy_b64: "Base64コピー",
+      cap_copied_b64: "Base64コピー完了",
+      batch_copy_b64: "Base64コピー",
+
       brand_title: "StarStream スニファー",
       status_online: "接続中",
       status_offline: "未接続",
@@ -386,6 +410,12 @@
     
     },
     ko_KR: {
+      btn_copy_b64: "Base64 복사",
+      tip_copy_b64: "Base64로 인코딩된 동영상 링크 복사",
+      cap_copy_b64: "Base64 복사",
+      cap_copied_b64: "Base64 복사 완료",
+      batch_copy_b64: "Base64 복사",
+
       brand_title: "StarStream 스니퍼",
       status_online: "클라이언트 연결됨",
       status_offline: "클라이언트 오프라인",
@@ -476,6 +506,12 @@
     
     },
     fr_FR: {
+      btn_copy_b64: "Copier Base64",
+      tip_copy_b64: "Copier l'URL vidéo encodée en Base64",
+      cap_copy_b64: "Copier Base64",
+      cap_copied_b64: "Base64 Copié",
+      batch_copy_b64: "Copier en Base64",
+
       brand_title: "StarStream Renifleur",
       status_online: "Client Connecté",
       status_offline: "Client Déconnecté",
@@ -566,6 +602,12 @@
     
     },
     de_DE: {
+      btn_copy_b64: "Base64 kopieren",
+      tip_copy_b64: "Base64-kodierten Videolink kopieren",
+      cap_copy_b64: "Base64 kopieren",
+      cap_copied_b64: "Base64 kopiert",
+      batch_copy_b64: "Base64 kopieren",
+
       brand_title: "StarStream Sniffer",
       status_online: "Client Verbunden",
       status_offline: "Client Offline",
@@ -656,6 +698,12 @@
     
     },
     es_ES: {
+      btn_copy_b64: "Copiar Base64",
+      tip_copy_b64: "Copiar enlace de video codificado en Base64",
+      cap_copy_b64: "Copiar Base64",
+      cap_copied_b64: "Base64 copiado",
+      batch_copy_b64: "Copiar Base64",
+
       brand_title: "StarStream Rastreador",
       status_online: "Cliente Conectado",
       status_offline: "Cliente Desconectado",
@@ -746,6 +794,12 @@
     
     },
     ru_RU: {
+      btn_copy_b64: "Копировать Base64",
+      tip_copy_b64: "Копировать ссылку на видео в кодировке Base64",
+      cap_copy_b64: "Копировать Base64",
+      cap_copied_b64: "Base64 скопирован",
+      batch_copy_b64: "Копировать Base64",
+
       brand_title: "StarStream Перехватчик",
       status_online: "Клиент в сети",
       status_offline: "Клиент не в сети",
@@ -836,6 +890,12 @@
     
     },
     pt_BR: {
+      btn_copy_b64: "Copiar Base64",
+      tip_copy_b64: "Copiar link do vídeo codificado em Base64",
+      cap_copy_b64: "Copiar Base64",
+      cap_copied_b64: "Base64 copiado",
+      batch_copy_b64: "Copiar Base64",
+
       brand_title: "StarStream Capturador",
       status_online: "Cliente Conectado",
       status_offline: "Cliente Desconectado",

@@ -21,6 +21,15 @@
   let clientEffectiveProxy = '';
   let clientTempDir = 'Temp_Segments';
 
+  function toBase64(str) {
+    if (!str) return '';
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (e) {
+      return btoa(str);
+    }
+  }
+
   // DOM 元素引用
   const mediaListContainer = document.getElementById('mediaListContainer');
   const emptyPlaceholder = document.getElementById('emptyPlaceholder');
@@ -76,6 +85,7 @@
     if (el('searchInput')) el('searchInput').placeholder = t('search_placeholder');
     if (el('btnBatchPush')) el('btnBatchPush').textContent = t('batch_push');
     if (el('btnBatchCopy')) el('btnBatchCopy').textContent = t('batch_copy');
+    if (el('btnBatchCopyB64')) el('btnBatchCopyB64').textContent = t('batch_copy_b64');
     if (el('btnBatchDelete')) el('btnBatchDelete').textContent = t('batch_delete');
 
     const emptyTitle = document.querySelector('.empty-title');
@@ -406,10 +416,22 @@
       const urls = selectedItems.map((it) => it.url).join('\n');
       navigator.clipboard.writeText(urls).then(() => {
         const btn = document.getElementById('btnBatchCopy');
-        btn.textContent = '已复制全部';
-        setTimeout(() => (btn.textContent = '复制链接'), 1500);
+        btn.textContent = t('cap_copied_link', '已复制原链');
+        setTimeout(() => (btn.textContent = t('batch_copy', '复制原链')), 1500);
       });
     });
+
+    const batchCopyB64Btn = document.getElementById('btnBatchCopyB64');
+    if (batchCopyB64Btn) {
+      batchCopyB64Btn.addEventListener('click', () => {
+        const selectedItems = mediaList.filter((it) => selectedIds.has(it.id));
+        const urls = selectedItems.map((it) => toBase64(it.url)).join('\n');
+        navigator.clipboard.writeText(urls).then(() => {
+          batchCopyB64Btn.textContent = t('cap_copied_b64', '已复制Base64');
+          setTimeout(() => (batchCopyB64Btn.textContent = t('batch_copy_b64', '复制Base64')), 1500);
+        });
+      });
+    }
 
     document.getElementById('btnBatchDelete').addEventListener('click', async () => {
       mediaList = mediaList.filter((it) => !selectedIds.has(it.id));
@@ -782,7 +804,8 @@
         <button class="btn-sm btn-secondary action-config" title="${t('btn_config')}">${t('btn_config')}</button>
         <button class="btn-sm btn-secondary action-copy-cmd" title="${t('btn_copy_cmd')}">${t('btn_copy_cmd')}</button>
         <button class="btn-sm btn-secondary action-preview">${t('btn_preview')}</button>
-        <button class="btn-sm btn-secondary action-copy">${t('btn_copy')}</button>
+        <button class="btn-sm btn-secondary action-copy" title="${t('tip_copy_url', '点击复制完整直链')}">${t('btn_copy')}</button>
+        <button class="btn-sm btn-secondary action-copy-b64" title="${t('tip_copy_b64', '点击复制Base64编码链接')}">${t('btn_copy_b64')}</button>
         <button class="btn-sm btn-danger action-del">${t('btn_delete')}</button>
       </div>
       <div class="card-config-panel hidden">
@@ -979,10 +1002,21 @@
     const copyBtn = card.querySelector('.action-copy');
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(item.url).then(() => {
-        copyBtn.textContent = t('cap_copied_link', '已复制');
-        setTimeout(() => (copyBtn.textContent = t('btn_copy', '复制')), 1500);
+        copyBtn.textContent = t('cap_copied_link', '已复制原链');
+        setTimeout(() => (copyBtn.textContent = t('btn_copy', '复制原链')), 1500);
       });
     });
+
+    const copyB64Btn = card.querySelector('.action-copy-b64');
+    if (copyB64Btn) {
+      copyB64Btn.addEventListener('click', () => {
+        const b64 = toBase64(item.url);
+        navigator.clipboard.writeText(b64).then(() => {
+          copyB64Btn.textContent = t('cap_copied_b64', '已复制Base64');
+          setTimeout(() => (copyB64Btn.textContent = t('btn_copy_b64', '复制Base64')), 1500);
+        });
+      });
+    }
 
     const delBtn = card.querySelector('.action-del');
     delBtn.addEventListener('click', async () => {
