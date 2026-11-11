@@ -237,7 +237,7 @@ async function captureMediaRequest(details, respInfo) {
     initiator: details.initiator || "",
     timestamp: Date.now(),
     duration: 0,
-    resolution: "",
+    resolution: extractQualityFromUrl(url),
     hasKey: false,
     keyUrl: "",
     isAd: isAdByUrl,
@@ -276,6 +276,23 @@ function detectMediaType(url, contentType) {
 
 function anyEndsWith(str, exts) {
   return exts.some((ext) => str.endsWith(ext));
+}
+
+/**
+ * 从地址里提取真实画质（/720p/video.m3u8、xxx_1080p.m3u8、4k 等）。
+ * 地址里的画质标签比播放器渲染尺寸可靠得多——播放器窗口小的时候
+ * videoHeight 只有 360，会把 720P/1080P 的流错误标成 360P。
+ */
+function extractQualityFromUrl(url) {
+  const u = String(url || "");
+  const m = u.match(/(?:^|[\/_.-])(\d{3,4})p(?:[\/_.-]|$)/i);
+  if (m) {
+    const h = parseInt(m[1], 10);
+    if (h >= 144 && h <= 4320) return `${h}P`;
+  }
+  if (/(?:^|[\/_.-])(4k|2160p?)(?:[\/_.-]|$)/i.test(u)) return "2160P";
+  if (/(?:^|[\/_.-])2k(?:[\/_.-]|$)/i.test(u)) return "1440P";
+  return "";
 }
 
 // 插入存储并去重
@@ -472,9 +489,9 @@ async function parseM3u8Metadata(entry) {
       item.isFeature = true;
       item.isAd = false;
       if (direct1080Url) item.direct1080Url = direct1080Url;
-      // 继承同标签页已有正片的时长（只增不减，避免覆盖播放器给出的真实时长）
-      const peer = mediaList.find((it) => it.tabId === item.tabId && it.duration > 0);
-      if (peer && peer.duration > (item.duration || 0)) item.duration = peer.duration;
+      // 不再从同标签页随便找一个有 duration 的条目来"继承"：
+      // 同一页面可能同时存在 6 秒预告片和 3 小时正片，继承会把短片段撑成数小时。
+      // 真实时长交给播放器的 UPDATE_MEDIA_METADATA（按 streamUrl 精确绑定）补齐。
     } else if (duration > 0) {
       const playlistDur = Math.round(duration);
       if (!hasEndlist) {
@@ -486,9 +503,14 @@ async function parseM3u8Metadata(entry) {
         // 点播清单：仅用更长的清单总时长补齐，绝不缩短已有真实时长
         item.duration = playlistDur;
       }
-      // 同步更新同标签页 Master 清单的时长（同样只增不减）
-      const masterItem = mediaList.find((it) => it.tabId === item.tabId && it.isMaster && !it.duration);
-      if (masterItem) masterItem.duration = playlistDur;
+      // 只回写"自己所属"的 master（通过 masterUrl 精确匹配），
+      // 不再随便挑同标签页的 master，避免把某条流的时长写到别的视频上
+      if (item.masterUrl) {
+        const ownMaster = mediaList.find((it) => it.tabId === item.tabId && it.url === item.masterUrl);
+        if (ownMaster && playlistDur > (ownMaster.duration || 0)) {
+          ownMaster.duration = playlistDur;
+        }
+      }
     }
 
     if (hasKey) {
@@ -569,25 +591,52 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     const rawDur = Number(req.data.duration);
     const dur = Number.isFinite(rawDur) && rawDur > 0 ? Math.floor(rawDur) : 0;
     const res = req.data.resolution || "";
+    const streamUrl = req.data.streamUrl || "";
     const tabId = sender.tab ? sender.tab.id : -1;
     if (tabId >= 0 && (dur > 0 || res)) {
       chrome.storage.local.get("mediaList").then(async ({ mediaList = [] }) => {
         let changed = false;
         mediaList.forEach((it) => {
-          if (it.tabId === tabId && (it.mediaType === "m3u8" || it.url === req.data.videoSrc)) {
-            if (dur > 0 && dur > (it.duration || 0)) {
-              it.duration = dur;
-              changed = true;
-              if (dur > 45) {
-                it.isAd = false;
-                it.adReason = "";
-                it.isFeature = true;
+          if (it.tabId !== tabId) return;
+
+          // 有精确的流地址时只更新这一条（以及它的 master 展开项），
+          // 绝不能把播放器时长/尺寸写给它旁边的 6 秒广告切片
+          let targeted = false;
+          if (streamUrl) {
+            targeted = it.url === streamUrl || it.masterUrl === streamUrl || it.url === req.data.videoSrc;
+            if (!targeted) return;
+          } else if (it.mediaType !== "m3u8" && it.url !== req.data.videoSrc) {
+            return;
+          }
+
+          const known = Number(it.duration) || 0;
+          if (dur > 0) {
+            if (targeted) {
+              // 已精确绑定到该视频，播放器时长是权威值，允许双向校正
+              if (Math.abs(known - dur) > 2) {
+                it.duration = dur;
+                changed = true;
+              }
+            } else if (known === 0 || dur <= known * 1.2 + 5) {
+              // 未精确绑定时只允许补空或小幅刷新，避免把短切片拉长成整片时长
+              if (dur > known) {
+                it.duration = dur;
+                changed = true;
               }
             }
-            if (res && (!it.resolution || it.resolution === "高清流" || it.resolution === "高清")) {
-              it.resolution = res;
-              changed = true;
+            if (Number(it.duration) > 45) {
+              it.isAd = false;
+              it.adReason = "";
+              it.isFeature = true;
             }
+          }
+
+          // 画质：地址里带 /720p/ 这类标签时以地址为准，
+          // 播放器渲染尺寸只用于完全无法判断画质的流
+          if (res && !extractQualityFromUrl(it.url) &&
+              (!it.resolution || it.resolution === "高清流" || it.resolution === "高清")) {
+            it.resolution = res;
+            changed = true;
           }
         });
         if (changed) {

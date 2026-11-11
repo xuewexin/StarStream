@@ -152,25 +152,36 @@
     }
   }
 
+  /**
+   * 把播放器真实元数据同步回后台。
+   * streamUrl 会把更新精确锁定到"当前正在播的这条流"，
+   * 避免把整片时长写到同页面的 6 秒广告切片上。
+   */
+  function syncMediaMetadata(mediaEl) {
+    if (!mediaEl) return;
+    const rawDur = Number(mediaEl.duration);
+    const dur = Number.isFinite(rawDur) && rawDur > 0 ? Math.floor(rawDur) : 0;
+    const res = (mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '';
+    const streamUrl = mediaEl.__catcatch_stream_url || '';
+    if (dur > 0 || res || streamUrl) {
+      chrome.runtime.sendMessage({
+        action: 'UPDATE_MEDIA_METADATA',
+        data: {
+          duration: dur,
+          resolution: res,
+          streamUrl,
+          videoSrc: mediaEl.currentSrc || mediaEl.src || ''
+        }
+      }).catch(() => {});
+    }
+  }
+
   function showFloatingBarForMedia(mediaEl) {
     if (mediaEl.__catcatch_dismissed) return;
 
     // 监听播放器的实际播放元数据，将真实的视频时长和分辨率实时同步回后台
     function syncRealMetadata() {
-      // 直播播放器的 duration 会是 Infinity，必须过滤，否则会把脏数据写进列表
-      const rawDur = Number(mediaEl.duration);
-      const dur = Number.isFinite(rawDur) && rawDur > 0 ? Math.floor(rawDur) : 0;
-      const res = (mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '';
-      if (dur > 0 || res) {
-        chrome.runtime.sendMessage({
-          action: 'UPDATE_MEDIA_METADATA',
-          data: {
-            duration: dur,
-            resolution: res,
-            videoSrc: mediaEl.currentSrc || mediaEl.src || ''
-          }
-        }).catch(() => {});
-      }
+      syncMediaMetadata(mediaEl);
     }
     if (!mediaEl.__catcatch_meta_bound) {
       mediaEl.__catcatch_meta_bound = true;
@@ -265,6 +276,24 @@
     return 0;
   }
 
+  /** 从地址里提取真实画质（/720p/、_1080p.、4k），优先于播放器渲染尺寸 */
+  function extractQualityFromUrl(url) {
+    const u = String(url || '');
+    const m = u.match(/(?:^|[\/_.-])(\d{3,4})p(?:[\/_.-]|$)/i);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      if (h >= 144 && h <= 4320) return `${h}P`;
+    }
+    if (/(?:^|[\/_.-])(4k|2160p?)(?:[\/_.-]|$)/i.test(u)) return '2160P';
+    if (/(?:^|[\/_.-])2k(?:[\/_.-]|$)/i.test(u)) return '1440P';
+    return '';
+  }
+
+  function bestResOf(item) {
+    if (!item) return '';
+    return extractQualityFromUrl(item.url) || item.resolution || '';
+  }
+
   /** 画面分辨率展示：1920x1080 → 1080P */
   function formatResLabel(value) {
     if (!value) return t('cap_hd_stream', '高清流');
@@ -318,9 +347,9 @@
             const durB = Number(b.duration) || 0;
             if (durA !== durB) return durB - durA;
 
-            // 2. 画面分辨率降序
-            const resA = getResolutionScore(a.resolution);
-            const resB = getResolutionScore(b.resolution);
+            // 2. 画面分辨率降序（优先地址里的真实画质标签）
+            const resA = getResolutionScore(bestResOf(a));
+            const resB = getResolutionScore(bestResOf(b));
             if (resA !== resB) return resB - resA;
 
             // 3. 体积降序
@@ -338,7 +367,7 @@
             url: chosen.url,
             mediaType: chosen.mediaType || 'm3u8',
             format: (chosen.mediaType || 'm3u8').toUpperCase(),
-            resolution: chosen.resolution || '',
+            resolution: bestResOf(chosen),
             duration: chosen.duration || 0,
             tabTitle: tabTitle || chosen.pageTitle || '',
             referer: chosen.referer || '',
@@ -418,6 +447,11 @@
 
     // 解析真实地址
     const mediaInfo = await resolveRealMediaUrl(mediaEl);
+    if (mediaInfo && mediaInfo.url) {
+      // 记录"这个播放器当前对应的流地址"，后续元数据同步只更新这一条
+      mediaEl.__catcatch_stream_url = mediaInfo.url;
+      syncMediaMetadata(mediaEl);
+    }
     const contentDiv = panel.querySelector('#catcatchPanelContent');
     const proxySelect = panel.querySelector('#catcatchProxySelect');
     const pushBtn = panel.querySelector('#catcatchPushBtn');

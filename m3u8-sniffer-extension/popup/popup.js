@@ -397,7 +397,7 @@
           title: it.pageTitle || 'video',
           saveName: it.pageTitle || 'video',
           mediaType: it.mediaType,
-          resolution: it.resolution || '',
+          resolution: getItemResolution(it),
           duration: it.duration || 0,
           referer: ref,
           pageUrl: it.pageUrl || ref,
@@ -732,9 +732,29 @@
     return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
   }
 
+  /** 从地址里提取真实画质（/720p/video.m3u8、xxx_1080p.mp4、4k） */
+  function extractQualityFromUrl(url) {
+    const u = String(url || '');
+    const m = u.match(/(?:^|[\/_.-])(\d{3,4})p(?:[\/_.-]|$)/i);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      if (h >= 144 && h <= 4320) return `${h}P`;
+    }
+    if (/(?:^|[\/_.-])(4k|2160p?)(?:[\/_.-]|$)/i.test(u)) return '2160P';
+    if (/(?:^|[\/_.-])2k(?:[\/_.-]|$)/i.test(u)) return '1440P';
+    return '';
+  }
+
+  /** 展示与排序统一取值：地址里的画质标签优先于可能被播放器尺寸污染的 resolution */
+  function getItemResolution(item) {
+    if (!item) return '';
+    return extractQualityFromUrl(item.url) || item.resolution || item.variantLabel || '';
+  }
+
   function getMediaQualityScore(item) {
-    // 只认可真实分辨率信息，不再因为“是 Master/正片”就臆断成 1080P
-    let score = parseResolutionHeight(item.resolution);
+    // 优先用地址里的真实画质，其次清单解析值，最后才用码率反推
+    let score = parseResolutionHeight(extractQualityFromUrl(item.url));
+    if (!score) score = parseResolutionHeight(item.resolution);
     if (!score) score = parseResolutionHeight(item.variantLabel);
     if (!score && item.url) {
       const m = String(item.url).match(/(\d{3,4})P(?![A-Z0-9])/i);
@@ -920,7 +940,7 @@
     } else if (item.isFeature || item.isMaster) {
       tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="${t('tip_feature_video', '当前页面正片视频')}">${t('tag_feature')}</span>`;
     }
-    const resLabel = formatResolutionLabel(item.resolution);
+    const resLabel = formatResolutionLabel(getItemResolution(item));
     if (resLabel) {
       tagsHtml += `<span class="tag-badge tag-res">${escapeHtml(resLabel)}</span>`;
     }
@@ -1151,7 +1171,7 @@
         title: titleInput.value.trim() || item.pageTitle || 'video',
         saveName: titleInput.value.trim() || item.pageTitle || 'video',
         mediaType: item.mediaType,
-        resolution: item.resolution || '',
+        resolution: getItemResolution(item),
         duration: item.duration || 0,
         referer: ref,
         pageUrl: item.pageUrl || ref,
@@ -1332,12 +1352,9 @@
           activeHls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
             if (statusEl) statusEl.textContent = '▶ 播放中 · 正在探测码率与估算大小...';
             previewVideo.play().catch(() => {});
-            if (data.levels && data.levels.length > 0) {
-              const lvl = data.levels[0];
-              if (lvl.width && lvl.height) {
-                item.resolution = `${lvl.width}x${lvl.height}`;
-              }
-            }
+            // 注意：不要用 hls.js 的 levels[0] 回写 item.resolution。
+            // levels 按码率升序排列，levels[0] 是最低画质，
+            // 会把 1080P 的条目错改成 360P 并持久化到列表。
           });
 
           activeHls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
