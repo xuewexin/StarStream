@@ -29,6 +29,7 @@
   let activeHls = null;
   let currentPreviewItem = null;
   const PREVIEW_RULE_ID = 20001;
+  const expandedConfigState = new Map();
   let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
   let clientDetectedProxies = [];
   let clientEffectiveProxy = '';
@@ -755,18 +756,45 @@
   }
 
   function renderList() {
-    mediaListContainer.innerHTML = '';
     const filtered = getFilteredMedia();
 
     if (filtered.length === 0) {
       emptyPlaceholder.classList.remove('hidden');
+      mediaListContainer.innerHTML = '';
       return;
     }
     emptyPlaceholder.classList.add('hidden');
 
-    filtered.forEach((item) => {
-      const card = createMediaCard(item);
-      mediaListContainer.appendChild(card);
+    // 增量 DOM 对齐更新：保留已存在卡片的原生 DOM 状态，彻底杜绝折叠面板被刷新重置
+    const existingCards = new Map();
+    Array.from(mediaListContainer.children).forEach((el) => {
+      if (el.dataset && el.dataset.id) {
+        existingCards.set(el.dataset.id, el);
+      }
+    });
+
+    const newIds = new Set(filtered.map((it) => it.id));
+
+    // 移除已不在列表中的卡片
+    existingCards.forEach((el, id) => {
+      if (!newIds.has(id)) {
+        el.remove();
+      }
+    });
+
+    // 增量插入或按顺序排列卡片
+    filtered.forEach((item, index) => {
+      let card = existingCards.get(item.id);
+      if (!card) {
+        card = createMediaCard(item);
+        const refNode = mediaListContainer.children[index] || null;
+        mediaListContainer.insertBefore(card, refNode);
+      } else {
+        const curAtPos = mediaListContainer.children[index];
+        if (curAtPos !== card) {
+          mediaListContainer.insertBefore(card, curAtPos || null);
+        }
+      }
     });
   }
 
@@ -828,6 +856,9 @@
     }
     proxyOptionsHtml += `<option value="custom">${t('cfg_proxy_custom')}</option>`;
 
+    const savedCfg = expandedConfigState.get(item.id) || {};
+    const isExpanded = !!savedCfg.expanded;
+
     card.innerHTML = `
       <div class="card-top">
         <input type="checkbox" class="card-checkbox" ${isChecked ? 'checked' : ''}>
@@ -846,19 +877,19 @@
         <button class="btn-sm btn-secondary action-copy-b64" title="${t('tip_copy_b64', '点击复制Base64编码链接')}">${t('btn_copy_b64')}</button>
         <button class="btn-sm btn-danger action-del">${t('btn_delete')}</button>
       </div>
-      <div class="card-config-panel hidden">
+      <div class="card-config-panel ${isExpanded ? '' : 'hidden'}">
         <div class="config-row">
           <span class="config-label">${t('cfg_savedir')}</span>
-          <input type="text" class="config-input cfg-savedir" placeholder="${t('cfg_savedir_placeholder')}">
+          <input type="text" class="config-input cfg-savedir" placeholder="${t('cfg_savedir_placeholder')}" value="${escapeHtml(savedCfg.saveDir || '')}">
         </div>
         <div class="config-row">
           <span class="config-label">${t('cfg_threads')}</span>
           <select class="config-select cfg-threads">
-            <option value="">${t('cfg_threads_follow')}</option>
-            <option value="4">${t('cfg_threads_4')}</option>
-            <option value="8">${t('cfg_threads_8')}</option>
-            <option value="16">${t('cfg_threads_16')}</option>
-            <option value="32">${t('cfg_threads_32')}</option>
+            <option value="" ${!savedCfg.threadCount ? 'selected' : ''}>${t('cfg_threads_follow')}</option>
+            <option value="4" ${savedCfg.threadCount === '4' ? 'selected' : ''}>${t('cfg_threads_4')}</option>
+            <option value="8" ${savedCfg.threadCount === '8' ? 'selected' : ''}>${t('cfg_threads_8')}</option>
+            <option value="16" ${savedCfg.threadCount === '16' ? 'selected' : ''}>${t('cfg_threads_16')}</option>
+            <option value="32" ${savedCfg.threadCount === '32' ? 'selected' : ''}>${t('cfg_threads_32')}</option>
           </select>
         </div>
         <div class="config-row">
@@ -867,9 +898,9 @@
             ${proxyOptionsHtml}
           </select>
         </div>
-        <div class="config-row cfg-custom-proxy-row hidden">
+        <div class="config-row cfg-custom-proxy-row ${savedCfg.proxy === 'custom' ? '' : 'hidden'}">
           <span class="config-label">${t('cfg_proxy_addr', '代理地址:')}</span>
-          <input type="text" class="config-input cfg-custom-proxy" placeholder="${t('cfg_custom_proxy_placeholder')}">
+          <input type="text" class="config-input cfg-custom-proxy" placeholder="${t('cfg_custom_proxy_placeholder')}" value="${escapeHtml(savedCfg.customProxy || '')}">
         </div>
         <div class="config-tip cfg-proxy-tip">${proxyTipText}</div>
         <button class="btn-copy-cli-inside">${t('btn_copy_cli')}</button>
@@ -900,20 +931,42 @@
 
     const configBtn = card.querySelector('.action-config');
     const configPanel = card.querySelector('.card-config-panel');
-    configBtn.addEventListener('click', () => {
-      configPanel.classList.toggle('hidden');
-    });
-
     const proxySelect = configPanel.querySelector('.cfg-proxy');
     const customProxyRow = configPanel.querySelector('.cfg-custom-proxy-row');
     const customProxyInput = configPanel.querySelector('.cfg-custom-proxy');
+    const saveDirInput = configPanel.querySelector('.cfg-savedir');
+    const threadsSelect = configPanel.querySelector('.cfg-threads');
+
+    if (savedCfg.proxy) {
+      proxySelect.value = savedCfg.proxy;
+    }
+
+    function syncState() {
+      expandedConfigState.set(item.id, {
+        expanded: !configPanel.classList.contains('hidden'),
+        saveDir: saveDirInput.value.trim(),
+        threadCount: threadsSelect.value,
+        proxy: proxySelect.value,
+        customProxy: customProxyInput.value.trim()
+      });
+    }
+
+    configBtn.addEventListener('click', () => {
+      configPanel.classList.toggle('hidden');
+      syncState();
+    });
+
+    saveDirInput.addEventListener('input', syncState);
+    threadsSelect.addEventListener('change', syncState);
     proxySelect.addEventListener('change', () => {
       if (proxySelect.value === 'custom') {
         customProxyRow.classList.remove('hidden');
       } else {
         customProxyRow.classList.add('hidden');
       }
+      syncState();
     });
+    customProxyInput.addEventListener('input', syncState);
 
     function getTaskConfigOptions() {
       const saveDir = configPanel.querySelector('.cfg-savedir').value.trim();
