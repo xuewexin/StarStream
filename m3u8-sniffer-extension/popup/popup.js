@@ -176,21 +176,31 @@
     }).catch(() => {});
   }
 
-  document.addEventListener('DOMContentLoaded', async () => {
+  async function initPopup() {
     if (typeof ExtI18n !== 'undefined') {
-      await ExtI18n.initLang();
-      initLanguageUI();
-      applyI18nUI();
+      try {
+        await ExtI18n.initLang();
+        initLanguageUI();
+        applyI18nUI();
+      } catch (e) {}
     }
-    await initTabTracking();
+    try {
+      await initTabTracking();
+    } catch (e) {}
 
     if (currentActiveTabId >= 0) {
       chrome.action.setBadgeText({ tabId: currentActiveTabId, text: '' });
     }
     chrome.action.setBadgeText({ text: '' });
 
-    bindEvents();
-    bindTabLifecycleListeners();
+    try {
+      bindEvents();
+    } catch (e) {
+      console.error('bindEvents error:', e);
+    }
+    try {
+      bindTabLifecycleListeners();
+    } catch (e) {}
 
     try {
       chrome.runtime.sendMessage({ action: 'DETECT_BROWSER_PROXY' }, (res) => {
@@ -202,15 +212,23 @@
     } catch (e) {}
 
     // 立即渲染已捕获的媒体记录，不阻塞等待网络响应
-    loadAndRenderMedia();
+    try {
+      loadAndRenderMedia();
+    } catch (e) {}
+
     try {
       chrome.runtime.sendMessage({ action: 'PURGE_CLOSED_TABS' }, () => {
         loadAndRenderMedia();
       });
     } catch (e) {}
 
-    await loadSettings();
-    checkClientStatus(); // 异步探测客户端，更新在线状态标记
+    try {
+      await loadSettings();
+    } catch (e) {}
+
+    try {
+      checkClientStatus(); // 异步探测客户端，更新在线状态标记
+    } catch (e) {}
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.mediaList) {
@@ -219,7 +237,13 @@
         updateCategoryCounts();
       }
     });
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPopup);
+  } else {
+    initPopup();
+  }
 
   async function initTabTracking() {
     return new Promise((resolve) => {
@@ -338,12 +362,12 @@
     document.getElementById('btnFragments').addEventListener('click', () => {
       openFragmentsModal();
     });
-    document.getElementById('closeFragsBtn').addEventListener('click', () => {
-      fragmentsModal.classList.add('hidden');
-    });
-    document.getElementById('btnCloseFrags').addEventListener('click', () => {
-      fragmentsModal.classList.add('hidden');
-    });
+    const closeFragsBtn = document.getElementById('closeFragmentsBtn') || document.getElementById('closeFragsBtn');
+    if (closeFragsBtn) {
+      closeFragsBtn.addEventListener('click', () => {
+        fragmentsModal.classList.add('hidden');
+      });
+    }
     document.getElementById('btnRefreshFrags').addEventListener('click', () => {
       loadFragmentsStatus();
     });
