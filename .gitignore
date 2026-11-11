@@ -61,5 +61,6 @@ build/
 .idea/
 .claude/
 .superpowers/
+.workbuddy/
 Thumbs.db
 Desktop.ini

@@ -121,6 +121,11 @@
         <div class="modal-body">
           <video id="previewVideo" controls autoplay></video>
           <audio id="previewAudio" controls autoplay class="hidden"></audio>
+          <div id="previewStatus" style="font-size:12px;line-height:1.5;color:#a1a1aa;margin-top:8px;word-break:break-all;">正在准备播放…</div>
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button id="previewInlineBtn" class="btn-sm btn-secondary" style="flex:1;">在网页内播放</button>
+            <button id="previewRawBtn" class="btn-sm btn-secondary" style="flex:1;">改用原链直连</button>
+          </div>
         </div>
       </div>
     </div>

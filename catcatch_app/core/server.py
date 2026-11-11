@@ -5,10 +5,15 @@ CatCatch Downloader - Embedded HTTP IPC & Mobile WebUI Server
 默认监听: 0.0.0.0:18910
 """
 import json
+import re
+import time
 import threading
 import socketserver
+import requests
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, urljoin, urlencode
+
+from .config import config, detect_local_active_proxies, get_temp_segments_dir, detect_system_proxy
 
 from .config import config, detect_local_active_proxies, get_temp_segments_dir
 from .task_manager import task_manager
@@ -225,6 +230,27 @@ loadTasks();
 """
 
 
+# 播放一个 HLS 流会产生成百上千次 /api/stream 请求，
+# 代理探活(含端口扫描)不能每次分片都跑一遍，这里做 30 秒短缓存。
+_STREAM_PROXY_CACHE = {"ts": 0.0, "value": None}
+_STREAM_PROXY_LOCK = threading.Lock()
+
+
+def _get_stream_proxy():
+    now = time.time()
+    with _STREAM_PROXY_LOCK:
+        if now - _STREAM_PROXY_CACHE["ts"] < 30 and _STREAM_PROXY_CACHE["value"] is not None:
+            return _STREAM_PROXY_CACHE["value"]
+    try:
+        proxy = config.get_effective_proxy(validate=True) or detect_system_proxy()
+    except Exception:
+        proxy = ""
+    with _STREAM_PROXY_LOCK:
+        _STREAM_PROXY_CACHE["ts"] = now
+        _STREAM_PROXY_CACHE["value"] = proxy
+    return proxy
+
+
 class CatCatchHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # 屏蔽默认标准输出刷屏，避免干扰控制台
@@ -233,7 +259,8 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Range, If-Range, If-None-Match")
+        self.send_header("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length")
 
     def _send_json_response(self, code, data):
         self.send_response(code)
@@ -254,6 +281,205 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self._send_cors_headers()
         self.end_headers()
 
+    # ==================== 本地在线预览媒体代理 ====================
+    # 解决扩展 popup 从 chrome-extension:// 源直连 CDN 时的 CORS / 防盗链 403，
+    # 并自动改写 HLS / DASH 清单里的分片、密钥、子清单地址，使整条播放链路都走本地代理。
+
+    def _proxy_cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Expose-Headers", "Content-Range, Accept-Ranges, Content-Length")
+        self.send_header("Cache-Control", "no-store")
+
+    def _build_stream_proxy_url(self, abs_url, qs):
+        params = {"url": abs_url}
+        for key in ("referer", "ua", "cookie", "origin", "auth"):
+            val = (qs.get(key) or [""])[0]
+            if val:
+                params[key] = val
+        # 使用请求 Host，保证局域网手机 WebUI 预览也能正确回连
+        host = self.headers.get("Host") or f"127.0.0.1:{int(config.get('server_port', 18910))}"
+        return f"http://{host}/api/stream?{urlencode(params)}"
+
+    def _proxy_or_keep(self, raw_uri, target_url, qs):
+        abs_url = urljoin(target_url, raw_uri.strip())
+        if not abs_url.startswith(("http://", "https://")):
+            return None
+        return self._build_stream_proxy_url(abs_url, qs)
+
+    def _rewrite_hls_playlist(self, text, target_url, qs):
+        out = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                out.append(line)
+                continue
+            if stripped.startswith("#"):
+                # #EXT-X-KEY / #EXT-X-MAP / #EXT-X-MEDIA 里的 URI 属性
+                def _attr_repl(m):
+                    quote, uri = m.group(1), m.group(2)
+                    proxied = self._proxy_or_keep(uri, target_url, qs)
+                    return "URI=" + quote + (proxied or uri) + quote
+                out.append(re.sub(r'URI=(["\'])([^"\']+)\1', _attr_repl, line, flags=re.I))
+                continue
+            proxied = self._proxy_or_keep(stripped, target_url, qs)
+            out.append(proxied or line)
+        return "\n".join(out) + "\n"
+
+    def _rewrite_dash_manifest(self, text, target_url, qs):
+        def _attr_repl(m):
+            proxied = self._proxy_or_keep(m.group(3), target_url, qs)
+            return f"{m.group(1)}={m.group(2)}{proxied or m.group(3)}{m.group(2)}"
+
+        text = re.sub(
+            r'\b(media|initialization|sourceURL|href|xlink:href)=(["\'])([^"\']+)\2',
+            _attr_repl, text, flags=re.I
+        )
+
+        def _element_repl(m):
+            proxied = self._proxy_or_keep(m.group(2), target_url, qs)
+            return m.group(1) + (proxied or m.group(2)) + m.group(3)
+
+        return re.sub(
+            r'(<(?:BaseURL|Location)>)([^<]+)(</(?:BaseURL|Location)>)',
+            _element_repl, text, flags=re.I
+        )
+
+    def _upstream_headers_to_forward(self, resp):
+        result = {}
+        for name in ("Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"):
+            val = resp.headers.get(name)
+            if val:
+                result[name] = val
+        # requests 会自动解压 gzip，转发压缩后的长度会让浏览器提前截断数据
+        if resp.headers.get("Content-Encoding"):
+            result.pop("Content-Length", None)
+        return result
+
+    def _handle_stream_proxy(self, parsed):
+        qs = parse_qs(parsed.query, keep_blank_values=True)
+        target = (qs.get("url") or [""])[0].strip()
+        if not target or len(target) > 8000:
+            self._send_json_response(400, {"success": False, "error": "缺少或无效的 url 参数"})
+            return
+
+        parsed_target = urlparse(target)
+        if parsed_target.scheme not in ("http", "https") or not parsed_target.netloc:
+            self._send_json_response(400, {"success": False, "error": "仅支持 http/https 远程地址"})
+            return
+
+        # 仅允许本机请求访问内网地址，避免暴露在局域网时被当作 SSRF 跳板
+        hostname = (parsed_target.hostname or "").lower()
+        private_host = (
+            hostname in ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+            or hostname.startswith(("10.", "192.168.", "169.254."))
+            or bool(re.match(r"^172\.(1[6-9]|2\d|3[01])\.", hostname))
+        )
+        if private_host and self.client_address[0] not in ("127.0.0.1", "::1"):
+            self._send_json_response(403, {"success": False, "error": "禁止访问内网地址"})
+            return
+
+        # 防盗链头：优先使用扩展嗅探时记录的真实请求头
+        upstream_headers = {
+            "User-Agent": (qs.get("ua") or [""])[0] or self.headers.get("User-Agent") or "Mozilla/5.0",
+            "Accept": "*/*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+        }
+        for param, header_name in (("referer", "Referer"), ("cookie", "Cookie"),
+                                   ("origin", "Origin"), ("auth", "Authorization")):
+            val = (qs.get(param) or [""])[0]
+            if val:
+                upstream_headers[header_name] = val
+        for header_name in ("Range", "If-Range", "If-None-Match"):
+            val = self.headers.get(header_name)
+            if val:
+                upstream_headers[header_name] = val
+
+        # 本机/内网目标强制直连；其余复用桌面端代理（带 30s 缓存，避免每个分片都做端口探活）
+        proxy = "" if private_host else _get_stream_proxy()
+        proxies = None
+        if proxy and str(proxy).lower() not in ("direct", "none", "system", "__system__",
+                                                "auto", "default", "__default__"):
+            proxies = {"http": proxy, "https": proxy}
+
+        def do_upstream(px):
+            return requests.get(
+                target,
+                headers=upstream_headers,
+                proxies=px,
+                stream=True,
+                timeout=(8, 40),
+                allow_redirects=True
+            )
+
+        try:
+            resp = do_upstream(proxies)
+        except Exception as first_exc:
+            # 代理不可用或环境缺少 PySocks 时自动降级直连，避免整条播放链路 502
+            if proxies:
+                try:
+                    resp = do_upstream(None)
+                except Exception as exc:
+                    self._send_json_response(502, {"success": False, "error": f"上游请求失败: {exc}"})
+                    return
+            else:
+                self._send_json_response(502, {"success": False, "error": f"上游请求失败: {first_exc}"})
+                return
+
+        ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        raw_mode = (qs.get("raw") or [""])[0] == "1"
+        path_lower = parsed_target.path.lower()
+        # 只有明确的清单才做文本重写；二进制分片一律原样流式转发，避免误解码损坏数据
+        is_playlist = (
+            "mpegurl" in ctype
+            or "dash+xml" in ctype
+            or path_lower.endswith((".m3u8", ".mpd"))
+        )
+
+        try:
+            if is_playlist:
+                body_bytes = resp.content  # 清单体积很小，一次性读取即可
+                text = body_bytes.decode("utf-8", errors="replace")
+                if not raw_mode and text.lstrip().startswith("#EXTM3U"):
+                    text = self._rewrite_hls_playlist(text, target, qs)
+                    out_ctype = "application/vnd.apple.mpegurl"
+                elif not raw_mode and "<MPD" in text:
+                    text = self._rewrite_dash_manifest(text, target, qs)
+                    out_ctype = "application/dash+xml"
+                else:
+                    out_ctype = ctype or "text/plain"
+                payload = text.encode("utf-8")
+                self.send_response(resp.status_code)
+                self._proxy_cors_headers()
+                self.send_header("Content-Type", out_ctype)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+            else:
+                forward = self._upstream_headers_to_forward(resp)
+                self.send_response(resp.status_code)
+                self._proxy_cors_headers()
+                self.send_header("Content-Type", ctype or "application/octet-stream")
+                for key, val in forward.items():
+                    self.send_header(key, val)
+                self.end_headers()
+                for chunk in resp.iter_content(chunk_size=65536):
+                    if chunk:
+                        self.wfile.write(chunk)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        except Exception as exc:
+            try:
+                self._send_json_response(502, {"success": False, "error": f"转发失败: {exc}"})
+            except Exception:
+                pass
+        finally:
+            try:
+                resp.close()
+            except Exception:
+                pass
+
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path
@@ -264,6 +490,10 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 self._send_status_json()
             else:
                 self._send_html_response(200, MOBILE_HTML)
+            return
+
+        elif path == "/api/stream":
+            self._handle_stream_proxy(parsed)
             return
 
         elif path == "/api/status":
@@ -317,7 +547,8 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self._send_json_response(200, {
             "status": "ok",
             "app": "StarStream Downloader",
-            "version": "3.1.0",
+            "version": "3.2.2",
+            "stream_proxy": True,
             "ffmpeg_available": ff_ok,
             "ffmpeg_info": ff_msg,
             "ffmpeg_path": get_ffmpeg_path(),

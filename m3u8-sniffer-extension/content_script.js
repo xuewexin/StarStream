@@ -15,6 +15,13 @@
   }
   injectHookScript();
 
+  // 兜底通道：部分站点 CSP 会拦截 <script src="chrome-extension://...">，
+  // 改由 background 用 scripting API 注入 MAIN world（含深层 iframe），
+  // inject.js 自带幂等标志，双通道不会重复 hook。
+  try {
+    chrome.runtime.sendMessage({ action: 'ENSURE_MAIN_INJECT' }).catch(() => {});
+  } catch (e) {}
+
   if (typeof ExtI18n !== 'undefined') {
     ExtI18n.initLang();
   }
@@ -35,8 +42,18 @@
     }
   }
 
-  // 严格过滤已知切片分片
-  const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+  // 精确分片识别：清单 (m3u8/mpd) 永不被当作切片丢弃
+  const PLAYLIST_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
+  const SEGMENT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)/i;
+  function isFragmentUrl(url) {
+    if (!url) return true;
+    const clean = String(url).split('#')[0];
+    if (PLAYLIST_REGEX.test(clean)) return false;
+    if (SEGMENT_REGEX.test(clean)) return true;
+    if (/(^|\/)(init\.mp4|init\.m4s)$/i.test(clean.split('?')[0])) return true;
+    if (/(^|\/)(segment|chunk|frag|seg|part)[-_.]?\d+\.(ts|m4s|mp4|m4v)/i.test(clean)) return true;
+    return false;
+  }
 
   // 标题清理与播放器名字剔除助手
   function isPlayerOrGenericTitle(title) {
@@ -69,16 +86,42 @@
     return title.trim() || fallbackTabTitle || defaultTitle;
   }
 
-  // 2. 接收来自 inject.js 的深层嗅探消息
+  // 2. 接收来自 inject.js 的深层嗅探消息（单条直链 / 批量深度扫描结果）
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data || event.data.source !== 'CATCATCH_INJECTOR') return;
     const payload = event.data.payload;
-    if (!payload || !payload.url || payload.url.startsWith('blob:') || FRAGMENT_REGEX.test(payload.url)) return;
+    if (!payload) return;
 
-    chrome.runtime.sendMessage({
-      action: 'SNIFFED_MEDIA',
-      data: payload
-    }).catch(() => {});
+    const common = {
+      pageUrl: payload.pageUrl || window.location.href,
+      referer: payload.referer || window.location.href,
+      userAgent: payload.userAgent || navigator.userAgent,
+      cookie: payload.cookie || ''
+    };
+    const rawUrls = Array.isArray(payload.urls) && payload.urls.length
+      ? payload.urls
+      : (payload.url ? [payload.url] : []);
+    const valid = rawUrls.filter((u) => u && !u.startsWith('blob:') && !isFragmentUrl(u));
+    if (!valid.length) return;
+
+    const srcType = payload.sourceType || 'hook';
+    if (valid.length > 1 || /scan|body|mutation|deep/i.test(srcType)) {
+      chrome.runtime.sendMessage({
+        action: 'DEEP_FOUND_MEDIA',
+        data: Object.assign({ urls: valid, sourceType: srcType }, common)
+      }).catch(() => {});
+    } else {
+      chrome.runtime.sendMessage({
+        action: 'SNIFFED_MEDIA',
+        data: Object.assign({
+          url: valid[0],
+          title: payload.title || document.title || '',
+          pageUrl: common.pageUrl,
+          mediaType: payload.mediaType || 'video',
+          sourceType: srcType
+        }, common)
+      }).catch(() => {});
+    }
   });
 
   // 3. IDM 悬浮下载条 (支持闲置自动渐隐、标签页切换清理与一键关闭)
@@ -248,7 +291,7 @@
   async function resolveRealMediaUrl(mediaEl) {
     const rawSrc = mediaEl.currentSrc || mediaEl.src || '';
     let directMedia = null;
-    if (rawSrc && !rawSrc.startsWith('blob:') && (rawSrc.startsWith('http://') || rawSrc.startsWith('https://')) && !FRAGMENT_REGEX.test(rawSrc)) {
+    if (rawSrc && !rawSrc.startsWith('blob:') && (rawSrc.startsWith('http://') || rawSrc.startsWith('https://')) && !isFragmentUrl(rawSrc)) {
       directMedia = { url: rawSrc, mediaType: 'video', format: 'MP4' };
     }
 
@@ -266,6 +309,9 @@
           const pool = nonAds.length > 0 ? nonAds : res.media;
           // 默认获取画质最高和时长最长的正片
           pool.sort((a, b) => {
+            // 由 master playlist 展开出的具体清晰度子流优先于 master 本身
+            if (a.isVariant && !b.isVariant) return -1;
+            if (!a.isVariant && b.isVariant) return 1;
             if (a.isFeature && !b.isFeature) return -1;
             if (!a.isFeature && b.isFeature) return 1;
             if (!a.isAd && b.isAd) return -1;
@@ -298,7 +344,10 @@
             format: (chosen.mediaType || 'm3u8').toUpperCase(),
             resolution: chosen.resolution || '',
             duration: chosen.duration || 0,
-            tabTitle: tabTitle || chosen.pageTitle || ''
+            tabTitle: tabTitle || chosen.pageTitle || '',
+            referer: chosen.referer || '',
+            userAgent: chosen.userAgent || '',
+            cookie: chosen.cookie || ''
           });
         } else if (directMedia) {
           directMedia.tabTitle = tabTitle;
@@ -420,7 +469,8 @@
       if (pChoice && pChoice !== 'default' && pChoice !== 'direct' && pChoice !== 'auto') {
         cmd += ` --custom-proxy "${pChoice}"`;
       }
-      cmd += ` -H "Referer: ${window.location.href}" -H "User-Agent: ${navigator.userAgent}"`;
+      cmd += ` -H "Referer: ${mediaInfo.referer || window.location.href}" -H "User-Agent: ${mediaInfo.userAgent || navigator.userAgent}"`;
+      if (mediaInfo.cookie) cmd += ` -H "Cookie: ${mediaInfo.cookie}"`;
 
       navigator.clipboard.writeText(cmd).then(() => {
         copyCmdBtn.textContent = t('cap_copied_cmd', '已复制命令');
@@ -461,11 +511,12 @@
         duration: mediaInfo.duration || durSec || 0,
         proxy: finalProxy,
         pageUrl: window.location.href,
-        referer: window.location.href,
+        referer: mediaInfo.referer || window.location.href,
         headers: {
-          Referer: window.location.href,
-          Origin: window.location.origin,
-          'User-Agent': navigator.userAgent
+          Referer: mediaInfo.referer || window.location.href,
+          Origin: (() => { try { return new URL(mediaInfo.referer || window.location.href).origin; } catch (e) { return window.location.origin; } })(),
+          'User-Agent': mediaInfo.userAgent || navigator.userAgent,
+          Cookie: mediaInfo.cookie || ''
         }
       };
 
@@ -557,7 +608,7 @@
       const videos = document.querySelectorAll('video');
       videos.forEach((v) => {
         const src = v.currentSrc || v.src || '';
-        if (!src || src.startsWith('blob:') || seenUrls.has(src) || FRAGMENT_REGEX.test(src)) return;
+        if (!src || src.startsWith('blob:') || seenUrls.has(src) || isFragmentUrl(src)) return;
 
         seenUrls.add(src);
 

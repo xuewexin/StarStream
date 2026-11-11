@@ -31,16 +31,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_v3.2.1_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20포터블%20패키지-StarStream_v3.2.1_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable 패키지 다운로드">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20포터블%20패키지-StarStream_v3.2.2_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable 패키지 다운로드">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20단일%20실행파일-StarStream.exe%20(엔진%20자동%20스캔)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 직접 다운로드">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_Browser_Extension_v3.2.1.zip">
-    <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension_v3.2.1.zip%20(165KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="확장 프로그램 다운로드">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip">
+    <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension_v3.2.2.zip%20(171KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="확장 프로그램 다운로드">
   </a>
   &nbsp;&nbsp;
   <a href="#-유사-오픈소스-프로젝트-비교-및-대체-가이드-alternatives--comparison">
@@ -138,14 +138,14 @@
 
 | 배포 형태 | 포함 구성 요소 | 권장 사용자 | 다운로드 링크 |
 |---|---|---|---|
-| **⭐ 추천: StarStream_v3.2.1_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 브라우저 확장 소스 내장 | **FFmpeg / N_m3u8DL이 없는 사용자에게 강력 권장**, 압축 해제 즉시 사용 가능 | [👉 Portable 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_v3.2.1_Portable.zip) |
-| **🚀 단일 실행 파일: StarStream.exe (77.5MB)** | 독립형 단일 실행 바이너리 | **이미 FFmpeg / N_m3u8DL을 보유한 사용자용**, 자동 스캔 내장; **반드시 깨끗한 전용 폴더에 넣고 실행하세요** | [👉 StarStream.exe 직접 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream.exe) |
-| **🧩 브라우저 스니퍼 확장 프로그램 (v3.2.1)** | 순수 확장 프로그램 소스 (165KB), MV3 스니핑, 프록시 자동 정렬 | 웹 비디오 감지, 탭 분리, 재생시간/화질별 내림차순 정렬 | [👉 Extension.zip (165KB) 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.1/StarStream_Browser_Extension_v3.2.1.zip) |
+| **⭐ 추천: StarStream_v3.2.2_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 브라우저 확장 소스 내장 | **FFmpeg / N_m3u8DL이 없는 사용자에게 강력 권장**, 압축 해제 즉시 사용 가능 | [👉 Portable 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip) |
+| **🚀 단일 실행 파일: StarStream.exe (82.5MB)** | 독립형 단일 실행 바이너리 | **이미 FFmpeg / N_m3u8DL을 보유한 사용자용**, 자동 스캔 내장; **반드시 깨끗한 전용 폴더에 넣고 실행하세요** | [👉 StarStream.exe 직접 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe) |
+| **🧩 브라우저 스니퍼 확장 프로그램 (v3.2.2)** | 순수 확장 프로그램 소스 (171KB), MV3 스니핑, 프록시 자동 정렬 | 웹 비디오 감지, 탭 분리, 재생시간/화질별 내림차순 정렬 | [👉 Extension.zip (171KB) 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip) |
 | **GitHub Releases 공식 릴리스 페이지** | 전체 릴리스 내역, 업데이트 로그, 파일 확인 | 전체 버전 기록 확인 | [👉 Releases 페이지 방문](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **다운로드 및 설치 안내 (중요 공지)**:
 > 1. **FFmpeg 및 N_m3u8DL이 설치되어 있지 않은 사용자**:
->    👉 **포터블 패키지(`StarStream_v3.2.1_Portable.zip`) 다운로드를 강력히 권장합니다**! 필수 엔진인 `ffmpeg.exe` 및 `N_m3u8DL-RE.exe`가 모두 내장되어 있어 압축 해제 후 즉시 사용 가능합니다.
+>    👉 **포터블 패키지(`StarStream_v3.2.2_Portable.zip`) 다운로드를 강력히 권장합니다**! 필수 엔진인 `ffmpeg.exe` 및 `N_m3u8DL-RE.exe`가 모두 내장되어 있어 압축 해제 후 즉시 사용 가능합니다.
 > 2. **이미 FFmpeg 또는 N_m3u8DL을 보유한 사용자**:
 >    👉 **단일 실행 파일(`StarStream.exe`)을 바로 다운로드하여 사용하실 수 있습니다**! 첫 실행 시 시스템 환경 변수(`PATH`) 및 주요 경로를 자동으로 스캔하여 기존 엔진을 자동 연결합니다.
 > 3. **⚠️ 실행 시 주의사항**:

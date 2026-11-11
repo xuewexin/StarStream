@@ -3,8 +3,18 @@
 (function () {
   'use strict';
 
-  // 严格过滤已知切片分片特征
-  const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
+  // 精确分片识别：m3u8/mpd 清单永远放行，避免误杀深层高画质地址
+  const PLAYLIST_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
+  const SEGMENT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)/i;
+  function isFragmentUrl(url) {
+    if (!url) return true;
+    const clean = String(url).split('#')[0];
+    if (PLAYLIST_REGEX.test(clean)) return false;
+    if (SEGMENT_REGEX.test(clean)) return true;
+    if (/(^|\/)(init\.mp4|init\.m4s)$/i.test(clean.split('?')[0])) return true;
+    if (/(^|\/)(segment|chunk|frag|seg|part)[-_.]?\d+\.(ts|m4s|mp4|m4v)/i.test(clean)) return true;
+    return false;
+  }
 
   let currentCategory = 'all';
   let currentScope = 'current'; // 'current': 仅当前网页 | 'all': 全部仍打开网页
@@ -14,6 +24,7 @@
   let mediaList = [];
   let selectedIds = new Set();
   let clientOnline = false;
+  let clientHasStreamProxy = false;
   let clientPort = 18910;
   let activeHls = null;
   let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
@@ -43,6 +54,10 @@
   const previewVideo = document.getElementById('previewVideo');
   const previewAudio = document.getElementById('previewAudio');
   const previewTitle = document.getElementById('previewTitle');
+  const previewStatus = document.getElementById('previewStatus');
+  const previewInlineBtn = document.getElementById('previewInlineBtn');
+  const previewRawBtn = document.getElementById('previewRawBtn');
+  let currentPreviewItem = null;
   const settingsPanel = document.getElementById('settingsPanel');
   const fragmentsModal = document.getElementById('fragmentsModal');
 
@@ -221,7 +236,7 @@
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.mediaList) {
-        mediaList = (changes.mediaList.newValue || []).filter((it) => !FRAGMENT_REGEX.test(it.url));
+        mediaList = (changes.mediaList.newValue || []).filter((it) => !isFragmentUrl(it.url));
         renderList();
         updateCategoryCounts();
       }
@@ -465,6 +480,8 @@
       if (resp.ok) {
         const data = await resp.json();
         clientOnline = true;
+        // 旧版客户端没有 /api/stream，需自动降级到网页内播放器
+        clientHasStreamProxy = !!data.stream_proxy;
         clientStatusBadge.className = 'status-pill online';
         clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_online') : '客户端已连接';
         if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
@@ -484,6 +501,7 @@
     } catch (e) {}
 
     clientOnline = false;
+    clientHasStreamProxy = false;
     clientStatusBadge.className = 'status-pill offline';
     clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_offline') : '客户端离线';
     clientStatusBadge.onclick = () => {
@@ -585,7 +603,7 @@
   async function loadAndRenderMedia() {
     const res = await chrome.storage.local.get('mediaList');
     // 加载时过滤掉所有切片分片
-    mediaList = (res.mediaList || []).filter((item) => !FRAGMENT_REGEX.test(item.url));
+    mediaList = (res.mediaList || []).filter((item) => !isFragmentUrl(item.url));
     renderList();
     updateCategoryCounts();
   }
@@ -646,7 +664,7 @@
   function getFilteredItems() {
     const list = mediaList.filter((item) => {
       // 坚决丢弃切片
-      if (FRAGMENT_REGEX.test(item.url)) {
+      if (isFragmentUrl(item.url)) {
         return false;
       }
 
@@ -693,7 +711,7 @@
   function updateCategoryCounts() {
     // 当前页面下有效的视频项
     const scopedItems = mediaList.filter((item) => {
-      if (FRAGMENT_REGEX.test(item.url)) return false;
+      if (isFragmentUrl(item.url)) return false;
       if (currentActiveTabId >= 0 && item.tabId !== currentActiveTabId) {
         return false;
       }
@@ -744,7 +762,13 @@
     const domain = getDomain(item.url);
     const title = item.pageTitle || t('unknown_site', '未命名媒体');
 
-    let tagsHtml = `<span class="tag-badge tag-type">${item.mediaType.toUpperCase()}</span>`;
+    let tagsHtml = `<span class="tag-badge tag-type">${(item.mediaType || 'other').toUpperCase()}</span>`;
+    if (item.isMaster) {
+      tagsHtml += `<span class="tag-badge" style="background:#6366f1;color:#fff;" title="主清单，已自动展开全部清晰度子流">多清晰度${item.variantCount ? ' ×' + item.variantCount : ''}</span>`;
+    }
+    if (item.isVariant) {
+      tagsHtml += `<span class="tag-badge" style="background:#8b5cf6;color:#fff;" title="由 master playlist 自动展开，可直接下载该画质">${escapeHtml(item.variantLabel || '清晰度子流')}</span>`;
+    }
     if (item.isAd) {
       tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || t('tag_ad', '疑似切片')}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
     } else if (item.isFeature) {
@@ -1041,46 +1065,139 @@
     return card;
   }
 
-  function openPreviewModal(item) {
-    previewTitle.textContent = item.pageTitle || '媒体预览';
-    previewModal.classList.remove('hidden');
+  function buildPreviewProxyUrl(item) {
+    const params = new URLSearchParams();
+    params.set('url', item.url);
+    const ref = item.referer || item.pageUrl || '';
+    if (ref) params.set('referer', ref);
+    if (item.userAgent) params.set('ua', item.userAgent);
+    if (item.cookie) params.set('cookie', item.cookie);
+    if (item.authorization) params.set('auth', item.authorization);
+    try {
+      if (ref) params.set('origin', new URL(ref).origin);
+    } catch (e) {}
+    return `http://127.0.0.1:${clientPort}/api/stream?${params.toString()}`;
+  }
+
+  function setPreviewStatus(msg, isError) {
+    if (!previewStatus) return;
+    previewStatus.textContent = msg;
+    previewStatus.style.color = isError ? '#f87171' : '#a1a1aa';
+  }
+
+  function destroyHls() {
+    if (activeHls) {
+      try { activeHls.destroy(); } catch (e) {}
+      activeHls = null;
+    }
+  }
+
+  function attachPreviewErrorHandlers() {
+    previewVideo.onerror = () => {
+      const code = previewVideo.error ? previewVideo.error.code : 0;
+      if (code) {
+        setPreviewStatus(`媒体加载失败 (错误码 ${code})：通常是防盗链或网络不可达，可点「在网页内播放」，或启动桌面客户端后重试。`, true);
+      }
+    };
+    previewAudio.onerror = () => {
+      const code = previewAudio.error ? previewAudio.error.code : 0;
+      if (code) setPreviewStatus(`音频加载失败 (错误码 ${code})，可尝试「在网页内播放」。`, true);
+    };
+  }
+
+  function playPreviewUrl(item, playUrl, label) {
+    destroyHls();
+    try { previewVideo.pause(); previewAudio.pause(); } catch (e) {}
+    setPreviewStatus(label, false);
+
+    if (item.mediaType === 'mpd') {
+      setPreviewStatus('DASH (MPD) 流暂不支持在线预览，请推送到客户端下载后观看。', true);
+      return;
+    }
 
     if (item.mediaType === 'audio') {
       previewVideo.classList.add('hidden');
       previewAudio.classList.remove('hidden');
-      previewAudio.src = item.url;
+      previewAudio.src = playUrl;
       previewAudio.play().catch(() => {});
-    } else {
-      previewAudio.classList.add('hidden');
-      previewVideo.classList.remove('hidden');
+      return;
+    }
 
-      if (item.mediaType === 'm3u8' && window.Hls && Hls.isSupported()) {
-        if (activeHls) activeHls.destroy();
-        activeHls = new Hls();
-        activeHls.loadSource(item.url);
-        activeHls.attachMedia(previewVideo);
-        activeHls.on(Hls.Events.MANIFEST_PARSED, () => {
-          previewVideo.play().catch(() => {});
-        });
-      } else {
-        previewVideo.src = item.url;
+    previewAudio.classList.add('hidden');
+    previewVideo.classList.remove('hidden');
+
+    if (item.mediaType === 'm3u8' && window.Hls && Hls.isSupported()) {
+      activeHls = new Hls({ enableWorker: true, lowLatencyMode: false, maxBufferLength: 30 });
+      activeHls.loadSource(playUrl);
+      activeHls.attachMedia(previewVideo);
+      activeHls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setPreviewStatus('清单解析成功，正在起播…', false);
         previewVideo.play().catch(() => {});
-      }
+      });
+      activeHls.on(Hls.Events.ERROR, (evt, data) => {
+        if (!data || !data.fatal) return;
+        setPreviewStatus(`播放失败：${data.type || ''} / ${data.details || ''}。请确认桌面客户端已启动且代理可用，或点「在网页内播放」。`, true);
+      });
+    } else {
+      previewVideo.src = playUrl;
+      previewVideo.play().catch(() => {});
+    }
+  }
+
+  function openInlinePreview(item) {
+    return new Promise((resolve) => {
+      const data = Object.assign({}, item, { tabId: item.tabId });
+      chrome.runtime.sendMessage({ action: 'INJECT_HLS_PLAYER', data }, (res) => {
+        if (res && res.success) {
+          setPreviewStatus('已在目标网页内打开播放器（页面上下文自带站点 Referer / Cookie）。若未出现播放层，请刷新网页后重试。', false);
+        } else {
+          setPreviewStatus('网页内播放失败：' + ((res && res.error) || '目标页面已关闭或不允许注入'), true);
+        }
+        resolve(res);
+      });
+    });
+  }
+
+  async function openPreviewModal(item) {
+    currentPreviewItem = item;
+    previewTitle.textContent = item.pageTitle || '媒体预览';
+    previewModal.classList.remove('hidden');
+    attachPreviewErrorHandlers();
+
+    if (previewInlineBtn) previewInlineBtn.onclick = () => openInlinePreview(item);
+    if (previewRawBtn) {
+      previewRawBtn.onclick = () => playPreviewUrl(item, item.url, '正在用原链直连（可能受 CORS / 防盗链限制）…');
+    }
+
+    // 主动刷新一次连接状态，避免 popup 刚打开时状态尚未就绪
+    await checkClientStatus();
+
+    if (clientOnline && clientHasStreamProxy) {
+      playPreviewUrl(
+        item,
+        buildPreviewProxyUrl(item),
+        '正在通过星流本地代理加载（自动携带站点 Referer / Cookie，绕过 CORS 与防盗链）…'
+      );
+    } else {
+      const reason = clientOnline
+        ? '当前桌面客户端版本较旧（缺少本地媒体代理）：自动改用网页内播放器…'
+        : '桌面客户端未连接：自动改用网页内播放器（页面上下文自带站点身份）…';
+      setPreviewStatus(reason, false);
+      await openInlinePreview(item);
     }
   }
 
   function closePreviewModal() {
     previewModal.classList.add('hidden');
-    if (activeHls) {
-      activeHls.destroy();
-      activeHls = null;
-    }
-    previewVideo.pause();
+    destroyHls();
+    try { previewVideo.pause(); } catch (e) {}
     previewVideo.removeAttribute('src');
     previewVideo.load();
-    previewAudio.pause();
+    try { previewAudio.pause(); } catch (e) {}
     previewAudio.removeAttribute('src');
     previewAudio.load();
+    setPreviewStatus('正在准备播放…', false);
+    currentPreviewItem = null;
   }
 
   function getDomain(url) {
