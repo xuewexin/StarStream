@@ -3,6 +3,29 @@
 const MAX_ITEMS = 300;
 const LOCAL_SERVER_URL = "http://127.0.0.1:18910";
 
+/**
+ * 访问本地客户端：自动在 127.0.0.1 / localhost 之间回退。
+ * Chrome 142+ 的 Local Network Access 会拦截扩展直连回环地址，
+ * 换成 localhost 在部分版本下可绕过，同时保留超时避免 service worker 长时间挂起。
+ */
+async function localFetch(path, options = {}, timeoutMs = 12000) {
+  const targets = [LOCAL_SERVER_URL, LOCAL_SERVER_URL.replace("127.0.0.1", "localhost")];
+  let lastErr = null;
+  for (const base of targets) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${base}${path}`, { cache: "no-store", ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (e) {
+      clearTimeout(timer);
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("local server unreachable");
+}
+
 // 支持的完整视音频与流媒体扩展名正则
 const MEDIA_EXT_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
 // 流媒体清单（master / media playlist、DASH MPD）——永远不能被当成"分片"丢弃
@@ -407,6 +430,10 @@ async function parseM3u8Metadata(entry) {
       }
 
       const hasEndlist = text.includes("#EXT-X-ENDLIST");
+      // 无 ENDLIST 的媒体清单属于直播式 HLS（missav 等站点常见），下载器需走实时录制
+      if (!isMasterPlaylist) {
+        item.isLive = !hasEndlist;
+      }
       // 广告识别 1: 必须有明确结束符且时长极短，或显式命中广告正则，避免误杀动态初始流
       if (hasEndlist && item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
         item.isAd = true;
@@ -495,7 +522,7 @@ async function fetchPlaylistViaClient(entry) {
     if (entry.userAgent) qs.set("ua", entry.userAgent);
     if (entry.cookie) qs.set("cookie", entry.cookie);
     const res = await withTimeout(
-      fetch(`${LOCAL_SERVER_URL}/api/stream?${qs.toString()}`),
+      localFetch(`/api/stream?${qs.toString()}`),
       PLAYLIST_TIMEOUT_MS
     );
     if (!res || !res.ok) return null;
@@ -805,7 +832,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "CHECK_CLIENT_STATUS") {
-    fetch(`${LOCAL_SERVER_URL}/api/status`, { method: "GET" })
+    localFetch("/api/status", { method: "GET" })
       .then((r) => r.json())
       .then((data) => {
         if (data && data.language) {
@@ -905,11 +932,11 @@ async function pushTaskToLocalClient(taskData) {
   } catch (e) {}
 
   try {
-    const resp = await fetch(`${LOCAL_SERVER_URL}/api/tasks`, {
+    const resp = await localFetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(taskData)
-    });
+    }, 20000);
     if (resp.ok) {
       return await resp.json();
     }
@@ -935,7 +962,7 @@ async function pushTaskToLocalClient(taskData) {
 
 // 自动检测客户端语言变化并向扩展内所有页面分发同步
 function syncClientLanguage() {
-  fetch(`${LOCAL_SERVER_URL}/api/status`, { method: "GET" })
+  localFetch("/api/status", { method: "GET" })
     .then((r) => r.json())
     .then((data) => {
       if (data && data.language) {

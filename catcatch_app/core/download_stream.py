@@ -29,6 +29,60 @@ def get_requests_session(proxy=None):
     return s
 
 
+def is_loopback_url(url):
+    """判断目标是否为本机地址（本机请求绝不能走代理）"""
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except Exception:
+        return False
+    return host in ("127.0.0.1", "localhost", "::1", "0.0.0.0") or host.startswith("127.")
+
+
+def probe_playlist_is_live(url, headers=None, proxy=None, timeout=8, _depth=0):
+    """探测 HLS 清单是否为直播式（无 #EXT-X-ENDLIST）。
+
+    返回值: True=直播式, False=点播, None=无法判断（非 m3u8 / 请求失败）
+    说明: 部分站点（如 missav 系）即便请求单个画质清单，返回的仍是 master，
+          且子清单没有 #EXT-X-ENDLIST，N_m3u8DL-RE 会走直播录制分支后崩溃，
+          必须显式加 --live-real-time-merge 才能正常录制。
+    """
+    if _depth > 3:
+        return None
+    if proxy and str(proxy).lower() in ("none", "direct", "system"):
+        proxy = None
+    try:
+        session = get_requests_session(proxy)
+        resp = session.get(url, headers=headers or {}, timeout=(5, timeout),
+                           stream=True, allow_redirects=True)
+        if resp.status_code >= 400:
+            resp.close()
+            return None
+        chunks = b""
+        for chunk in resp.iter_content(4096):
+            chunks += chunk
+            if len(chunks) > 128 * 1024:
+                break
+        resp.close()
+        text = chunks.decode("utf-8", "ignore")
+        if "#EXTM3U" not in text:
+            return None
+        if re.search(r"#EXT-X-PLAYLIST-TYPE:\s*VOD", text, re.I):
+            return False
+        if "#EXT-X-ENDLIST" in text:
+            return False
+        if "#EXT-X-STREAM-INF" in text:
+            for line in text.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    return probe_playlist_is_live(urljoin(url, line), headers, proxy, timeout, _depth + 1)
+            return None
+        if "#EXTINF" in text or "#EXT-X-MEDIA-SEQUENCE" in text:
+            return True
+        return None
+    except Exception:
+        return None
+
+
 class StreamDownloadTask:
     def __init__(self, task_data, on_progress=None, on_log=None, on_finished=None):
         self.task_data = task_data
@@ -128,6 +182,12 @@ class StreamDownloadTask:
         else:
             proxy = normalize_proxy_url(task_p)
 
+        # 本机/局域网回环目标强制直连：避免把 127.0.0.1 流量塞进外部代理导致必然失败
+        if proxy and is_loopback_url(url):
+            if self.on_log:
+                self.on_log("[代理策略] 目标为本机地址，已强制直连（忽略代理设置）")
+            proxy = ""
+
         # 严格过滤与探活：若指定的代理无法连通（如端口已关闭或配置过时），自动秒级探测本机在线代理兜底！
         if proxy and proxy.lower() not in ["none", "direct", "system"]:
             is_alive, check_msg = is_proxy_alive(proxy, timeout=0.5)
@@ -187,9 +247,6 @@ class StreamDownloadTask:
             thread_count = str(self.task_data.get("thread_count", config.get("max_threads_per_task", 16)))
             cmd.extend(["--thread-count", thread_count])
 
-            if config.get("auto_convert_mp4", True):
-                cmd.extend(["-M", "format=mp4"])
-            
             # 请求头与防盗链智能修补
             headers = dict(self.task_data.get("headers", {}))
             if not headers.get("Referer"):
@@ -215,8 +272,21 @@ class StreamDownloadTask:
             valid_proxy_schemes = ("http://", "https://", "socks5://", "socks4://", "socks4a://")
             if proxy and proxy.lower().startswith(valid_proxy_schemes):
                 cmd.extend(["--custom-proxy", proxy])
-            elif task_p.upper() in ["DIRECT", "NONE"] or (config.get("proxy_mode", "none") == "none" and not proxy):
+            else:
+                # 关键：没有可用代理时必须显式禁用系统代理，否则下载器会继承失效的系统代理导致全部 502
                 cmd.extend(["--use-system-proxy", "false"])
+
+            # 直播式 HLS 检测：无 #EXT-X-ENDLIST 的清单必须走实时录制，否则 N_m3u8DL-RE 会崩溃退出
+            is_live = False
+            if url.lower().split("?")[0].endswith((".m3u8", ".m3u")) or "#EXTM3U" in str(self.task_data.get("playlistHead") or ""):
+                is_live = bool(probe_playlist_is_live(url, headers, proxy))
+            if is_live:
+                self.task_data["is_live"] = True
+                cmd.extend(["--live-real-time-merge", "--live-keep-segments", "false"])
+                if self.on_log:
+                    self.on_log("[直播流检测] 该清单无 #EXT-X-ENDLIST，判定为直播式 HLS，已启用实时录制模式")
+            elif config.get("auto_convert_mp4", True):
+                cmd.extend(["-M", "format=mp4"])
 
             base_url = self.task_data.get("baseUrl")
             if base_url:

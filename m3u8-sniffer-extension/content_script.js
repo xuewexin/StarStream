@@ -521,12 +521,27 @@
       };
 
       try {
-        const resp = await fetch('http://127.0.0.1:18910/api/tasks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(taskData)
+        Object.keys(taskData.headers).forEach((k) => {
+          if (!taskData.headers[k]) delete taskData.headers[k];
         });
-        if (resp.ok) {
+        let resp = null;
+        for (const host of ['127.0.0.1', 'localhost']) {
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 8000);
+            resp = await fetch(`http://${host}:18910/api/tasks`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(taskData),
+              signal: controller.signal
+            });
+            clearTimeout(timer);
+            if (resp.ok) break;
+          } catch (e) {
+            resp = null;
+          }
+        }
+        if (resp && resp.ok) {
           pushBtn.textContent = t('cap_pushed', '已加入下载队列');
           pushBtn.className = 'catcatch-btn success';
           setTimeout(() => removeFloatingBar(), 1500);

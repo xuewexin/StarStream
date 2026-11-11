@@ -59,6 +59,18 @@
       <button id="scopeAllTabs" class="scope-btn" title="显示所有仍存活打开的网页视频 (网页关闭或刷新后立即自动消除)">全部存活网页</button>
     </div>
 
+    <!-- 本地客户端连接异常提示（Chrome 142+ 本地网络访问限制等） -->
+    <div id="clientHint" class="client-hint hidden">
+      <div class="client-hint-text">
+        <strong id="clientHintTitle">无法连接本地下载器</strong>
+        <span id="clientHintDesc">已抓到的视频无法推送下载。请启动星流客户端，或为扩展开启「本地网络访问」权限后重试。</span>
+      </div>
+      <div class="client-hint-actions">
+        <button id="clientHintFix" class="btn-sm btn-primary">去授权</button>
+        <button id="clientHintRetry" class="btn-sm btn-secondary">重试</button>
+      </div>
+    </div>
+
     <!-- 分类 Tabs -->
     <nav class="category-tabs">
       <button class="tab-item active" data-cat="all">全部 <span id="countAll" class="tab-badge">0</span></button>

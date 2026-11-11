@@ -26,6 +26,14 @@
   let clientOnline = false;
   let clientHasStreamProxy = false;
   let clientPort = 18910;
+  // Chrome 142+ 的 Local Network Access 会拦截扩展对 127.0.0.1 的请求，
+  // 这里记录实际可用的主机名并在失败时给出可操作提示。
+  let clientHost = '';
+  let clientLastError = '';
+  const CLIENT_HOSTS = ['127.0.0.1', 'localhost'];
+  const CLIENT_TIMEOUT_MS = 6000;
+  const expandedCards = new Set();
+  const cardConfigState = new Map();
   let activeHls = null;
   let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
   let clientDetectedProxies = [];
@@ -39,6 +47,66 @@
     } catch (e) {
       return btoa(str);
     }
+  }
+
+  function clientHosts() {
+    const list = clientHost ? [clientHost] : [];
+    CLIENT_HOSTS.forEach((h) => {
+      if (!list.includes(h)) list.push(h);
+    });
+    return list;
+  }
+
+  /** 访问本地客户端：自动在 127.0.0.1 / localhost 间回退，并带超时，避免按钮卡在“推送中” */
+  async function clientFetch(path, options = {}, timeoutMs = CLIENT_TIMEOUT_MS) {
+    let lastErr = null;
+    for (const host of clientHosts()) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(`http://${host}:${clientPort}${path}`, {
+          cache: 'no-store',
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+        clientHost = host;
+        clientLastError = '';
+        return res;
+      } catch (err) {
+        clearTimeout(timer);
+        lastErr = err;
+      }
+    }
+    clientLastError = String((lastErr && lastErr.message) || lastErr || 'unknown');
+    throw lastErr || new Error('client unreachable');
+  }
+
+  function clientBase() {
+    return `http://${clientHost || '127.0.0.1'}:${clientPort}`;
+  }
+
+  function showClientHint(kind) {
+    const hint = document.getElementById('clientHint');
+    const title = document.getElementById('clientHintTitle');
+    const desc = document.getElementById('clientHintDesc');
+    if (!hint || !title || !desc) return;
+    hint.classList.remove('hidden');
+
+    if (kind === 'lna') {
+      title.textContent = '本地网络访问被浏览器拦截';
+      desc.textContent = 'Chrome 142+ 默认禁止扩展直连 127.0.0.1，抓到的视频因此无法推送。点「去授权」在扩展详情 → 网站设置 → 本地网络访问 选择“允许”，然后重试。';
+    } else if (kind === 'offline') {
+      title.textContent = '本地下载器未连接';
+      desc.textContent = `未能在 ${clientPort} 端口连接到星流客户端。请先启动客户端（或检查设置里的通信端口），再点重试。`;
+    } else {
+      hint.classList.add('hidden');
+    }
+  }
+
+  function isChrome142Plus() {
+    const m = navigator.userAgent.match(/Chrom(?:e|ium)\/(\d+)/);
+    return m ? parseInt(m[1], 10) >= 142 : false;
   }
 
   // DOM 元素引用
@@ -188,7 +256,7 @@
     initLanguageUI();
     applyI18nUI();
     renderList();
-    fetch(`http://127.0.0.1:${clientPort}/api/language`, {
+    clientFetch('/api/language', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language: langCode })
@@ -401,26 +469,38 @@
         };
       });
 
+      tasks.forEach((task) => {
+        Object.keys(task.headers || {}).forEach((k) => {
+          if (!task.headers[k]) delete task.headers[k];
+        });
+      });
+
       try {
-        const resp = await fetch(`http://127.0.0.1:${clientPort}/api/tasks`, {
+        const resp = await clientFetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(tasks)
-        });
-        if (resp.ok) {
+        }, 15000);
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data && data.success !== false) {
           btn.textContent = `已推送 ${tasks.length} 项`;
           setTimeout(() => {
-            btn.textContent = '批量推送到客户端';
+            btn.textContent = t('batch_push', '批量推送到客户端');
             btn.disabled = false;
           }, 2000);
           return;
         }
-      } catch (err) {}
+        showClientHint('offline');
+      } catch (err) {
+        showClientHint(isChrome142Plus() ? 'lna' : 'offline');
+      }
 
       chrome.runtime.sendMessage({ action: 'PUSH_TO_CLIENT', data: tasks }, (res) => {
-        btn.textContent = res && res.success ? `已推送 ${tasks.length} 项` : '客户端未运行';
+        const ok = !!(res && res.success);
+        btn.textContent = ok ? `已推送 ${tasks.length} 项` : '客户端未运行';
+        if (!ok) showClientHint(isChrome142Plus() ? 'lna' : 'offline');
         setTimeout(() => {
-          btn.textContent = '批量推送到客户端';
+          btn.textContent = t('batch_push', '批量推送到客户端');
           btn.disabled = false;
         }, 2000);
       });
@@ -465,18 +545,60 @@
     document.getElementById('btnSettings').addEventListener('click', () => {
       settingsPanel.classList.remove('hidden');
     });
+    // 兜底委托：即使上方某个元素绑定异常，点击齿轮依然可以打开设置
+    document.addEventListener('click', (e) => {
+      if (e.target && e.target.closest && e.target.closest('#btnSettings')) {
+        settingsPanel.classList.remove('hidden');
+      }
+    });
+    // 点击抽屉空白区域 / 按 Esc 关闭，点击面板内部不会被误关
+    settingsPanel.addEventListener('click', (e) => {
+      if (e.target === settingsPanel) settingsPanel.classList.add('hidden');
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !settingsPanel.classList.contains('hidden')) {
+        settingsPanel.classList.add('hidden');
+      }
+    });
     document.getElementById('closeSettingsBtn').addEventListener('click', () => {
       settingsPanel.classList.add('hidden');
     });
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+    const hintFix = document.getElementById('clientHintFix');
+    if (hintFix) hintFix.addEventListener('click', openLocalNetworkSettings);
+    const hintRetry = document.getElementById('clientHintRetry');
+    if (hintRetry) {
+      hintRetry.addEventListener('click', () => {
+        hintRetry.textContent = '检测中...';
+        checkClientStatus().finally(() => {
+          hintRetry.textContent = '重试';
+        });
+      });
+    }
+  }
+
+  function openLocalNetworkSettings() {
+    const id = (chrome.runtime && chrome.runtime.id) || '';
+    const url = `chrome://extensions/?id=${id}`;
+    try {
+      chrome.tabs.create({ url }, () => {
+        if (chrome.runtime.lastError) {
+          navigator.clipboard.writeText(url).catch(() => {});
+          const desc = document.getElementById('clientHintDesc');
+          if (desc) {
+            desc.textContent = `请手动打开 ${url}，在「网站设置 → 本地网络访问」中选择“允许”，然后点重试。（链接已复制）`;
+          }
+        }
+      });
+    } catch (e) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
   }
 
   async function checkClientStatus() {
     try {
-      const resp = await fetch(`http://127.0.0.1:${clientPort}/api/status`, {
-        method: 'GET',
-        cache: 'no-store'
-      });
+      const resp = await clientFetch('/api/status', { method: 'GET' });
       if (resp.ok) {
         const data = await resp.json();
         clientOnline = true;
@@ -496,6 +618,7 @@
           }
         }
         updateProxyTips();
+        showClientHint('none');
         return;
       }
     } catch (e) {}
@@ -507,6 +630,7 @@
     clientStatusBadge.onclick = () => {
       settingsPanel.classList.remove('hidden');
     };
+    showClientHint(isChrome142Plus() ? 'lna' : 'offline');
   }
 
   async function openFragmentsModal() {
@@ -523,7 +647,7 @@
     container.innerHTML = '<div style="color:#71717a; text-align:center; padding:10px;">...</div>';
 
     try {
-      const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'GET' });
+      const res = await clientFetch('/api/fragments', { method: 'GET' });
       if (res.ok) {
         const data = await res.json();
         const folders = data.folders || [];
@@ -559,7 +683,7 @@
   async function cleanAllFragments() {
     if (!confirm('Clear all segments?')) return;
     try {
-      const res = await fetch(`http://127.0.0.1:${clientPort}/api/fragments`, { method: 'DELETE' });
+      const res = await clientFetch('/api/fragments', { method: 'DELETE' });
       if (res.ok) {
         loadFragmentsStatus();
         return;
@@ -585,6 +709,7 @@
     const minSizeKB = parseInt(document.getElementById('settingMinSize').value, 10) || 0;
 
     clientPort = port;
+    clientHost = '';
     await chrome.storage.local.set({
       settings: { serverPort: port, autoPush, minSizeKB, filterFragments: true, onlyLiveTabs: true }
     });
@@ -740,6 +865,7 @@
 
   function renderList() {
     const items = getFilteredItems();
+    const scrollTop = mediaListContainer.scrollTop;
     mediaListContainer.innerHTML = '';
 
     if (!items.length) {
@@ -751,6 +877,9 @@
       const card = createMediaCard(item);
       mediaListContainer.appendChild(card);
     });
+
+    // 重渲染会重建 DOM，恢复滚动位置，避免嗅探到新资源时列表“跳回顶部”
+    mediaListContainer.scrollTop = scrollTop;
   }
 
   function createMediaCard(item) {
@@ -768,6 +897,9 @@
     }
     if (item.isVariant) {
       tagsHtml += `<span class="tag-badge" style="background:#8b5cf6;color:#fff;" title="由 master playlist 自动展开，可直接下载该画质">${escapeHtml(item.variantLabel || '清晰度子流')}</span>`;
+    }
+    if (item.isLive) {
+      tagsHtml += `<span class="tag-badge" style="background:#f59e0b;color:#111;" title="该清单缺少 #EXT-X-ENDLIST，属于直播式 HLS，下载将采用实时录制模式">直播流</span>`;
     }
     if (item.isAd) {
       tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || t('tag_ad', '疑似切片')}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
@@ -884,11 +1016,38 @@
       });
     });
 
-    // 展开/收起视频独立下载配置面板
+    // 展开/收起视频独立下载配置面板（重渲染时保持展开状态与已填写的参数，避免“刚点开就折回去”）
     const configBtn = card.querySelector('.action-config');
     const configPanel = card.querySelector('.card-config-panel');
+    const savedCfg = cardConfigState.get(item.id) || {};
+    if (savedCfg.saveDir) configPanel.querySelector('.cfg-savedir').value = savedCfg.saveDir;
+    if (savedCfg.threads) configPanel.querySelector('.cfg-threads').value = savedCfg.threads;
+    if (savedCfg.proxy) {
+      const sel = configPanel.querySelector('.cfg-proxy');
+      if ([...sel.options].some((o) => o.value === savedCfg.proxy)) sel.value = savedCfg.proxy;
+    }
+    if (savedCfg.customProxy) {
+      configPanel.querySelector('.cfg-custom-proxy').value = savedCfg.customProxy;
+    }
+    if (expandedCards.has(item.id)) configPanel.classList.remove('hidden');
+
     configBtn.addEventListener('click', () => {
-      configPanel.classList.toggle('hidden');
+      const nowHidden = configPanel.classList.toggle('hidden');
+      if (nowHidden) expandedCards.delete(item.id);
+      else expandedCards.add(item.id);
+    });
+
+    const persistCardCfg = () => {
+      cardConfigState.set(item.id, {
+        saveDir: configPanel.querySelector('.cfg-savedir').value.trim(),
+        threads: configPanel.querySelector('.cfg-threads').value,
+        proxy: configPanel.querySelector('.cfg-proxy').value,
+        customProxy: configPanel.querySelector('.cfg-custom-proxy').value.trim()
+      });
+    };
+    configPanel.querySelectorAll('input, select').forEach((el) => {
+      el.addEventListener('change', persistCardCfg);
+      el.addEventListener('input', persistCardCfg);
     });
 
     const proxySelect = configPanel.querySelector('.cfg-proxy');
@@ -987,24 +1146,34 @@
           Cookie: item.cookie || ''
         },
         baseUrl: item.baseUrl || '',
+        isLive: !!item.isLive,
         saveDir: cfg.saveDir,
         threadCount: cfg.threadCount,
         proxy: cfg.proxy
       };
+      // 去掉空值请求头，避免向下载器传入 "Cookie: " 这类无效头
+      Object.keys(taskData.headers).forEach((k) => {
+        if (!taskData.headers[k]) delete taskData.headers[k];
+      });
 
       try {
-        const resp = await fetch(`http://127.0.0.1:${clientPort}/api/tasks`, {
+        const resp = await clientFetch('/api/tasks', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(taskData)
-        });
-        if (resp.ok) {
+        }, 15000);
+        const data = await resp.json().catch(() => ({}));
+        if (resp.ok && data && data.success !== false) {
           pushBtn.textContent = t('cap_pushed', '已加入队列');
           pushBtn.style.backgroundColor = '#166534';
           pushBtn.style.color = '#ffffff';
+          pushBtn.disabled = false;
           return;
         }
-      } catch (err) {}
+        throw new Error((data && (data.error || data.message)) || `HTTP ${resp.status}`);
+      } catch (err) {
+        showClientHint(isChrome142Plus() ? 'lna' : 'offline');
+      }
 
       chrome.runtime.sendMessage({ action: 'PUSH_TO_CLIENT', data: taskData }, (res) => {
         if (res && res.success) {
@@ -1076,7 +1245,7 @@
     try {
       if (ref) params.set('origin', new URL(ref).origin);
     } catch (e) {}
-    return `http://127.0.0.1:${clientPort}/api/stream?${params.toString()}`;
+    return `${clientBase()}/api/stream?${params.toString()}`;
   }
 
   function setPreviewStatus(msg, isError) {

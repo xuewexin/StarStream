@@ -31,16 +31,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20Pacote%20Portátil-StarStream_v3.2.2_Portable.zip%20(FFmpeg%20e%20N_m3u8DL%20embutidos)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Baixar pacote portátil">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20Pacote%20Portátil-StarStream_v3.2.3_Portable.zip%20(FFmpeg%20e%20N_m3u8DL%20embutidos)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Baixar pacote portátil">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20Executável%20EXE-StarStream.exe%20(Varredura%20automática)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Baixar StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip">
-    <img src="https://img.shields.io/badge/🧩%20Extensão%20Navegador-Extension_v3.2.2.zip%20(165%20KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Baixar extensão">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip">
+    <img src="https://img.shields.io/badge/🧩%20Extensão%20Navegador-Extension_v3.2.3.zip%20(165%20KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Baixar extensão">
   </a>
   &nbsp;&nbsp;
   <a href="#-comparação-e-alternativas-por-que-starstream">
@@ -137,14 +137,14 @@ Você pode obter a versão mais recente do StarStream pelos seguintes canais:
 
 | Método de Download | Componentes Incluídos | Recomendado Para | Link Direto |
 |---|---|---|---|
-| **⭐ Recomendado: StarStream_v3.2.2_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extensão embutidos | **Altamente recomendado se você não tem FFmpeg / N_m3u8DL**, pronto para uso | [👉 Baixar Pacote Portátil](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip) |
-| **🚀 Executável Independente: StarStream.exe (82.5MB)** | Binário executável independente | **Para quem já tem FFmpeg ou N_m3u8DL**, varredura automática; **execute em uma pasta limpa dedicada** | [👉 Baixar StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe) |
-| **🧩 Extensão para Navegador (v3.2.2)** | Código fonte da extensão (171 KB), captura MV3, sincronização de proxy | Captura de vídeo web, interface limpa, ordenação decrescente | [👉 Baixar Extension.zip (171 KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip) |
+| **⭐ Recomendado: StarStream_v3.2.3_Portable.zip** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extensão embutidos | **Altamente recomendado se você não tem FFmpeg / N_m3u8DL**, pronto para uso | [👉 Baixar Pacote Portátil](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
+| **🚀 Executável Independente: StarStream.exe (82.5MB)** | Binário executável independente | **Para quem já tem FFmpeg ou N_m3u8DL**, varredura automática; **execute em uma pasta limpa dedicada** | [👉 Baixar StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
+| **🧩 Extensão para Navegador (v3.2.3)** | Código fonte da extensão (177 KB), captura MV3, sincronização de proxy | Captura de vídeo web, interface limpa, ordenação decrescente | [👉 Baixar Extension.zip (177 KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
 | **Página Oficial de GitHub Releases** | Todas as versões, notas de atualização e checksums | Histórico completo de versões | [👉 Ver Releases](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **Guia de Download e Instalação (Aviso Importante)**:
 > 1. **Para usuários que não possuem FFmpeg ou N_m3u8DL**:
->    👉 **Recomendamos baixar o pacote portátil (`StarStream_v3.2.2_Portable.zip`)**! Já inclui `ffmpeg.exe` e `N_m3u8DL-RE.exe` pré-configurados.
+>    👉 **Recomendamos baixar o pacote portátil (`StarStream_v3.2.3_Portable.zip`)**! Já inclui `ffmpeg.exe` e `N_m3u8DL-RE.exe` pré-configurados.
 > 2. **Para usuários que já possuem FFmpeg ou N_m3u8DL**:
 >    👉 **Podem baixar diretamente o executável independente (`StarStream.exe`)**! O StarStream detectará automaticamente as ferramentas no seu sistema (`PATH`).
 > 3. **⚠️ Dica Importante**:

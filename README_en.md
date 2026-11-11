@@ -31,16 +31,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.2_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.3_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20Standalone%20EXE-StarStream.exe%20(Auto--scan%20Engines)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip">
-    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.2.zip%20(171KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip">
+    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.3.zip%20(177KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
   </a>
   &nbsp;&nbsp;
   <a href="#-comparison--alternatives-why-choose-starstream">
@@ -138,14 +138,14 @@ You can obtain the latest release of StarStream via the following distribution c
 
 | Distribution Channel | Included Components | Recommended For | Direct Download Link |
 |---|---|---|---|
-| **⭐ Recommended: StarStream_v3.2.2_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | **Highly recommended if you do NOT have FFmpeg / N_m3u8DL**, zero setup required | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_v3.2.2_Portable.zip) |
-| **🚀 Standalone Executable: StarStream.exe (82.5MB)** | Standalone compiled executable binary | **For users who already have FFmpeg or N_m3u8DL**, auto-scans system path; **please run in a clean dedicated folder** | [👉 Download StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream.exe) |
-| **🧩 Companion: Browser Sniffer Extension (v3.2.2)** | Clean extension package (171KB), MV3 detection, browser proxy auto-align | Sniffs web video, clean tab view, duration/quality sort | [👉 Download Extension.zip (171KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.2/StarStream_Browser_Extension_v3.2.2.zip) |
+| **⭐ Recommended: StarStream_v3.2.3_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | **Highly recommended if you do NOT have FFmpeg / N_m3u8DL**, zero setup required | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
+| **🚀 Standalone Executable: StarStream.exe (82.5MB)** | Standalone compiled executable binary | **For users who already have FFmpeg or N_m3u8DL**, auto-scans system path; **please run in a clean dedicated folder** | [👉 Download StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
+| **🧩 Companion: Browser Sniffer Extension (v3.2.3)** | Clean extension package (177KB), MV3 detection, browser proxy auto-align | Sniffs web video, clean tab view, duration/quality sort | [👉 Download Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
 | **GitHub Releases Page** | View all release notes, history and asset checksums | Full version history | [👉 Visit Releases](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **Download & Installation Advice (Important Guide)**:
 > 1. **For users without FFmpeg or N_m3u8DL installed**:
->    👉 **Highly Recommended: Download the Portable Package (`StarStream_v3.2.2_Portable.zip`)**! It comes pre-packaged with all required prerequisite engines (`ffmpeg.exe` and `N_m3u8DL-RE.exe`). Simply unzip and run—no extra setup required.
+>    👉 **Highly Recommended: Download the Portable Package (`StarStream_v3.2.3_Portable.zip`)**! It comes pre-packaged with all required prerequisite engines (`ffmpeg.exe` and `N_m3u8DL-RE.exe`). Simply unzip and run—no extra setup required.
 > 2. **For users who already have FFmpeg or N_m3u8DL**:
 >    👉 **You can directly download the standalone executable (`StarStream.exe`)**! Upon startup, StarStream will automatically scan system paths (`PATH`) and standard directories to detect and bind your existing prerequisite tools.
 > 3. **⚠️ Important Usage Tip**:

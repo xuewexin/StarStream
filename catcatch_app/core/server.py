@@ -708,15 +708,34 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         # - 如果插件传递了 "system"，优先获取实际 Windows 系统代理；
         # - 如果插件传递了 "auto"、"default" 或未设置，自动使用客户端当前生效的探活代理
         custom_proxy = (item.get("proxy") or "").strip()
-        from .config import normalize_proxy_url, detect_system_proxy
-        if custom_proxy.lower() in ["direct", "none"]:
+        from .config import normalize_proxy_url, detect_system_proxy, is_proxy_alive
+        mode = str(config.get("proxy_mode", "none")).lower()
+        try:
+            from urllib.parse import urlparse as _urlparse
+            _host = (_urlparse(url).hostname or "").lower()
+            _is_loopback = _host in ("127.0.0.1", "localhost", "::1", "0.0.0.0") or _host.startswith("127.")
+        except Exception:
+            _is_loopback = False
+
+        if _is_loopback or custom_proxy.lower() in ["direct", "none"]:
             final_proxy = "direct"
-        elif custom_proxy.lower() in ["system", "__system__"]:
-            final_proxy = detect_system_proxy() or "system"
         elif custom_proxy.lower() in ["auto", "default", "__default__", ""]:
-            final_proxy = config.get_effective_proxy(validate=True) or detect_system_proxy()
+            # 关键修复：客户端配置为直连时绝不能再回退到系统代理，否则失效的系统代理会让全部下载 502
+            final_proxy = config.get_effective_proxy(validate=True) or ""
+            if not final_proxy and mode == "system":
+                sys_p = detect_system_proxy()
+                final_proxy = sys_p if (sys_p and is_proxy_alive(sys_p, timeout=0.5)[0]) else ""
+            final_proxy = final_proxy or "direct"
+        elif custom_proxy.lower() in ["system", "__system__"]:
+            sys_p = detect_system_proxy()
+            final_proxy = sys_p if (sys_p and is_proxy_alive(sys_p, timeout=0.5)[0]) else "direct"
         else:
-            final_proxy = normalize_proxy_url(custom_proxy)
+            candidate = normalize_proxy_url(custom_proxy)
+            if candidate and is_proxy_alive(candidate, timeout=0.5)[0]:
+                final_proxy = candidate
+            else:
+                # 插件传来的代理已失效（浏览器代理/历史代理），退回客户端生效代理，再不行直连
+                final_proxy = config.get_effective_proxy(validate=True) or "direct"
 
         task_info = {
             "url": url,
@@ -729,6 +748,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             "headers": headers,
             "thread_count": thread_count,
             "proxy": final_proxy,
+            "baseUrl": item.get("baseUrl") or item.get("base_url") or "",
             "format": item.get("format", "mp4")
         }
 
