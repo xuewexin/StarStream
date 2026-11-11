@@ -464,6 +464,7 @@ async function parseM3u8Metadata(entry) {
 
   const { mediaList = [] } = await chrome.storage.local.get("mediaList");
   const item = mediaList.find((it) => it.id === entry.id || it.url === entry.url);
+  const hasEndlist = text.includes("#EXT-X-ENDLIST");
   if (item) {
     if (resolution) item.resolution = resolution;
     if (isMasterPlaylist) {
@@ -471,14 +472,23 @@ async function parseM3u8Metadata(entry) {
       item.isFeature = true;
       item.isAd = false;
       if (direct1080Url) item.direct1080Url = direct1080Url;
-      // 继承同标签页已有正片的时长
+      // 继承同标签页已有正片的时长（只增不减，避免覆盖播放器给出的真实时长）
       const peer = mediaList.find((it) => it.tabId === item.tabId && it.duration > 0);
-      if (peer) item.duration = peer.duration;
+      if (peer && peer.duration > (item.duration || 0)) item.duration = peer.duration;
     } else if (duration > 0) {
-      item.duration = Math.round(duration);
-      // 同步更新同标签页 Master 清单的时长
+      const playlistDur = Math.round(duration);
+      if (!hasEndlist) {
+        // 直播式清单（无 ENDLIST）这里只是当前滑动窗口的时长，
+        // 绝不能拿它覆盖播放器报出的真实总时长，否则会出现「1:57:22 变成 0:06」
+        if (!item.duration) item.duration = playlistDur;
+        item.isLive = true;
+      } else if (playlistDur > (item.duration || 0)) {
+        // 点播清单：仅用更长的清单总时长补齐，绝不缩短已有真实时长
+        item.duration = playlistDur;
+      }
+      // 同步更新同标签页 Master 清单的时长（同样只增不减）
       const masterItem = mediaList.find((it) => it.tabId === item.tabId && it.isMaster && !it.duration);
-      if (masterItem) masterItem.duration = Math.round(duration);
+      if (masterItem) masterItem.duration = playlistDur;
     }
 
     if (hasKey) {
@@ -486,7 +496,6 @@ async function parseM3u8Metadata(entry) {
       item.keyUrl = keyUrl;
     }
 
-    const hasEndlist = text.includes("#EXT-X-ENDLIST");
     if (hasEndlist && item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
       item.isAd = true;
       item.adReason = `疑似片头广告切片 (${item.duration}秒)`;
@@ -556,7 +565,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "UPDATE_MEDIA_METADATA" && req.data) {
-    const dur = Number(req.data.duration) || 0;
+    // 直播播放器的 duration 可能是 Infinity，直接入库会变成 null 或污染排序
+    const rawDur = Number(req.data.duration);
+    const dur = Number.isFinite(rawDur) && rawDur > 0 ? Math.floor(rawDur) : 0;
     const res = req.data.resolution || "";
     const tabId = sender.tab ? sender.tab.id : -1;
     if (tabId >= 0 && (dur > 0 || res)) {

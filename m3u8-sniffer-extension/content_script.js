@@ -157,7 +157,9 @@
 
     // 监听播放器的实际播放元数据，将真实的视频时长和分辨率实时同步回后台
     function syncRealMetadata() {
-      const dur = Math.floor(mediaEl.duration || 0);
+      // 直播播放器的 duration 会是 Infinity，必须过滤，否则会把脏数据写进列表
+      const rawDur = Number(mediaEl.duration);
+      const dur = Number.isFinite(rawDur) && rawDur > 0 ? Math.floor(rawDur) : 0;
       const res = (mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : '';
       if (dur > 0 || res) {
         chrome.runtime.sendMessage({
@@ -255,11 +257,35 @@
     if (s.includes('720')) return 720;
     if (s.includes('480')) return 480;
     if (s.includes('360')) return 360;
+    if (s.includes('240')) return 240;
     const m = s.match(/(\d{3,4})[xX*](\d{3,4})/);
     if (m) {
       return Math.min(parseInt(m[1]), parseInt(m[2]));
     }
     return 0;
+  }
+
+  /** 画面分辨率展示：1920x1080 → 1080P */
+  function formatResLabel(value) {
+    if (!value) return t('cap_hd_stream', '高清流');
+    const s = String(value).toUpperCase();
+    const dim = s.match(/(\d{3,4})[X×*](\d{3,4})/);
+    if (dim) return `${Math.min(parseInt(dim[1], 10), parseInt(dim[2], 10))}P`;
+    const h = getResolutionScore(value);
+    if (h) return `${h}P`;
+    return String(value);
+  }
+
+  /** 时长展示：超过 1 小时显示 h:mm:ss，避免出现 "117分22秒" */
+  function formatDurLabel(sec) {
+    const total = Math.round(Number(sec) || 0);
+    if (!Number.isFinite(total) || total <= 0) return '';
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+    const ss = String(s).padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
   }
 
   async function resolveRealMediaUrl(mediaEl) {
@@ -278,40 +304,34 @@
         const tabTitle = (res && res.tabTitle) || '';
         if (res && res.media && res.media.length > 0) {
           // 智能过滤广告切片: 过滤标记为 isAd 的流（若播放器实际时长 > 45秒，避免误把正片过滤）
-          const durSec = Math.floor(mediaEl.duration || 0);
+          const rawDurSec = Number(mediaEl.duration);
+          const durSec = Number.isFinite(rawDurSec) && rawDurSec > 0 ? Math.floor(rawDurSec) : 0;
           const nonAds = res.media.filter((i) => !i.isAd || durSec > 45);
           const pool = nonAds.length > 0 ? nonAds : res.media;
-          // 默认获取画质最高和时长最长的正片 (优先 1080P 或 Master 清单)
+          // 默认选择「时长最长 → 画质最高」的正片
           pool.sort((a, b) => {
             if (!a.isAd && b.isAd) return -1;
             if (a.isAd && !b.isAd) return 1;
 
-            // 1. 画质最高降序 (优先 1080P / 高分辨率)
+            // 1. 时长降序（时长未知的排在已知之后）
+            const durA = Number(a.duration) || 0;
+            const durB = Number(b.duration) || 0;
+            if (durA !== durB) return durB - durA;
+
+            // 2. 画面分辨率降序
             const resA = getResolutionScore(a.resolution);
             const resB = getResolutionScore(b.resolution);
-            if (resA !== resB) {
-              return resB - resA;
-            }
+            if (resA !== resB) return resB - resA;
 
-            // 2. 主清单优先 (Master 清单内含所有高画质轨道，N_m3u8DL-RE 会自动选择最佳画质)
-            if (a.isMaster && !b.isMaster) return -1;
-            if (!a.isMaster && b.isMaster) return 1;
-
-            if (a.isFeature && !b.isFeature) return -1;
-            if (!a.isFeature && b.isFeature) return 1;
-
-            // 3. 时长最长降序
-            const durA = Number(a.duration || 0);
-            const durB = Number(b.duration || 0);
-            if (Math.abs(durA - durB) > 3) {
-              return durB - durA;
-            }
+            // 3. 体积降序
+            const sizeDiff = (b.contentLength || 0) - (a.contentLength || 0);
+            if (sizeDiff) return sizeDiff;
 
             // 4. 流媒体格式优先
             if (a.mediaType === 'm3u8' && b.mediaType !== 'm3u8') return -1;
             if (a.mediaType !== 'm3u8' && b.mediaType === 'm3u8') return 1;
 
-            return (b.contentLength || 0) - (a.contentLength || 0);
+            return (b.timestamp || 0) - (a.timestamp || 0);
           });
           const chosen = pool[0];
           resolve({
@@ -423,13 +443,15 @@
       }
     }
 
-    const durSec = Math.floor(mediaEl.duration || 0);
-    const durStr = durSec > 0 ? `${Math.floor(durSec / 60)}${t('cap_min', '分')}${durSec % 60}${t('cap_sec', '秒')}` : '';
-    const resStr = mediaInfo.resolution || ((mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : t('cap_hd_stream', '高清流'));
+    // 直播流的 duration 可能为 Infinity，先过滤再格式化
+    const rawDurSec = Number(mediaEl.duration);
+    const durSec = Number.isFinite(rawDurSec) && rawDurSec > 0 ? Math.floor(rawDurSec) : 0;
+    const durStr = formatDurLabel(durSec);
+    const resLabel = formatResLabel(mediaInfo.resolution || ((mediaEl.videoWidth && mediaEl.videoHeight) ? `${mediaEl.videoWidth}x${mediaEl.videoHeight}` : ''));
 
     contentDiv.innerHTML = `
       <span class="catcatch-badge accent">${mediaInfo.format}</span>
-      <span class="catcatch-badge">${resStr}</span>
+      <span class="catcatch-badge">${resLabel}</span>
       ${durStr ? `<span class="catcatch-badge">${durStr}</span>` : ''}
     `;
 

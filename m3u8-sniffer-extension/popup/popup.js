@@ -693,34 +693,65 @@
     updateBatchBar();
   }
 
-  function getMediaQualityScore(item) {
-    let score = 0;
-    const resStr = (item.resolution || '').toUpperCase();
-    const urlStr = (item.url || '').toUpperCase();
+  /** 把 "1920x1080" / "1080P" / "4K" 等写法统一换成画面高度数值，解析不出来返回 0 */
+  function parseResolutionHeight(value) {
+    if (!value) return 0;
+    const s = String(value).toUpperCase().trim();
+    const dim = s.match(/(\d{3,4})\s*[X×*]\s*(\d{3,4})/);
+    if (dim) {
+      const h = Math.min(parseInt(dim[1], 10), parseInt(dim[2], 10));
+      return Number.isFinite(h) ? h : 0;
+    }
+    if (s.includes('4K') || s.includes('2160')) return 2160;
+    if (s.includes('2K') || s.includes('1440')) return 1440;
+    const p = s.match(/(\d{3,4})\s*P(?![A-Z0-9])/);
+    if (p) {
+      const h = parseInt(p[1], 10);
+      return h >= 144 && h <= 4320 ? h : 0;
+    }
+    return 0;
+  }
 
-    if (resStr.includes('2160') || resStr.includes('4K') || urlStr.includes('2160P') || urlStr.includes('4K')) {
-      score = 2160;
-    } else if (resStr.includes('1440') || resStr.includes('2K') || urlStr.includes('1440P') || urlStr.includes('2K')) {
-      score = 1440;
-    } else if (resStr.includes('1080') || urlStr.includes('1080P') || item.isMaster) {
-      score = 1080;
-    } else if (resStr.includes('720') || urlStr.includes('720P')) {
-      score = 720;
-    } else if (resStr.includes('480') || urlStr.includes('480P')) {
-      score = 480;
-    } else if (resStr.includes('360') || urlStr.includes('360P')) {
-      score = 360;
-    } else if (resStr.includes('240') || urlStr.includes('240P')) {
-      score = 240;
-    } else if (resStr) {
-      const m = resStr.match(/(\d{3,4})[X×](\d{3,4})/i);
+  /** 卡片上展示的清晰度标签：1920x1080 → 1080P，已是 1080P 就原样 */
+  function formatResolutionLabel(value) {
+    const h = parseResolutionHeight(value);
+    if (h) return `${h}P`;
+    const s = String(value || '').trim();
+    return s && s !== '最高画质' ? s : '';
+  }
+
+  /** 时长展示：小于 1 小时用 m:ss，超过 1 小时用 h:mm:ss，避免出现 117:22 这类怪值 */
+  function formatDurationLabel(seconds) {
+    const total = Math.round(Number(seconds) || 0);
+    if (!Number.isFinite(total) || total <= 0) return '';
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+    const ss = String(s).padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  }
+
+  function getMediaQualityScore(item) {
+    // 只认可真实分辨率信息，不再因为“是 Master/正片”就臆断成 1080P
+    let score = parseResolutionHeight(item.resolution);
+    if (!score) score = parseResolutionHeight(item.variantLabel);
+    if (!score && item.url) {
+      const m = String(item.url).match(/(\d{3,4})P(?![A-Z0-9])/i);
       if (m) {
-        score = Math.min(parseInt(m[1], 10), parseInt(m[2], 10));
+        const h = parseInt(m[1], 10);
+        if (h >= 144 && h <= 4320) score = h;
       }
     }
-
-    if (score === 0 && item.isFeature) {
-      score = 1080;
+    // 实在没有分辨率时，用码率反推一个近似画质，仅用于排序
+    if (!score && item.bandwidth > 0) {
+      const kbps = item.bandwidth / 1000;
+      if (kbps >= 8000) score = 2160;
+      else if (kbps >= 3500) score = 1440;
+      else if (kbps >= 1800) score = 1080;
+      else if (kbps >= 900) score = 720;
+      else if (kbps >= 450) score = 480;
+      else score = 360;
     }
     return score;
   }
@@ -774,39 +805,24 @@
       return true;
     });
 
-    // 智能排序：按照视频大小、画质的顺序优先排列 (最高清、体积最大的正片排在最上方)
+    // 排序规则（用户指定）：时长降序 → 画面分辨率降序 → 体积降序 → 最新嗅探时间
     filtered.sort((a, b) => {
-      // 1. 疑似切片/广告排在最后
-      const aAd = a.isAd && !a.isMaster ? 1 : 0;
-      const bAd = b.isAd && !b.isMaster ? 1 : 0;
-      if (aAd !== bAd) return aAd - bAd;
+      // 1. 时长降序（时长未知的排在已知时长之后）
+      const aDur = Number(a.duration) || 0;
+      const bDur = Number(b.duration) || 0;
+      if (aDur !== bDur) return bDur - aDur;
 
-      // 2. Master 主清单 / 正片 优先
-      const aMaster = a.isMaster ? 2 : (a.isFeature ? 1 : 0);
-      const bMaster = b.isMaster ? 2 : (b.isFeature ? 1 : 0);
-      if (aMaster !== bMaster) return bMaster - aMaster;
-
-      // 3. 视频体积大小降序 (优先对比真实文件大小 / 预估完整流大小)
-      const aSize = getMediaEffectiveSize(a);
-      const bSize = getMediaEffectiveSize(b);
-      if (Math.abs(aSize - bSize) > Math.max(aSize, bSize) * 0.15) {
-        return bSize - aSize;
-      }
-
-      // 4. 画质/分辨率高低降序 (2160P > 1080P > 720P > 480P > 240P)
+      // 2. 画面分辨率降序 (2160P > 1440P > 1080P > 720P > 480P > 360P > 240P)
       const aQ = getMediaQualityScore(a);
       const bQ = getMediaQualityScore(b);
       if (aQ !== bQ) return bQ - aQ;
 
-      // 5. 体积精确降序
-      if (bSize !== aSize) return bSize - aSize;
+      // 3. 体积降序
+      const aSize = getMediaEffectiveSize(a);
+      const bSize = getMediaEffectiveSize(b);
+      if (aSize !== bSize) return bSize - aSize;
 
-      // 6. 时长降序
-      const aDur = a.duration || 0;
-      const bDur = b.duration || 0;
-      if (aDur !== bDur) return bDur - aDur;
-
-      // 7. 最新嗅探时间
+      // 4. 最新嗅探时间
       return (b.timestamp || 0) - (a.timestamp || 0);
     });
 
@@ -904,13 +920,15 @@
     } else if (item.isFeature || item.isMaster) {
       tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="${t('tip_feature_video', '当前页面正片视频')}">${t('tag_feature')}</span>`;
     }
-    if (item.resolution) {
-      tagsHtml += `<span class="tag-badge tag-res">${item.resolution}</span>`;
+    const resLabel = formatResolutionLabel(item.resolution);
+    if (resLabel) {
+      tagsHtml += `<span class="tag-badge tag-res">${escapeHtml(resLabel)}</span>`;
     }
-    if (item.duration > 0) {
-      const m = Math.floor(item.duration / 60);
-      const s = item.duration % 60;
-      tagsHtml += `<span class="tag-badge tag-dur">${m}:${s < 10 ? '0' : ''}${s}</span>`;
+    const durLabel = formatDurationLabel(item.duration);
+    if (durLabel) {
+      tagsHtml += `<span class="tag-badge tag-dur">${durLabel}</span>`;
+    } else if (item.isLive) {
+      tagsHtml += `<span class="tag-badge tag-dur" title="直播式 HLS，播放器未提供总时长">直播</span>`;
     }
     if (item.contentLength > 0) {
       tagsHtml += `<span class="tag-badge tag-size">${formatSize(item.contentLength)}</span>`;
