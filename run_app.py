@@ -103,7 +103,18 @@ def check_single_instance():
                 h = found_hwnds[0]
                 user32.ShowWindow(h, 9)  # SW_RESTORE
                 user32.SetForegroundWindow(h)
-            return False
+                return False
+            else:
+                try:
+                    user32.MessageBoxW(
+                        0,
+                        "星流媒体下载器已在后台运行中。\n若主界面未显示，请检查桌面右下角系统托盘图标，或在任务管理器中结束旧进程后重试。",
+                        "星流 - 提示",
+                        0x40 | 0x10000  # MB_ICONINFORMATION | MB_SETFOREGROUND
+                    )
+                except Exception:
+                    pass
+                return False
     except Exception:
         pass
     return True
