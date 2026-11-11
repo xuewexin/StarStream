@@ -157,20 +157,27 @@ async function captureMediaRequest(details, respInfo) {
     return;
   }
 
-  const tabId = details.tabId;
-  if (tabId === undefined || tabId === null || tabId < 0) {
-    return;
-  }
+  let tabId = details.tabId;
+  let pageTitle = details.pageTitle || "";
+  let pageUrl = details.pageUrl || "";
 
-  // 获取页面标题与网页 URL
-  let pageTitle = "";
-  let pageUrl = "";
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    pageTitle = tab.title || "";
-    pageUrl = tab.url || "";
-  } catch (e) {
-    return;
+  if (tabId === undefined || tabId === null || tabId < 0) {
+    try {
+      const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (activeTabs && activeTabs[0]) {
+        tabId = activeTabs[0].id;
+        pageTitle = pageTitle || activeTabs[0].title || "";
+        pageUrl = pageUrl || activeTabs[0].url || "";
+      }
+    } catch (e) {}
+  } else {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab) {
+        pageTitle = pageTitle || tab.title || "";
+        pageUrl = pageUrl || tab.url || "";
+      }
+    } catch (e) {}
   }
 
   // 提取请求头
@@ -186,6 +193,11 @@ async function captureMediaRequest(details, respInfo) {
       if (key === "cookie") cookie = h.value || "";
       if (key === "authorization") authorization = h.value || "";
     }
+  }
+  if (details.deepHeaders) {
+    if (!referer) referer = details.deepHeaders.referer || "";
+    if (!userAgent) userAgent = details.deepHeaders.userAgent || "";
+    if (!cookie) cookie = details.deepHeaders.cookie || "";
   }
 
   // 防盗链兜底：若子请求未显式包含 Referer，自动使用当前标签页 URL 作为 Referer！
@@ -606,6 +618,22 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     } else {
       sendResponse({ title: sender.tab?.title || "", url: sender.tab?.url || "" });
     }
+    return true;
+  }
+
+  if (req.action === "ENSURE_MAIN_INJECT") {
+    const tabId = sender.tab ? sender.tab.id : -1;
+    const frameId = typeof sender.frameId === "number" ? sender.frameId : 0;
+    if (tabId >= 0 && chrome.scripting) {
+      chrome.scripting.executeScript({
+        target: { tabId, frameIds: [frameId] },
+        world: "MAIN",
+        files: ["inject.js"]
+      }).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: String(e) }));
+      return true;
+    }
+    sendResponse({ success: false, error: "tab unavailable" });
     return true;
   }
 

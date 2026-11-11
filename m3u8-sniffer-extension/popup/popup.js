@@ -19,6 +19,7 @@
   let currentCategory = 'all';
   let currentScope = 'current'; // 'current': 仅当前网页 | 'all': 全部仍打开网页
   let currentActiveTabId = -1;
+  let currentActiveTabUrl = '';
   let liveTabIds = new Set();
   let searchKeyword = '';
   let mediaList = [];
@@ -200,16 +201,16 @@
       });
     } catch (e) {}
 
-    await loadSettings();
-    await checkClientStatus();
-
+    // 立即渲染已捕获的媒体记录，不阻塞等待网络响应
+    loadAndRenderMedia();
     try {
       chrome.runtime.sendMessage({ action: 'PURGE_CLOSED_TABS' }, () => {
         loadAndRenderMedia();
       });
-    } catch (e) {
-      loadAndRenderMedia();
-    }
+    } catch (e) {}
+
+    await loadSettings();
+    checkClientStatus(); // 异步探测客户端，更新在线状态标记
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.mediaList) {
@@ -225,6 +226,7 @@
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs && tabs[0]) {
           currentActiveTabId = tabs[0].id;
+          currentActiveTabUrl = tabs[0].url || '';
         }
         chrome.tabs.query({}, (allTabs) => {
           liveTabIds = new Set((allTabs || []).map((t) => t.id));
@@ -237,6 +239,10 @@
   function bindTabLifecycleListeners() {
     chrome.tabs.onActivated.addListener(async (activeInfo) => {
       currentActiveTabId = activeInfo.tabId;
+      try {
+        const tab = await chrome.tabs.get(activeInfo.tabId);
+        if (tab) currentActiveTabUrl = tab.url || '';
+      } catch (e) {}
       await refreshLiveTabs();
       if (currentScope === 'current') {
         renderList();
@@ -471,11 +477,30 @@
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
   }
 
+  function handleClientStatusOnline(data) {
+    clientOnline = true;
+    clientStatusBadge.className = 'status-pill online';
+    clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_online') : '客户端已连接';
+    if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
+    if (data.effective_proxy) clientEffectiveProxy = data.effective_proxy;
+    if (data.temp_segments_dir) clientTempDir = data.temp_segments_dir;
+    if (data.language && typeof ExtI18n !== 'undefined') {
+      if (data.language !== ExtI18n.getLang()) {
+        ExtI18n.setLang(data.language);
+        initLanguageUI();
+        applyI18nUI();
+        renderList();
+      }
+    }
+    updateProxyTips();
+  }
+
   async function checkClientStatus() {
+    // 1. 直连 fetch 探测
     for (const host of ['127.0.0.1', 'localhost']) {
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2000);
+        const timer = setTimeout(() => controller.abort(), 3000);
         const resp = await fetch(`http://${host}:${clientPort}/api/status`, {
           method: 'GET',
           cache: 'no-store',
@@ -484,25 +509,24 @@
         clearTimeout(timer);
         if (resp && resp.ok) {
           const data = await resp.json();
-          clientOnline = true;
-          clientStatusBadge.className = 'status-pill online';
-          clientStatusText.textContent = typeof ExtI18n !== 'undefined' ? ExtI18n.t('status_online') : '客户端已连接';
-          if (data.detected_proxies) clientDetectedProxies = data.detected_proxies;
-          if (data.effective_proxy) clientEffectiveProxy = data.effective_proxy;
-          if (data.temp_segments_dir) clientTempDir = data.temp_segments_dir;
-          if (data.language && typeof ExtI18n !== 'undefined') {
-            if (data.language !== ExtI18n.getLang()) {
-              ExtI18n.setLang(data.language);
-              initLanguageUI();
-              applyI18nUI();
-              renderList();
-            }
-          }
-          updateProxyTips();
+          handleClientStatusOnline(data);
           return;
         }
       } catch (e) {}
     }
+
+    // 2. 兜底回退：通过后台 Service Worker 隧道查询
+    try {
+      const res = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'CHECK_CLIENT_STATUS' }, (resp) => {
+          resolve(chrome.runtime.lastError ? null : resp);
+        });
+      });
+      if (res && res.online && res.data) {
+        handleClientStatusOnline(res.data);
+        return;
+      }
+    } catch (e) {}
 
     clientOnline = false;
     clientStatusBadge.className = 'status-pill offline';
@@ -624,7 +648,9 @@
         return false;
       }
       if (currentScope === 'current') {
-        if (currentActiveTabId >= 0 && item.tabId !== currentActiveTabId) {
+        const matchTab = currentActiveTabId >= 0 && item.tabId === currentActiveTabId;
+        const matchUrl = currentActiveTabUrl && item.pageUrl && item.pageUrl === currentActiveTabUrl;
+        if (!matchTab && !matchUrl && currentActiveTabId >= 0) {
           return false;
         }
       } else {
@@ -653,7 +679,9 @@
     const scopedList = mediaList.filter((item) => {
       if (isFilterAds && item.isAd && !item.isMaster) return false;
       if (currentScope === 'current') {
-        return currentActiveTabId >= 0 ? item.tabId === currentActiveTabId : true;
+        const matchTab = currentActiveTabId >= 0 && item.tabId === currentActiveTabId;
+        const matchUrl = currentActiveTabUrl && item.pageUrl && item.pageUrl === currentActiveTabUrl;
+        return currentActiveTabId >= 0 ? (matchTab || matchUrl) : true;
       } else {
         return item.tabId ? liveTabIds.has(item.tabId) : true;
       }

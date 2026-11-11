@@ -228,6 +228,48 @@ loadTasks();
 """
 
 
+_STATUS_CACHE = {
+    "ffmpeg": (True, "Ready"),
+    "proxies": [],
+    "proxies_time": 0,
+    "effective_proxy": "",
+    "effective_proxy_time": 0
+}
+
+def _refresh_proxies_bg():
+    try:
+        _STATUS_CACHE["proxies"] = detect_local_active_proxies()
+    except Exception:
+        pass
+    _STATUS_CACHE["proxies_time"] = time.time()
+
+def _refresh_ffmpeg_bg():
+    try:
+        _STATUS_CACHE["ffmpeg"] = is_ffmpeg_available()
+    except Exception:
+        pass
+
+def _get_cached_ffmpeg():
+    return _STATUS_CACHE["ffmpeg"]
+
+def _get_cached_proxies():
+    now = time.time()
+    if not _STATUS_CACHE["proxies"] or now - _STATUS_CACHE["proxies_time"] > 30:
+        _STATUS_CACHE["proxies_time"] = now
+        threading.Thread(target=_refresh_proxies_bg, daemon=True).start()
+    return _STATUS_CACHE["proxies"]
+
+def _get_cached_effective_proxy():
+    now = time.time()
+    if not _STATUS_CACHE["effective_proxy"] or now - _STATUS_CACHE["effective_proxy_time"] > 20:
+        try:
+            _STATUS_CACHE["effective_proxy"] = config.get_effective_proxy(validate=False)
+        except Exception:
+            _STATUS_CACHE["effective_proxy"] = ""
+        _STATUS_CACHE["effective_proxy_time"] = now
+    return _STATUS_CACHE["effective_proxy"]
+
+
 class CatCatchHTTPHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # 屏蔽默认标准输出刷屏，避免干扰控制台
@@ -314,9 +356,9 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self._send_json_response(404, {"error": "Not Found"})
 
     def _send_status_json(self):
-        ff_ok, ff_msg = is_ffmpeg_available()
+        ff_ok, ff_msg = _get_cached_ffmpeg()
         tasks = task_manager.get_all_tasks()
-        active_count = sum(1 for t in tasks if t["status"] == "downloading")
+        active_count = sum(1 for t in tasks if t.get("status") == "downloading")
         self._send_json_response(200, {
             "status": "ok",
             "app": "StarStream Downloader",
@@ -327,8 +369,8 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             "save_dir": config.get("save_dir"),
             "language": config.get("language", "zh_CN"),
             "temp_segments_dir": get_temp_segments_dir(),
-            "effective_proxy": config.get_effective_proxy(),
-            "detected_proxies": detect_local_active_proxies(),
+            "effective_proxy": _get_cached_effective_proxy(),
+            "detected_proxies": _get_cached_proxies(),
             "total_tasks": len(tasks),
             "active_tasks": active_count
         })
@@ -551,6 +593,7 @@ class LocalServer:
             self.is_running = True
             self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
             self._thread.start()
+            threading.Thread(target=lambda: (_get_cached_ffmpeg(), _get_cached_proxies(), _get_cached_effective_proxy()), daemon=True).start()
             return True
         except Exception as e:
             # 兜底回退尝试 127.0.0.1
@@ -560,6 +603,7 @@ class LocalServer:
                 self.is_running = True
                 self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
                 self._thread.start()
+                threading.Thread(target=lambda: (_get_cached_ffmpeg(), _get_cached_proxies(), _get_cached_effective_proxy()), daemon=True).start()
                 return True
             except Exception:
                 self.is_running = False
