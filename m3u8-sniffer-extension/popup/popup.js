@@ -693,9 +693,58 @@
     updateBatchBar();
   }
 
+  function getMediaQualityScore(item) {
+    let score = 0;
+    const resStr = (item.resolution || '').toUpperCase();
+    const urlStr = (item.url || '').toUpperCase();
+
+    if (resStr.includes('2160') || resStr.includes('4K') || urlStr.includes('2160P') || urlStr.includes('4K')) {
+      score = 2160;
+    } else if (resStr.includes('1440') || resStr.includes('2K') || urlStr.includes('1440P') || urlStr.includes('2K')) {
+      score = 1440;
+    } else if (resStr.includes('1080') || urlStr.includes('1080P') || item.isMaster) {
+      score = 1080;
+    } else if (resStr.includes('720') || urlStr.includes('720P')) {
+      score = 720;
+    } else if (resStr.includes('480') || urlStr.includes('480P')) {
+      score = 480;
+    } else if (resStr.includes('360') || urlStr.includes('360P')) {
+      score = 360;
+    } else if (resStr.includes('240') || urlStr.includes('240P')) {
+      score = 240;
+    } else if (resStr) {
+      const m = resStr.match(/(\d{3,4})[X×](\d{3,4})/i);
+      if (m) {
+        score = Math.min(parseInt(m[1], 10), parseInt(m[2], 10));
+      }
+    }
+
+    if (score === 0 && item.isFeature) {
+      score = 1080;
+    }
+    return score;
+  }
+
+  function getMediaEffectiveSize(item) {
+    if (item.contentLength && item.contentLength > 0) {
+      return item.contentLength;
+    }
+    if (item.duration && item.duration > 0) {
+      const q = getMediaQualityScore(item);
+      let byteRate = 250 * 1024;
+      if (q >= 2160) byteRate = 600 * 1024;
+      else if (q >= 1080) byteRate = 320 * 1024;
+      else if (q >= 720) byteRate = 180 * 1024;
+      else if (q >= 480) byteRate = 100 * 1024;
+      else if (q >= 240) byteRate = 45 * 1024;
+      return item.duration * byteRate;
+    }
+    return 0;
+  }
+
   function getFilteredMedia() {
     const isFilterAds = document.getElementById('filterAdsCheckbox').checked;
-    return mediaList.filter((item) => {
+    const filtered = mediaList.filter((item) => {
       if (isFilterAds && item.isAd && !item.isMaster) {
         return false;
       }
@@ -724,6 +773,44 @@
       }
       return true;
     });
+
+    // 智能排序：按照视频大小、画质的顺序优先排列 (最高清、体积最大的正片排在最上方)
+    filtered.sort((a, b) => {
+      // 1. 疑似切片/广告排在最后
+      const aAd = a.isAd && !a.isMaster ? 1 : 0;
+      const bAd = b.isAd && !b.isMaster ? 1 : 0;
+      if (aAd !== bAd) return aAd - bAd;
+
+      // 2. Master 主清单 / 正片 优先
+      const aMaster = a.isMaster ? 2 : (a.isFeature ? 1 : 0);
+      const bMaster = b.isMaster ? 2 : (b.isFeature ? 1 : 0);
+      if (aMaster !== bMaster) return bMaster - aMaster;
+
+      // 3. 视频体积大小降序 (优先对比真实文件大小 / 预估完整流大小)
+      const aSize = getMediaEffectiveSize(a);
+      const bSize = getMediaEffectiveSize(b);
+      if (Math.abs(aSize - bSize) > Math.max(aSize, bSize) * 0.15) {
+        return bSize - aSize;
+      }
+
+      // 4. 画质/分辨率高低降序 (2160P > 1080P > 720P > 480P > 240P)
+      const aQ = getMediaQualityScore(a);
+      const bQ = getMediaQualityScore(b);
+      if (aQ !== bQ) return bQ - aQ;
+
+      // 5. 体积精确降序
+      if (bSize !== aSize) return bSize - aSize;
+
+      // 6. 时长降序
+      const aDur = a.duration || 0;
+      const bDur = b.duration || 0;
+      if (aDur !== bDur) return bDur - aDur;
+
+      // 7. 最新嗅探时间
+      return (b.timestamp || 0) - (a.timestamp || 0);
+    });
+
+    return filtered;
   }
 
   function updateCategoryCounts() {
@@ -837,8 +924,12 @@
       ? `浏览器代理: ${detectedProxy.proxyUrl}`
       : (clientEffectiveProxy ? `本地代理: ${clientEffectiveProxy}` : '代理: 直连/跟随系统');
 
+    const browserProxyLabel = detectedProxy.proxyUrl
+      ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐: ${detectedProxy.proxyUrl})`
+      : (detectedProxy.mode === 'direct' ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (直连)` : `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐)`);
+
     let proxyOptionsHtml = `
-      <option value="auto" selected>${t('cfg_proxy_auto')} (推荐${clientEffectiveProxy ? ': ' + clientEffectiveProxy : ''})</option>
+      <option value="auto" selected>${browserProxyLabel}</option>
       <option value="direct">${t('cfg_proxy_direct')}</option>
       <option value="default">${t('cfg_proxy_default')}</option>
     `;
@@ -973,8 +1064,8 @@
       const threadCount = configPanel.querySelector('.cfg-threads').value;
       const pVal = proxySelect.value;
       let finalProxy = '';
-      if (pVal === 'auto') {
-        finalProxy = detectedProxy.proxyUrl || clientEffectiveProxy || (detectedProxy.mode === 'direct' ? 'direct' : 'default');
+      if (pVal === 'auto' || pVal === 'browser') {
+        finalProxy = detectedProxy.proxyUrl || 'direct';
       } else if (pVal === 'custom') {
         finalProxy = customProxyInput.value.trim();
       } else {
@@ -988,8 +1079,8 @@
       let proxyForCmd = '';
       if (cfg.proxy && cfg.proxy !== 'default' && cfg.proxy !== 'direct') {
         proxyForCmd = cfg.proxy;
-      } else if (cfg.proxy === 'auto' && (detectedProxy.proxyUrl || clientEffectiveProxy)) {
-        proxyForCmd = detectedProxy.proxyUrl || clientEffectiveProxy;
+      } else if ((cfg.proxy === 'auto' || cfg.proxy === 'browser') && detectedProxy.proxyUrl) {
+        proxyForCmd = detectedProxy.proxyUrl;
       }
 
       let cmd = `N_m3u8DL-RE "${item.url}"`;
@@ -1338,6 +1429,14 @@
       : (clientEffectiveProxy ? `本地代理: ${clientEffectiveProxy}` : '代理: 直连/跟随系统');
     document.querySelectorAll('.cfg-proxy-tip').forEach((el) => {
       el.textContent = tipText;
+    });
+
+    const t = typeof ExtI18n !== 'undefined' ? ExtI18n.t : (k => k);
+    const browserProxyLabel = detectedProxy.proxyUrl
+      ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐: ${detectedProxy.proxyUrl})`
+      : (detectedProxy.mode === 'direct' ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (直连)` : `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐)`);
+    document.querySelectorAll('.cfg-proxy option[value="auto"]').forEach((opt) => {
+      opt.textContent = browserProxyLabel;
     });
   }
 

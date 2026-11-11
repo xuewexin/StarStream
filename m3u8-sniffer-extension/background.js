@@ -260,7 +260,8 @@ function detectMediaType(url, contentType) {
   if (u.endsWith(".mpd") || contentType.includes("dash+xml")) return "mpd";
   if (
     anyEndsWith(u, [".mp4", ".flv", ".f4v", ".webm", ".mkv", ".avi", ".mov", ".wmv"]) ||
-    contentType.startsWith("video/")
+    contentType.startsWith("video/") ||
+    SHORT_VIDEO_CDN_REGEX.test(url)
   ) {
     return "video";
   }
@@ -289,7 +290,15 @@ async function insertIntoStorage(entry) {
     old.userAgent = entry.userAgent || old.userAgent;
     old.cookie = entry.cookie || old.cookie;
     if (entry.contentLength) old.contentLength = entry.contentLength;
-    if (entry.contentType) old.contentType = entry.contentType;
+    if (entry.contentType) {
+      old.contentType = entry.contentType;
+      if (old.mediaType === "other" || !old.mediaType) {
+        old.mediaType = detectMediaType(old.url, entry.contentType);
+      }
+    }
+    if (entry.mediaType && entry.mediaType !== "other") {
+      old.mediaType = entry.mediaType;
+    }
     await chrome.storage.local.set({ mediaList });
     return;
   }
@@ -761,13 +770,13 @@ async function pushTaskToLocalClient(taskData) {
   try {
     const browserProxy = await detectBrowserProxy();
     const fillProxy = (item) => {
-      if (!item.proxy || item.proxy === 'auto') {
+      if (!item.proxy || item.proxy === 'auto' || item.proxy === 'browser') {
         if (browserProxy && browserProxy.proxyUrl) {
           item.proxy = browserProxy.proxyUrl;
         } else if (browserProxy && browserProxy.mode === 'direct') {
           item.proxy = 'direct';
         } else {
-          item.proxy = 'auto';
+          item.proxy = 'direct';
         }
       }
       if (!item.headers) item.headers = {};

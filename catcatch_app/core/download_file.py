@@ -86,6 +86,15 @@ class FileDownloadTask:
         self._is_paused = True
 
     def _run(self):
+        try:
+            self._do_run()
+        except Exception as e:
+            if self.on_log:
+                self.on_log(f"下载任务异常终止: {e}")
+            if self.on_finished:
+                self.on_finished(False, f"下载异常: {e}", "")
+
+    def _do_run(self):
         url = self.task_data.get("url")
         save_dir = self.task_data.get("save_dir") or config.get("save_dir")
         save_name = self.task_data.get("save_name") or ""
@@ -96,17 +105,24 @@ class FileDownloadTask:
         }
         req_headers.update({k: v for k, v in headers.items() if v})
 
-        # 防盗链修补
+        # 防盗链修补与短视频平台 Referer 智能补全
         if not req_headers.get("Referer"):
             ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
             if ref:
                 req_headers["Referer"] = ref
+            elif any(d in url for d in ["douyinvod.com", "douyin.com", "snssdk.com", "iesdouyin.com"]):
+                req_headers["Referer"] = "https://www.douyin.com/"
+            elif any(d in url for d in ["bilivideo.com", "bilivideo.cn", "hdslb.com"]):
+                req_headers["Referer"] = "https://www.bilibili.com/"
+            elif any(d in url for d in ["kwaicdn.com", "kwai.net"]):
+                req_headers["Referer"] = "https://www.kuaishou.com/"
+            elif any(d in url for d in ["xhscdn.com"]):
+                req_headers["Referer"] = "https://www.xiaohongshu.com/"
             elif "cdnplay.mom" in url:
                 req_headers["Referer"] = "https://huangguo01.net/"
 
         if req_headers.get("Referer") and not req_headers.get("Origin"):
             try:
-                from urllib.parse import urlparse
                 ref_u = urlparse(req_headers["Referer"])
                 if ref_u.scheme and ref_u.netloc:
                     req_headers["Origin"] = f"{ref_u.scheme}://{ref_u.netloc}"
@@ -173,6 +189,26 @@ class FileDownloadTask:
         except Exception:
             pass
 
+        # 兜底探测: 针对部分不响应 HEAD 的国内 CDN 进行 Range 0-0 轻量嗅探
+        if content_length <= 0:
+            try:
+                probe_headers = dict(req_headers)
+                probe_headers["Range"] = "bytes=0-0"
+                with self.session.get(url, headers=probe_headers, stream=True, timeout=8) as pr:
+                    if pr.status_code in (200, 206):
+                        accept_ranges = (pr.status_code == 206)
+                        cr = pr.headers.get("Content-Range", "")
+                        if "/" in cr:
+                            tot_s = cr.split("/")[-1].strip()
+                            if tot_s.isdigit():
+                                content_length = int(tot_s)
+                        if content_length <= 0:
+                            cl = pr.headers.get("Content-Length", "")
+                            if cl.isdigit() and pr.status_code == 200:
+                                content_length = int(cl)
+            except Exception:
+                pass
+
         # 若未指定文件名，从 URL 解析
         if not final_filename:
             parsed = urlparse(url)
@@ -232,7 +268,7 @@ class FileDownloadTask:
             self._download_single(url, req_headers, content_length)
 
     def _download_multithread(self, url, headers, total_size, num_threads):
-        """多线程分块下载 (IDM 核心加速)"""
+        """多线程分块下载 (IDM 核心加速，支持单块断点重试与故障隔离)"""
         part_size = total_size // num_threads
         part_ranges = []
         for i in range(num_threads):
@@ -248,62 +284,73 @@ class FileDownloadTask:
         last_time = time.time()
         last_downloaded = 0
         peak_speed = 0.0
-        start_time = time.time()
-        last_refresh_time = 0.0
 
         def download_chunk(idx, start_byte, end_byte):
-            nonlocal last_time, last_downloaded, peak_speed, last_refresh_time
-            chunk_headers = dict(headers)
-            chunk_headers["Range"] = f"bytes={start_byte}-{end_byte}"
+            nonlocal last_time, last_downloaded, peak_speed
             part_path = part_files[idx]
+            cur_start = start_byte
 
-            try:
-                with self.session.get(url, headers=chunk_headers, stream=True, timeout=20) as r:
-                    r.raise_for_status()
-                    with open(part_path, "wb") as f:
-                        for chunk in r.iter_content(chunk_size=64 * 1024):
-                            if self._is_cancelled or self._is_paused:
-                                return
-                            if chunk:
-                                f.write(chunk)
-                                with lock:
-                                    downloaded_bytes[idx] += len(chunk)
-                                    cur_total = sum(downloaded_bytes)
-                                    now = time.time()
-                                    if now - last_time >= 0.2:
-                                        speed = (cur_total - last_downloaded) / (now - last_time)
-                                        last_time = now
-                                        last_downloaded = cur_total
+            # 校验断点已存在分片
+            if os.path.exists(part_path):
+                existing_bytes = os.path.getsize(part_path)
+                if 0 < existing_bytes <= (end_byte - start_byte + 1):
+                    cur_start = start_byte + existing_bytes
+                    with lock:
+                        downloaded_bytes[idx] = existing_bytes
 
-                                        if speed > peak_speed:
-                                            peak_speed = speed
+            if cur_start > end_byte:
+                return
 
-                                        # 当文件的下载速度小于下载过程中最高速度的1/5时，刷新对应的访问连接来加速视频下载
-                                        if (now - start_time >= 5.0) and (peak_speed > 250 * 1024) and (speed < peak_speed * 0.20):
-                                            if now - last_refresh_time >= 8.0:
-                                                last_refresh_time = now
-                                                if self.on_log:
-                                                    self.on_log(
-                                                        f"[自动刷新重连加速] 检测到下载速度 ({format_size(speed)}/s) 低于传输峰值 ({format_size(peak_speed)}/s) 的 1/5，已触发网络会话刷新与保活重连！"
-                                                    )
-                                                try:
-                                                    self.session.close()
-                                                    self.session = get_requests_session(proxy)
-                                                except Exception:
-                                                    pass
+            max_retries = 3
+            mode = "ab" if cur_start > start_byte else "wb"
 
-                                        pct = (cur_total / total_size) * 100.0 if total_size > 0 else 0
-                                        spd_str = f"{format_size(speed)}/s"
-                                        eta_sec = int((total_size - cur_total) / speed) if speed > 0 else 0
-                                        eta_str = f"{eta_sec // 60:02d}:{eta_sec % 60:02d}"
+            for attempt in range(max_retries):
+                if self._is_cancelled or self._is_paused:
+                    return
+                try:
+                    chunk_headers = dict(headers)
+                    chunk_headers["Range"] = f"bytes={cur_start}-{end_byte}"
+                    with self.session.get(url, headers=chunk_headers, stream=True, timeout=25) as r:
+                        if r.status_code not in (200, 206):
+                            r.raise_for_status()
+                        with open(part_path, mode) as f:
+                            for chunk in r.iter_content(chunk_size=64 * 1024):
+                                if self._is_cancelled or self._is_paused:
+                                    return
+                                if chunk:
+                                    f.write(chunk)
+                                    cur_start += len(chunk)
+                                    with lock:
+                                        downloaded_bytes[idx] += len(chunk)
+                                        cur_total = sum(downloaded_bytes)
+                                        now = time.time()
+                                        if now - last_time >= 0.2:
+                                            speed = (cur_total - last_downloaded) / (now - last_time)
+                                            last_time = now
+                                            last_downloaded = cur_total
 
-                                        if self.on_progress:
-                                            self.on_progress(pct, spd_str, eta_str, cur_total, total_size)
-            except Exception as e:
-                with lock:
-                    chunk_errors.append(str(e))
-                if self.on_log:
-                    self.on_log(f"分块 {idx} 下载异常: {e}")
+                                            if speed > peak_speed:
+                                                peak_speed = speed
+
+                                            pct = (cur_total / total_size) * 100.0 if total_size > 0 else 0
+                                            spd_str = f"{format_size(speed)}/s"
+                                            eta_sec = int((total_size - cur_total) / speed) if speed > 0 else 0
+                                            eta_str = f"{eta_sec // 60:02d}:{eta_sec % 60:02d}"
+
+                                            if self.on_progress:
+                                                self.on_progress(pct, spd_str, eta_str, cur_total, total_size)
+
+                    if cur_start > end_byte:
+                        return
+                except Exception as e:
+                    mode = "ab"
+                    if attempt < max_retries - 1 and not (self._is_cancelled or self._is_paused):
+                        time.sleep(1.0)
+                    else:
+                        with lock:
+                            chunk_errors.append(str(e))
+                        if self.on_log:
+                            self.on_log(f"分块 {idx} 下载异常: {e}")
 
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             for idx, (s, e) in enumerate(part_ranges):
@@ -354,80 +401,93 @@ class FileDownloadTask:
             self.on_finished(True, "下载完成", final_out)
 
     def _download_single(self, url, headers, total_size):
-        """单流极速下载 (不支持 Range 或小于阈值)"""
+        """单流极速下载 (支持断点重试与流保活)"""
         last_time = time.time()
         start_time = time.time()
         last_dl = 0
         cur_dl = 0
         peak_speed = 0.0
-        last_refresh_time = 0.0
 
         tmp_out = f"{self.output_file}.tmp"
+        max_retries = 3
 
-        try:
-            with self.session.get(url, headers=headers, stream=True, timeout=20) as r:
-                r.raise_for_status()
-                with open(tmp_out, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=64 * 1024):
-                        if self._is_cancelled or self._is_paused:
-                            break
-                        if chunk:
-                            f.write(chunk)
-                            cur_dl += len(chunk)
-                            now = time.time()
-                            if now - last_time >= 0.5:
-                                speed = (cur_dl - last_dl) / (now - last_time)
-                                last_time = now
-                                last_dl = cur_dl
-
-                                if speed > peak_speed:
-                                    peak_speed = speed
-
-                                # 监测下载速度是否跌落至最高峰值的 1/5 以下
-                                if (now - start_time >= 5.0) and (peak_speed > 250 * 1024) and (speed < peak_speed * 0.20):
-                                    if now - last_refresh_time >= 8.0:
-                                        last_refresh_time = now
-                                        if self.on_log:
-                                            self.on_log(
-                                                f"[链路加速提示] 瞬时下载速度 ({format_size(speed)}/s) 显著低于传输峰值 ({format_size(peak_speed)}/s) 的 1/5，已触发链路保活与流连接优化！"
-                                            )
-
-                                pct = (cur_dl / total_size) * 100.0 if total_size > 0 else 0
-                                spd_str = f"{format_size(speed)}/s"
-                                eta_sec = int((total_size - cur_dl) / speed) if (speed > 0 and total_size > 0) else 0
-                                eta_str = f"{eta_sec // 60:02d}:{eta_sec % 60:02d}"
-
-                                if self.on_progress:
-                                    self.on_progress(pct, spd_str, eta_str, cur_dl, total_size)
-
+        for attempt in range(max_retries):
             if self._is_cancelled or self._is_paused:
-                if os.path.exists(tmp_out):
-                    try:
-                        os.remove(tmp_out)
-                    except Exception:
-                        pass
-                if self.on_finished:
-                    self.on_finished(False, "任务已取消或暂停", "")
-                return
+                break
+            try:
+                cur_headers = dict(headers)
+                mode = "wb"
+                if os.path.exists(tmp_out) and os.path.getsize(tmp_out) > 0 and attempt > 0:
+                    cur_dl = os.path.getsize(tmp_out)
+                    cur_headers["Range"] = f"bytes={cur_dl}-"
+                    mode = "ab"
 
-            if os.path.exists(self.output_file):
-                try:
-                    os.remove(self.output_file)
-                except Exception:
-                    pass
-            os.rename(tmp_out, self.output_file)
+                with self.session.get(url, headers=cur_headers, stream=True, timeout=25) as r:
+                    if r.status_code not in (200, 206):
+                        r.raise_for_status()
+                    if total_size <= 0:
+                        cl = r.headers.get("Content-Length")
+                        if cl and cl.isdigit():
+                            total_size = int(cl) + (cur_dl if mode == "ab" else 0)
 
-            final_out = check_auto_convert_mp4(self.output_file, self.on_log)
-            if self.on_progress:
-                self.on_progress(100.0, "完成", "", cur_dl, cur_dl)
-            if self.on_finished:
-                self.on_finished(True, "下载完成", final_out)
+                    with open(tmp_out, mode) as f:
+                        for chunk in r.iter_content(chunk_size=64 * 1024):
+                            if self._is_cancelled or self._is_paused:
+                                break
+                            if chunk:
+                                f.write(chunk)
+                                cur_dl += len(chunk)
+                                now = time.time()
+                                if now - last_time >= 0.3:
+                                    speed = (cur_dl - last_dl) / (now - last_time)
+                                    last_time = now
+                                    last_dl = cur_dl
 
-        except Exception as e:
+                                    if speed > peak_speed:
+                                        peak_speed = speed
+
+                                    pct = (cur_dl / total_size) * 100.0 if total_size > 0 else 0
+                                    spd_str = f"{format_size(speed)}/s"
+                                    eta_sec = int((total_size - cur_dl) / speed) if (speed > 0 and total_size > 0) else 0
+                                    eta_str = f"{eta_sec // 60:02d}:{eta_sec % 60:02d}"
+
+                                    if self.on_progress:
+                                        self.on_progress(pct, spd_str, eta_str, cur_dl, total_size)
+                break
+            except Exception as e:
+                if attempt < max_retries - 1 and not (self._is_cancelled or self._is_paused):
+                    if self.on_log:
+                        self.on_log(f"网络连接中断，第 {attempt + 1} 次尝试自动断点续传: {e}")
+                    time.sleep(1.5)
+                else:
+                    if os.path.exists(tmp_out):
+                        try:
+                            os.remove(tmp_out)
+                        except Exception:
+                            pass
+                    if self.on_finished:
+                        self.on_finished(False, f"下载失败: {e}", "")
+                    return
+
+        if self._is_cancelled or self._is_paused:
             if os.path.exists(tmp_out):
                 try:
                     os.remove(tmp_out)
                 except Exception:
                     pass
             if self.on_finished:
-                self.on_finished(False, f"下载失败: {e}", "")
+                self.on_finished(False, "任务已取消或暂停", "")
+            return
+
+        if os.path.exists(self.output_file):
+            try:
+                os.remove(self.output_file)
+            except Exception:
+                pass
+        os.rename(tmp_out, self.output_file)
+
+        final_out = check_auto_convert_mp4(self.output_file, self.on_log)
+        if self.on_progress:
+            self.on_progress(100.0, "完成", "", cur_dl, cur_dl)
+        if self.on_finished:
+            self.on_finished(True, "下载完成", final_out)

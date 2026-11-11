@@ -117,12 +117,19 @@ def _parse_douyin(url, session):
         title = m_title.group(1).replace(" - 抖音", "").strip() if m_title else "抖音视频"
         title = re.sub(r'[\r\n\t]+', ' ', title).strip()
 
-        # 引擎 1: 从网页源码直接正则匹配视频直链
+        # 引擎 1: 从网页源码直接正则匹配视频直链 (支持 URL-Decode 深入解析 RENDER_DATA / _ROUTER_DATA)
         m_play = re.search(r'"play_addr":\{"uri":"[^"]*","url_list":\["([^"]+)"', html)
         if not m_play:
             m_play = re.search(r'playAddr":\[\{"src":"([^"]+)"', html)
         if not m_play:
             m_play = re.search(r'"(https://[^\s"\'<>]+\.douyinvod\.com/[^\s"\'<>]+)"', html)
+        if not m_play:
+            unquoted_html = urllib.parse.unquote(html)
+            m_play = re.search(r'"play_addr":\{"uri":"[^"]*","url_list":\["([^"]+)"', unquoted_html)
+            if not m_play:
+                m_play = re.search(r'playAddr":\[\{"src":"([^"]+)"', unquoted_html)
+            if not m_play:
+                m_play = re.search(r'"(https://[^\s"\'<>]+\.douyinvod\.com/[^\s"\'<>]+)"', unquoted_html)
 
         if m_play:
             raw_video_url = m_play.group(1).replace("\\u0026", "&").replace("playwm", "play")

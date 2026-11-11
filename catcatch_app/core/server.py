@@ -481,7 +481,6 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         # 智能防盗链补齐：若有 Referer 自动补齐 Origin
         if headers.get("Referer") and not headers.get("Origin"):
             try:
-                from urllib.parse import urlparse
                 ref_u = urlparse(headers["Referer"])
                 if ref_u.scheme and ref_u.netloc:
                     headers["Origin"] = f"{ref_u.scheme}://{ref_u.netloc}"
@@ -525,8 +524,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         from .config import normalize_proxy_url, detect_system_proxy, is_proxy_alive
         mode = str(config.get("proxy_mode", "none")).lower()
         try:
-            from urllib.parse import urlparse as _urlparse
-            _host = (_urlparse(url).hostname or "").lower()
+            _host = (urlparse(url).hostname or "").lower()
             _is_loopback = _host in ("127.0.0.1", "localhost", "::1", "0.0.0.0") or _host.startswith("127.")
         except Exception:
             _is_loopback = False
