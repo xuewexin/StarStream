@@ -6,6 +6,7 @@
   "description": "全能网页音视频/流媒体(M3U8/DASH/MP4/MP3)深度嗅探，类似IDM悬浮抓取，支持单视频独立配置下载目录、线程与浏览器代理自动对齐，一键直通星流客户端与N_m3u8DL极速下载",
   "permissions": [
     "webRequest",
+    "declarativeNetRequest",
     "storage",
     "tabs",
     "nativeMessaging",

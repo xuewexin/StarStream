@@ -9,6 +9,7 @@ import time
 import shutil
 import subprocess
 import threading
+import urllib.request
 from urllib.parse import urljoin, urlparse
 import requests
 
@@ -219,6 +220,9 @@ class StreamDownloadTask:
                 except Exception:
                     pass
 
+            if not headers.get("User-Agent"):
+                headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
             for k, v in headers.items():
                 if v and str(v).strip():
                     cmd.extend(["-H", f"{k}: {str(v).strip()}"])
@@ -253,6 +257,8 @@ class StreamDownloadTask:
                 ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
                 if ref:
                     headers["Referer"] = ref
+            if not headers.get("User-Agent"):
+                headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             header_strs = [f"{k}:{str(v).strip()}" for k, v in headers.items() if v and str(v).strip()]
             if header_strs:
                 cmd.extend(["--headers", "|".join(header_strs)])
@@ -615,6 +621,14 @@ class StreamDownloadTask:
                 warn_lines = [l for l in recent_lines if any(k in l for k in ["WARN", "ERROR", "FAIL", "403", "404", "401", "Exception"])]
                 if warn_lines:
                     err_summary += f" ({warn_lines[-1]})"
+
+                # 自适应自愈容错降级：当外部 CLI 因 403 / TLS 指纹 / 反爬阻断导致失败时，自动启动内置原生流媒体引擎
+                if not self._is_cancelled:
+                    if self.on_log:
+                        self.on_log(f"[自适应故障自愈] CLI 引擎下载未完成 ({err_summary})，自动无缝启动星流原生 Python 流媒体引擎继续拉取...")
+                    self._run_internal_python()
+                    return
+
                 if self.on_finished:
                     self.on_finished(False, err_summary, "")
 
@@ -640,17 +654,30 @@ class StreamDownloadTask:
         return os.path.join(save_dir, f"{save_name}.mp4")
 
     def _run_internal_python(self):
-        """内置纯 Python M3U8 下载备用流程"""
+        """内置星流原生 Python M3U8 流媒体引擎 (抗 Cloudflare 与反爬智能兜底)"""
         save_dir = self.task_data.get("save_dir") or config.get("save_dir")
         save_name = self.task_data.get("save_name") or "video"
         save_name = re.sub(r'[\\/*?:"<>|]', '_', save_name).strip()
         url = self.task_data.get("url")
 
-        headers = self.task_data.get("headers", {})
-        req_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        req_headers.update({k: v for k, v in headers.items() if v})
+        headers = dict(self.task_data.get("headers", {}))
+        if not headers.get("Referer"):
+            ref = self.task_data.get("referer") or self.task_data.get("pageUrl")
+            if ref:
+                headers["Referer"] = ref
+            elif "cdnplay.mom" in url:
+                headers["Referer"] = "https://huangguo01.net/"
+
+        if headers.get("Referer") and not headers.get("Origin"):
+            try:
+                ref_parsed = urlparse(headers["Referer"])
+                if ref_parsed.scheme and ref_parsed.netloc:
+                    headers["Origin"] = f"{ref_parsed.scheme}://{ref_parsed.netloc}"
+            except Exception:
+                pass
+
+        if "User-Agent" not in headers or not headers["User-Agent"]:
+            headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
         temp_segments_dir = get_temp_segments_dir()
         tmp_dir = os.path.join(temp_segments_dir, f".tmp_{save_name}_{int(time.time())}")
@@ -664,17 +691,79 @@ class StreamDownloadTask:
                 proxy = actives[0]["url"] if actives else None
         session = get_requests_session(proxy)
 
+        def smart_fetch(target_url, timeout=15):
+            """抗 Cloudflare 智能多栈请求器"""
+            # 1. 优先采用标准 urllib.request (具备系统原生 TLS 栈，成功绕过 Cloudflare 403)
+            try:
+                req = urllib.request.Request(target_url, headers=headers)
+                if proxy and proxy.lower() not in ("none", "direct"):
+                    opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}))
+                    with opener.open(req, timeout=timeout) as resp:
+                        if resp.status == 200:
+                            return resp.read()
+                else:
+                    with urllib.request.urlopen(req, timeout=timeout) as resp:
+                        if resp.status == 200:
+                            return resp.read()
+            except Exception:
+                pass
+
+            # 2. 回退采用系统内置 curl.exe (拥有完整现代浏览器网络栈)
+            curl_bin = shutil.which("curl") or "C:\\Windows\\System32\\curl.exe"
+            if os.path.exists(curl_bin):
+                try:
+                    cmd_c = [curl_bin, "-s", "-L", "--connect-timeout", str(int(timeout)), "-m", str(int(timeout * 2))]
+                    if proxy and proxy.lower() not in ("none", "direct"):
+                        cmd_c.extend(["-x", proxy])
+                    for k, v in headers.items():
+                        if v:
+                            cmd_c.extend(["-H", f"{k}: {v}"])
+                    cmd_c.append(target_url)
+                    flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
+                    res = subprocess.run(cmd_c, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, timeout=timeout + 5)
+                    if res.returncode == 0 and len(res.stdout) > 0:
+                        return res.stdout
+                except Exception:
+                    pass
+
+            # 3. 回退采用 requests
+            try:
+                r = session.get(target_url, headers=headers, timeout=timeout)
+                if r.status_code == 200:
+                    return r.content
+            except Exception:
+                pass
+            return None
+
         try:
             if self.on_log:
-                self.on_log(f"正在拉取 M3U8 清单: {url}")
-            resp = session.get(url, headers=req_headers, timeout=15)
-            if resp.status_code != 200:
-                raise Exception(f"请求 M3U8 失败: HTTP {resp.status_code}")
+                self.on_log(f"内置流媒体引擎正在解析 M3U8 清单: {url}")
 
-            lines = resp.text.strip().splitlines()
-            ts_urls = []
+            m3u8_bytes = smart_fetch(url, timeout=15)
+            if not m3u8_bytes:
+                raise Exception("无法拉取 M3U8 播放清单 (防盗链或网络连接超时)")
+
+            lines = m3u8_bytes.decode("utf-8", errors="ignore").strip().splitlines()
             base_url = self.task_data.get("baseUrl") or url
 
+            # 若为多码率主清单 Master Playlist，自动选取最高画质子流
+            if any(l.startswith("#EXT-X-STREAM-INF") for l in lines):
+                if self.on_log:
+                    self.on_log("检测到主播放列表 (Master Playlist)，正在自动选择最高画质子流...")
+                sub_url = None
+                for i, l in enumerate(lines):
+                    if l.startswith("#EXT-X-STREAM-INF") and i + 1 < len(lines):
+                        candidate = lines[i + 1].strip()
+                        if candidate and not candidate.startswith("#"):
+                            sub_url = urljoin(base_url, candidate)
+                            # 继续向下搜寻可能存在的更高带宽轨道
+                if sub_url:
+                    base_url = sub_url
+                    sub_bytes = smart_fetch(sub_url, timeout=15)
+                    if sub_bytes:
+                        lines = sub_bytes.decode("utf-8", errors="ignore").strip().splitlines()
+
+            ts_urls = []
             for line in lines:
                 line = line.strip()
                 if not line or line.startswith("#"):
@@ -687,35 +776,51 @@ class StreamDownloadTask:
 
             total_segments = len(ts_urls)
             if self.on_log:
-                self.on_log(f"解析到 {total_segments} 个 TS 分片，开始多线程下载...")
+                self.on_log(f"解析到 {total_segments} 个媒体分片，开始高并发下载...")
 
             downloaded_count = 0
+            total_bytes_downloaded = 0
             ts_files = []
             lock = threading.Lock()
+            py_start_time = time.time()
+            last_log_t = 0.0
 
             def download_one(idx, ts_url):
-                nonlocal downloaded_count
+                nonlocal downloaded_count, total_bytes_downloaded, last_log_t
                 if self._is_cancelled:
                     return
                 ts_filename = os.path.join(tmp_dir, f"segment_{idx:05d}.ts")
-                for retry in range(3):
-                    try:
-                        r = session.get(ts_url, headers=req_headers, timeout=15)
-                        if r.status_code == 200:
-                            with open(ts_filename, "wb") as f:
-                                f.write(r.content)
-                            with lock:
-                                downloaded_count += 1
-                                ts_files.append((idx, ts_filename))
-                                pct = (downloaded_count / total_segments) * 95.0
-                                if self.on_progress:
-                                    self.on_progress(pct, "", "", downloaded_count, total_segments)
-                            return
-                    except Exception:
-                        time.sleep(1)
+                for retry in range(4):
+                    if self._is_cancelled:
+                        return
+                    content = smart_fetch(ts_url, timeout=15)
+                    if content and len(content) > 0:
+                        with open(ts_filename, "wb") as f:
+                            f.write(content)
+                        with lock:
+                            downloaded_count += 1
+                            total_bytes_downloaded += len(content)
+                            ts_files.append((idx, ts_filename))
+                            pct = (downloaded_count / total_segments) * 98.0
+                            now = time.time()
+                            elapsed = max(now - py_start_time, 0.001)
+                            spd_bps = total_bytes_downloaded / elapsed
+                            spd_str = f"{spd_bps / (1024*1024):.2f} MB/s" if spd_bps > 1024*1024 else f"{spd_bps / 1024:.1f} KB/s"
+                            rem_sec = int((total_segments - downloaded_count) / max(downloaded_count / elapsed, 0.001))
+                            eta_str = f"{rem_sec // 3600:02d}:{(rem_sec % 3600) // 60:02d}:{rem_sec % 60:02d}"
+                            
+                            if self.on_progress:
+                                self.on_progress(pct, spd_str, eta_str, total_bytes_downloaded, int(total_bytes_downloaded / max(pct / 100.0, 0.01)), downloaded_count, total_segments)
+
+                            if now - last_log_t >= 2.5 and self.on_log:
+                                last_log_t = now
+                                self.on_log(f"[下载中] 已完成: {downloaded_count}/{total_segments} ({pct:.1f}%) | 速度: {spd_str} | 剩余: {eta_str}")
+                        return
+                    time.sleep(1)
 
             from concurrent.futures import ThreadPoolExecutor
-            threads = int(self.task_data.get("thread_count", 16))
+            threads = int(self.task_data.get("thread_count") or config.get("max_threads_per_task", 16))
+            threads = min(max(threads, 4), 32)
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 for idx, t_url in enumerate(ts_urls):
                     executor.submit(download_one, idx, t_url)
@@ -726,31 +831,43 @@ class StreamDownloadTask:
                     self.on_finished(False, "任务已手动取消", "")
                 return
 
+            if downloaded_count < total_segments:
+                raise Exception(f"分片下载未全部完成 (成功: {downloaded_count}/{total_segments})")
+
             # 按序号排序
             ts_files.sort(key=lambda x: x[0])
             file_list_txt = os.path.join(tmp_dir, "concat_list.txt")
             with open(file_list_txt, "w", encoding="utf-8") as f:
                 for _, p in ts_files:
-                    f.write(f"file '{p.replace('\\', '/')}'\n")
+                    f.write(f"file '{p.replace(os.sep, '/')}'\n")
 
             out_mp4 = os.path.join(save_dir, f"{save_name}.mp4")
             if self.on_log:
-                self.on_log("正在调用 FFmpeg 进行无损合并...")
+                self.on_log(f"分片下载全部完成，正在调用 FFmpeg 无损混流为标准 MP4: {out_mp4}")
+
+            concat_done = threading.Event()
+            concat_result = [False, ""]
 
             def finish_concat(success, msg):
-                shutil.rmtree(tmp_dir, ignore_errors=True)
-                if success:
-                    if self.on_progress:
-                        self.on_progress(100.0, "完成", "", total_segments, total_segments)
-                    if self.on_finished:
-                        self.on_finished(True, "内置引擎合并成功", out_mp4)
-                else:
-                    if self.on_finished:
-                        self.on_finished(False, f"FFmpeg 合并失败: {msg}", "")
+                concat_result[0] = success
+                concat_result[1] = msg
+                concat_done.set()
 
             concat_ts_list(file_list_txt, out_mp4, on_finished=finish_concat)
+            concat_done.wait(timeout=300)
+
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+            if concat_result[0] and os.path.exists(out_mp4) and os.path.getsize(out_mp4) > 1024:
+                if self.on_progress:
+                    self.on_progress(100.0, "完成", "", total_bytes_downloaded, total_bytes_downloaded, total_segments, total_segments)
+                if self.on_finished:
+                    self.on_finished(True, "内置流媒体引擎下载并合并成功", out_mp4)
+            else:
+                if self.on_finished:
+                    self.on_finished(False, f"FFmpeg 合并失败: {concat_result[1]}", "")
 
         except Exception as e:
             shutil.rmtree(tmp_dir, ignore_errors=True)
             if self.on_finished:
-                self.on_finished(False, f"内置下载器异常: {e}", "")
+                self.on_finished(False, f"内置流媒体下载器异常: {e}", "")

@@ -27,6 +27,8 @@
   let clientOnline = false;
   let clientPort = 18910;
   let activeHls = null;
+  let currentPreviewItem = null;
+  const PREVIEW_RULE_ID = 20001;
   let detectedProxy = { mode: 'system', proxyUrl: '', label: '跟随系统代理' };
   let clientDetectedProxies = [];
   let clientEffectiveProxy = '';
@@ -483,6 +485,31 @@
     previewModal.addEventListener('click', (e) => {
       if (e.target === previewModal) closePreviewModal();
     });
+
+    const previewInlineBtn = document.getElementById('previewInlineBtn');
+    if (previewInlineBtn) {
+      previewInlineBtn.addEventListener('click', () => {
+        if (currentPreviewItem) {
+          chrome.runtime.sendMessage({ action: 'INJECT_HLS_PLAYER', data: currentPreviewItem }, (res) => {
+            const statusEl = document.getElementById('previewStatus');
+            if (res && res.success) {
+              if (statusEl) statusEl.innerHTML = '<span style="color:#22c55e;">已在目标网页内启动悬浮播放窗口！</span>';
+            } else {
+              if (statusEl) statusEl.innerHTML = `<span style="color:#ef4444;">网页内注入播放提示: ${res && res.error ? res.error : '页面未响应'}</span>`;
+            }
+          });
+        }
+      });
+    }
+
+    const previewRawBtn = document.getElementById('previewRawBtn');
+    if (previewRawBtn) {
+      previewRawBtn.addEventListener('click', () => {
+        if (currentPreviewItem && currentPreviewItem.url) {
+          window.open(currentPreviewItem.url, '_blank');
+        }
+      });
+    }
 
     document.getElementById('btnSettings').addEventListener('click', () => {
       settingsPanel.classList.remove('hidden');
@@ -1053,40 +1080,162 @@
     return card;
   }
 
+  function setPreviewHeaders(item, callback) {
+    const ref = item.referer || item.pageUrl || '';
+    let origin = '';
+    if (ref) {
+      try { origin = new URL(ref).origin; } catch (e) {}
+    }
+    const headers = [
+      { header: 'Referer', operation: 'set', value: ref },
+      { header: 'User-Agent', operation: 'set', value: item.userAgent || navigator.userAgent }
+    ];
+    if (origin) {
+      headers.push({ header: 'Origin', operation: 'set', value: origin });
+    }
+    if (item.cookie) {
+      headers.push({ header: 'Cookie', operation: 'set', value: item.cookie });
+    }
+
+    if (chrome.declarativeNetRequest && chrome.declarativeNetRequest.updateSessionRules) {
+      chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [PREVIEW_RULE_ID],
+        addRules: [{
+          id: PREVIEW_RULE_ID,
+          priority: 100,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: headers
+          },
+          condition: {
+            resourceTypes: ['xmlhttprequest', 'media', 'image', 'other'],
+            initiatorDomains: [chrome.runtime.id]
+          }
+        }]
+      }, () => {
+        if (callback) callback();
+      });
+    } else {
+      chrome.runtime.sendMessage({ action: 'SET_PREVIEW_HEADERS', data: item }, () => {
+        if (callback) callback();
+      });
+    }
+  }
+
+  function clearPreviewHeaders(callback) {
+    if (chrome.declarativeNetRequest && chrome.declarativeNetRequest.updateSessionRules) {
+      chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [PREVIEW_RULE_ID]
+      }, () => {
+        if (callback) callback();
+      });
+    } else {
+      chrome.runtime.sendMessage({ action: 'CLEAR_PREVIEW_HEADERS' }, () => {
+        if (callback) callback();
+      });
+    }
+  }
+
   function openPreviewModal(item) {
+    currentPreviewItem = item;
+    const statusEl = document.getElementById('previewStatus');
+    if (statusEl) {
+      statusEl.textContent = '正在注入防盗链认证并建立连接...';
+      statusEl.style.color = '#a1a1aa';
+    }
     previewTitle.textContent = item.pageTitle || '媒体预览';
     previewModal.classList.remove('hidden');
 
-    if (item.mediaType === 'audio') {
-      previewVideo.classList.add('hidden');
-      previewAudio.classList.remove('hidden');
-      previewAudio.src = item.url;
-      previewAudio.play().catch(() => {});
-    } else {
-      previewAudio.classList.add('hidden');
-      previewVideo.classList.remove('hidden');
-
-      if (item.mediaType === 'm3u8' && window.Hls && Hls.isSupported()) {
-        if (activeHls) activeHls.destroy();
-        activeHls = new Hls({ enableWorker: true, lowLatencyMode: false });
-        activeHls.loadSource(item.url);
-        activeHls.attachMedia(previewVideo);
-        activeHls.on(Hls.Events.MANIFEST_PARSED, () => {
-          previewVideo.play().catch(() => {});
-        });
-        activeHls.on(Hls.Events.ERROR, () => {
-          // 若跨域或防盗链阻断，调用页面内注入播放兜底
-          chrome.runtime.sendMessage({ action: 'INJECT_HLS_PLAYER', data: item });
-        });
+    setPreviewHeaders(item, () => {
+      if (item.mediaType === 'audio') {
+        previewVideo.classList.add('hidden');
+        previewAudio.classList.remove('hidden');
+        previewAudio.src = item.url;
+        previewAudio.play().catch(() => {});
+        if (statusEl) statusEl.textContent = '▶ 音频播放中';
       } else {
-        previewVideo.src = item.url;
-        previewVideo.play().catch(() => {});
+        previewAudio.classList.add('hidden');
+        previewVideo.classList.remove('hidden');
+
+        if (item.mediaType === 'm3u8' && window.Hls && Hls.isSupported()) {
+          if (activeHls) activeHls.destroy();
+          activeHls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: false
+          });
+          activeHls.loadSource(item.url);
+          activeHls.attachMedia(previewVideo);
+
+          let totalFragments = 0;
+          activeHls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+            if (statusEl) statusEl.textContent = '▶ 播放中 · 正在探测码率与估算大小...';
+            previewVideo.play().catch(() => {});
+            if (data.levels && data.levels.length > 0) {
+              const lvl = data.levels[0];
+              if (lvl.width && lvl.height) {
+                item.resolution = `${lvl.width}x${lvl.height}`;
+              }
+            }
+          });
+
+          activeHls.on(Hls.Events.LEVEL_LOADED, (event, data) => {
+            if (data.details && data.details.fragments) {
+              totalFragments = data.details.fragments.length;
+              if (data.details.totalduration && !item.duration) {
+                item.duration = data.details.totalduration;
+              }
+            }
+          });
+
+          const sampleFrags = [];
+          function onFragLoaded(event, data) {
+            const frag = data.frag;
+            const stats = frag && frag.stats;
+            if (!frag || !stats || !frag.duration) return;
+            const bytes = stats.total || stats.loaded || 0;
+            const dur = frag.duration || 0;
+            if (!bytes || !dur) return;
+            sampleFrags.push({ bytes, dur });
+            if (sampleFrags.length >= 3) {
+              const totBytes = sampleFrags.reduce((a, b) => a + b.bytes, 0);
+              const totDur = sampleFrags.reduce((a, b) => a + b.dur, 0);
+              const bps = (totBytes * 8) / totDur;
+              const mbps = (bps / (1024 * 1024)).toFixed(2) + ' Mbps';
+              let estSizeStr = '';
+              if (totalFragments > 0) {
+                const avgBytes = totBytes / sampleFrags.length;
+                const estBytes = avgBytes * totalFragments;
+                estSizeStr = ` | 预估大小: ${formatSize(estBytes)}`;
+              }
+              const resStr = item.resolution ? `[${item.resolution}] ` : '';
+              if (statusEl) {
+                statusEl.innerHTML = `<span style="color:#22c55e;">● 正常播放中</span> · ${resStr}码率: ${mbps}${estSizeStr}`;
+              }
+              activeHls.off(Hls.Events.FRAG_LOADED, onFragLoaded);
+            }
+          }
+          activeHls.on(Hls.Events.FRAG_LOADED, onFragLoaded);
+
+          activeHls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              if (statusEl) {
+                statusEl.innerHTML = '<span style="color:#ef4444;">预览受阻，请点击下方「在网页内播放」或改用原链直连</span>';
+              }
+            }
+          });
+        } else {
+          previewVideo.src = item.url;
+          previewVideo.play().catch(() => {});
+          if (statusEl) statusEl.textContent = '▶ 视频播放中';
+        }
       }
-    }
+    });
   }
 
   function closePreviewModal() {
     previewModal.classList.add('hidden');
+    currentPreviewItem = null;
+    clearPreviewHeaders();
     if (activeHls) {
       activeHls.destroy();
       activeHls = null;
@@ -1097,6 +1246,8 @@
     previewAudio.pause();
     previewAudio.removeAttribute('src');
     previewAudio.load();
+    const statusEl = document.getElementById('previewStatus');
+    if (statusEl) statusEl.textContent = '正在准备播放…';
   }
 
   function getDomain(url) {

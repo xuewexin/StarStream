@@ -637,6 +637,57 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true;
   }
 
+  if (req.action === "SET_PREVIEW_HEADERS" && req.data) {
+    const referer = req.data.referer || req.data.pageUrl || "";
+    let origin = "";
+    if (referer) {
+      try { origin = new URL(referer).origin; } catch (e) {}
+    }
+    const headers = [
+      { header: "Referer", operation: "set", value: referer },
+      { header: "User-Agent", operation: "set", value: req.data.userAgent || navigator.userAgent }
+    ];
+    if (origin) {
+      headers.push({ header: "Origin", operation: "set", value: origin });
+    }
+    if (req.data.cookie) {
+      headers.push({ header: "Cookie", operation: "set", value: req.data.cookie });
+    }
+    if (chrome.declarativeNetRequest && chrome.declarativeNetRequest.updateSessionRules) {
+      chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [20001],
+        addRules: [{
+          id: 20001,
+          priority: 100,
+          action: {
+            type: "modifyHeaders",
+            requestHeaders: headers
+          },
+          condition: {
+            resourceTypes: ["xmlhttprequest", "media", "image", "other"],
+            initiatorDomains: [chrome.runtime.id]
+          }
+        }]
+      }).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: String(e) }));
+      return true;
+    }
+    sendResponse({ success: false, error: "declarativeNetRequest unavailable" });
+    return true;
+  }
+
+  if (req.action === "CLEAR_PREVIEW_HEADERS") {
+    if (chrome.declarativeNetRequest && chrome.declarativeNetRequest.updateSessionRules) {
+      chrome.declarativeNetRequest.updateSessionRules({
+        removeRuleIds: [20001]
+      }).then(() => sendResponse({ success: true }))
+        .catch((e) => sendResponse({ success: false, error: String(e) }));
+      return true;
+    }
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (req.action === "CHECK_CLIENT_STATUS") {
     localFetch("/api/status", { method: "GET" }, 2500)
       .then((r) => r.json())
