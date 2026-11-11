@@ -1,14 +1,12 @@
 // background.js - CatCatch Pro Sniffer Engine & IPC Bridge
 // 专注抓取完整媒体流 (M3U8 / MPD / MP4 / 音频)，严格过滤海量无用切片，页面消失自动实时清理关联爬取视频
-const MAX_ITEMS = 300;
+const MAX_ITEMS = 150;
 const LOCAL_SERVER_URL = "http://127.0.0.1:18910";
 
 /**
- * 访问本地客户端：自动在 127.0.0.1 / localhost 之间回退。
- * Chrome 142+ 的 Local Network Access 会拦截扩展直连回环地址，
- * 换成 localhost 在部分版本下可绕过，同时保留超时避免 service worker 长时间挂起。
+ * 访问本地客户端：在 127.0.0.1 / localhost 之间快速尝试，带超时保护
  */
-async function localFetch(path, options = {}, timeoutMs = 12000) {
+async function localFetch(path, options = {}, timeoutMs = 3500) {
   const targets = [LOCAL_SERVER_URL, LOCAL_SERVER_URL.replace("127.0.0.1", "localhost")];
   let lastErr = null;
   for (const base of targets) {
@@ -28,19 +26,16 @@ async function localFetch(path, options = {}, timeoutMs = 12000) {
 
 // 支持的完整视音频与流媒体扩展名正则
 const MEDIA_EXT_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
-// 流媒体清单（master / media playlist、DASH MPD）——永远不能被当成"分片"丢弃
+// 流媒体清单（master / media playlist、DASH MPD）——永远放行
 const PLAYLIST_EXT_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
-// 明确的切片扩展名
+// 明确的分片扩展名
 const SEGMENT_EXT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)/i;
 
 // 针对抖音/快手/B站/小红书等短视频无后缀 CDN 流的智能识别正则
 const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
 
 /**
- * 精确判断是否为碎片切片。
- * 旧版用 (part|seg|chunk|frag|slice) 做全路径模糊匹配，会把
- * .../hls/part_1080/master.m3u8、.../segment-list.m3u8 这类真正的清单误杀，
- * 这是"抓不到深层/高画质流"的元凶之一。
+ * 精确判断是否为碎片切片
  */
 function isFragmentUrl(url) {
   if (!url) return true;
@@ -93,7 +88,6 @@ let storageQueue = Promise.resolve();
 chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     const url = details.url;
-    // 丢弃无真实活动网页依附的后台/孤立请求
     if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
     if (isFragmentUrl(url)) return; // 严格过滤分片
@@ -102,8 +96,6 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
     captureMediaRequest(details, null);
   },
   { urls: ["*://*/*"] },
-  // MV3 下 Cookie / Referer / User-Agent / Authorization 属于敏感头，
-  // 不加 extraHeaders 一律读不到，导致防盗链站点下载与预览全部 403。
   ["requestHeaders", "extraHeaders"]
 );
 
@@ -111,7 +103,6 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     const url = details.url;
-    // 丢弃无真实活动网页依附的后台/孤立请求
     if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
     if (isFragmentUrl(url)) return; // 严格过滤分片
@@ -160,14 +151,13 @@ chrome.webRequest.onHeadersReceived.addListener(
 async function captureMediaRequest(details, respInfo) {
   const url = details.url;
   if (!url || url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("chrome:")) {
-    return; // 忽略内存对象与非网络资源
+    return;
   }
   if (isFragmentUrl(url)) {
-    return; // 坚决丢弃视频切片分片
+    return;
   }
 
   const tabId = details.tabId;
-  // 核心约束：只记录依附于真实开启页面的媒体
   if (tabId === undefined || tabId === null || tabId < 0) {
     return;
   }
@@ -180,11 +170,10 @@ async function captureMediaRequest(details, respInfo) {
     pageTitle = tab.title || "";
     pageUrl = tab.url || "";
   } catch (e) {
-    // 若标签页已不在（瞬间关闭），放弃记录
     return;
   }
 
-// 提取请求头
+  // 提取请求头
   let referer = "";
   let userAgent = "";
   let cookie = "";
@@ -198,23 +187,14 @@ async function captureMediaRequest(details, respInfo) {
       if (key === "authorization") authorization = h.value || "";
     }
   }
-  // 深度扫描 / 页面注入上报时携带的补充头（优先级低于真实网络请求头）
-  if (details.deepHeaders) {
-    referer = referer || details.deepHeaders.referer || "";
-    userAgent = userAgent || details.deepHeaders.userAgent || "";
-    cookie = cookie || details.deepHeaders.cookie || "";
-    authorization = authorization || details.deepHeaders.authorization || "";
-  }
 
   // 防盗链兜底：若子请求未显式包含 Referer，自动使用当前标签页 URL 作为 Referer！
   if (!referer && pageUrl) {
     referer = pageUrl;
   }
 
-  // 识别媒体类型
   const mediaType = detectMediaType(url, respInfo ? respInfo.contentType : "");
 
-  // 构造 BaseURL (主要用于 M3U8 相对切片地址拼接)
   let baseUrl = "";
   try {
     const u = new URL(url);
@@ -250,13 +230,13 @@ async function captureMediaRequest(details, respInfo) {
     keyUrl: "",
     isAd: isAdByUrl,
     adReason: isAdByUrl ? "URL匹配广告特征" : "",
-    isFeature: false
+    isFeature: false,
+    isMaster: false
   };
 
   storageQueue = storageQueue.then(() => insertIntoStorage(entry)).catch(() => {});
   await storageQueue;
 
-  // 异步深入解析 M3U8/MPD 流清单详细属性
   if (mediaType === "m3u8") {
     parseM3u8Metadata(entry).catch(() => {});
   }
@@ -288,13 +268,10 @@ function anyEndsWith(str, exts) {
 // 插入存储并去重
 async function insertIntoStorage(entry) {
   let { mediaList = [] } = await chrome.storage.local.get("mediaList");
-  // 清除可能遗留的 blob 伪协议地址与切片
   mediaList = mediaList.filter((item) => !item.url.startsWith("blob:") && !isFragmentUrl(item.url));
 
-  // 去重检测
   const existIdx = mediaList.findIndex((item) => item.url === entry.url);
   if (existIdx >= 0) {
-    // 合并有效信息
     const old = mediaList[existIdx];
     old.referer = entry.referer || old.referer;
     old.userAgent = entry.userAgent || old.userAgent;
@@ -317,7 +294,6 @@ async function insertIntoStorage(entry) {
   }
 }
 
-// 标签页专属角标更新（仅在对应标签页显示数字，避免全局常驻残留）
 function updateBadgeForTab(tabId, count) {
   const text = count > 0 ? (count > 99 ? "99+" : String(count)) : "";
   if (tabId !== undefined && tabId !== null && tabId >= 0) {
@@ -329,14 +305,13 @@ function updateBadgeForTab(tabId, count) {
   }
 }
 
-// 核心功能：标签页刷新、重新加载或导航离开时：立即清除旧网页爬取的视频并清除角标
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+// 标签页刷新、重新加载或导航离开时：清除旧记录
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
   if (changeInfo.status === "loading") {
     try {
       chrome.action.setBadgeText({ tabId, text: "" });
     } catch (e) {}
 
-    // 无论是否带 url，只要网页重新 loading，即代表原页面内容发生刷新或替换
     const { mediaList = [] } = await chrome.storage.local.get("mediaList");
     const filtered = mediaList.filter((it) => it.tabId !== tabId);
     if (filtered.length !== mediaList.length) {
@@ -345,7 +320,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
-// 核心功能：标签页关闭时，立即彻底清除该页面爬取的所有视频记录，释放角标
+// 标签页关闭时清除记录
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   try {
     chrome.action.setBadgeText({ tabId, text: "" });
@@ -357,7 +332,6 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   }
 });
 
-// 定时与按需比对清理：自动核对当前浏览器中所有存活的标签页，彻底刷新抹除已不存在的孤儿页面记录
 async function purgeClosedTabsMedia() {
   return new Promise((resolve) => {
     chrome.tabs.query({}, async (tabs) => {
@@ -372,7 +346,6 @@ async function purgeClosedTabsMedia() {
   });
 }
 
-// 存储列表全部清空时，同步清除全局残留角标
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.mediaList) {
     const list = changes.mediaList.newValue || [];
@@ -382,26 +355,76 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// 深入解析 M3U8 清单内容 (提取分辨率、AES-128 密钥、总时长)
+// 深入解析 M3U8 清单内容 (精确提取分辨率、AES-128 密钥、总时长及主清单特征)
 async function parseM3u8Metadata(entry) {
-  // 三级抓取：页面上下文(自带 Referer/Cookie 且 CDN 已对本页开放 CORS)
-  //          → 桌面客户端本地代理 → service worker 直连
-  const text = (await fetchPlaylistText(entry)) || "";
-  if (!text.trim().startsWith("#EXTM3U")) return;
-  const isMasterPlaylist = /#EXT-X-STREAM-INF/i.test(text);
+  let text = "";
+  try {
+    const headers = {};
+    if (entry.referer) headers["Referer"] = entry.referer;
+    if (entry.userAgent) headers["User-Agent"] = entry.userAgent;
+    if (entry.cookie) headers["Cookie"] = entry.cookie;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(entry.url, { headers, credentials: "omit", signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return;
+    text = await res.text();
+  } catch (e) {
+    return;
+  }
+  if (!text || !text.trim().startsWith("#EXTM3U")) return;
 
+  const isMasterPlaylist = /#EXT-X-STREAM-INF/i.test(text);
   let resolution = "";
   let duration = 0;
   let hasKey = false;
   let keyUrl = "";
+  let direct1080Url = "";
 
-  // 1. 匹配清晰度 RESOLUTION=1920x1080
-  const resMatch = text.match(/RESOLUTION=(\d+x\d+)/i);
-  if (resMatch && !isMasterPlaylist) {
-    resolution = resMatch[1];
+  if (isMasterPlaylist) {
+    // 主清单 (Master Playlist)：解析内部各画质变体，提取最高画质
+    const resMatches = [...text.matchAll(/RESOLUTION=(\d+x\d+)/gi)];
+    if (resMatches.length > 0) {
+      let maxHeight = 0;
+      let bestRes = "";
+      for (const m of resMatches) {
+        const parts = m[1].split('x');
+        const h = parseInt(parts[1], 10) || 0;
+        if (h > maxHeight) {
+          maxHeight = h;
+          bestRes = m[1];
+        }
+      }
+      resolution = bestRes || resMatches[0][1];
+    } else {
+      resolution = "最高画质";
+    }
+
+    // 检查是否存在 1080p 子清单相对地址
+    const lines = text.split(/\r?\n/);
+    let pendingInf = "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
+        pendingInf = trimmed;
+      } else if (pendingInf && trimmed && !trimmed.startsWith("#")) {
+        if (/1920x1080|1080/i.test(pendingInf) || /1080p/i.test(trimmed)) {
+          try {
+            direct1080Url = new URL(trimmed, entry.url).href;
+          } catch (e) {}
+        }
+        pendingInf = "";
+      }
+    }
+  } else {
+    // 媒体子清单：提取分辨率
+    const resMatch = text.match(/RESOLUTION=(\d+x\d+)/i);
+    if (resMatch) {
+      resolution = resMatch[1];
+    }
   }
 
-  // 2. 匹配加密密钥 #EXT-X-KEY:METHOD=AES-128,URI="https://..."
+  // 匹配加密密钥 #EXT-X-KEY:METHOD=AES-128,URI="https://..."
   const keyMatch = text.match(/#EXT-X-KEY:[^\r\n]*URI=["']?([^"'\r\n]+)["']?/i);
   if (keyMatch) {
     hasKey = true;
@@ -412,267 +435,64 @@ async function parseM3u8Metadata(entry) {
     }
   }
 
-  // 3. 计算切片总时长
+  // 计算切片总时长
   const durMatches = text.matchAll(/#EXTINF:([\d.]+)/g);
   for (const m of durMatches) {
     duration += parseFloat(m[1]) || 0;
   }
 
-  if (resolution || duration > 0 || hasKey) {
-    const { mediaList = [] } = await chrome.storage.local.get("mediaList");
-    const item = mediaList.find((it) => it.id === entry.id || it.url === entry.url);
-    if (item) {
-      if (resolution) item.resolution = resolution;
-      if (duration > 0) item.duration = Math.round(duration);
-      if (hasKey) {
-        item.hasKey = true;
-        item.keyUrl = keyUrl;
-      }
-
-      const hasEndlist = text.includes("#EXT-X-ENDLIST");
-      // 无 ENDLIST 的媒体清单属于直播式 HLS（missav 等站点常见），下载器需走实时录制
-      if (!isMasterPlaylist) {
-        item.isLive = !hasEndlist;
-      }
-      // 广告识别 1: 必须有明确结束符且时长极短，或显式命中广告正则，避免误杀动态初始流
-      if (hasEndlist && item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
-        item.isAd = true;
-        item.adReason = `疑似片头广告切片 (${item.duration}秒)`;
-      } else if (item.duration > 45) {
-        item.isAd = false;
-        item.adReason = "";
-        item.isFeature = true;
-      }
-
-      // 广告识别 2: 同标签页动态对比判定 (若存在 >= 5 分钟的主流，短于 60 秒的判定为广告切片)
-      const tabStreams = mediaList.filter((it) => it.tabId === item.tabId && it.duration > 0);
-      const maxDur = Math.max(...tabStreams.map((it) => it.duration), 0);
-      if (maxDur >= 300) {
-        tabStreams.forEach((it) => {
-          if (it.duration <= 60 && it.duration < maxDur / 4) {
-            it.isAd = true;
-            it.adReason = `同页面对比判定为广告切片 (${it.duration}秒 vs 正片 ${Math.round(maxDur / 60)}分钟)`;
-            it.isFeature = false;
-          } else if (it.duration === maxDur) {
-            it.isFeature = true;
-            it.isAd = false;
-          }
-        });
-      }
-
-      await chrome.storage.local.set({ mediaList });
-    }
-  }
-
-  // 关键修复：master.m3u8 里列出的 1080p/720p 等所有子流，
-  // 播放器只会请求其中一路，光靠 webRequest 永远抓不到其余画质。
-  // 这里主动展开全部变体为独立可下载条目（并继承同一套防盗链头）。
-  if (isMasterPlaylist) {
-    await expandMasterVariants(entry, text);
-  }
-}
-
-// ============ 深层清单抓取与全清晰度变体展开 ============
-
-const PLAYLIST_TIMEOUT_MS = 12000;
-
-function withTimeout(promise, ms) {
-  return Promise.race([
-    promise,
-    new Promise((resolve) => setTimeout(() => resolve(null), ms))
-  ]);
-}
-
-/** 通道 1：在发起请求的页面帧(MAIN world)里 fetch，天然带页面 Referer / Cookie / UA */
-async function fetchPlaylistViaPage(entry) {
-  if (!chrome.scripting || !(entry.tabId >= 0)) return null;
-  try {
-    const target = { tabId: entry.tabId };
-    if (typeof entry.frameId === "number") target.frameIds = [entry.frameId];
-    const results = await withTimeout(
-      chrome.scripting.executeScript({
-        target,
-        world: "MAIN",
-        func: async (url) => {
-          try {
-            const r = await fetch(url, { credentials: "include", cache: "no-store" });
-            if (!r.ok) return { ok: false, status: r.status };
-            return { ok: true, text: (await r.text()).slice(0, 2000000) };
-          } catch (e) {
-            return { ok: false, error: String(e) };
-          }
-        },
-        args: [entry.url]
-      }),
-      PLAYLIST_TIMEOUT_MS
-    );
-    const first = results && results[0] && results[0].result;
-    if (first && first.ok && first.text && first.text.trim().startsWith("#EXTM3U")) {
-      return first.text;
-    }
-  } catch (e) {}
-  return null;
-}
-
-/** 通道 2：桌面客户端本地代理（无 CORS 限制，自动复用软件里的网络代理设置） */
-async function fetchPlaylistViaClient(entry) {
-  try {
-    const qs = new URLSearchParams({ url: entry.url, raw: "1" });
-    if (entry.referer) qs.set("referer", entry.referer);
-    if (entry.userAgent) qs.set("ua", entry.userAgent);
-    if (entry.cookie) qs.set("cookie", entry.cookie);
-    const res = await withTimeout(
-      localFetch(`/api/stream?${qs.toString()}`),
-      PLAYLIST_TIMEOUT_MS
-    );
-    if (!res || !res.ok) return null;
-    const text = await res.text();
-    return text.trim().startsWith("#EXTM3U") ? text : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-/** 通道 3：service worker 直连（旧逻辑，仅作最后兜底） */
-async function fetchPlaylistViaWorker(entry) {
-  try {
-    const headers = {};
-    if (entry.referer) headers["Referer"] = entry.referer;
-    if (entry.userAgent) headers["User-Agent"] = entry.userAgent;
-    if (entry.cookie) headers["Cookie"] = entry.cookie;
-    const res = await withTimeout(
-      fetch(entry.url, { headers, credentials: "omit" }),
-      PLAYLIST_TIMEOUT_MS
-    );
-    if (!res || !res.ok) return null;
-    return await res.text();
-  } catch (e) {
-    return null;
-  }
-}
-
-async function fetchPlaylistText(entry) {
-  return (
-    (await fetchPlaylistViaPage(entry)) ||
-    (await fetchPlaylistViaClient(entry)) ||
-    (await fetchPlaylistViaWorker(entry))
-  );
-}
-
-function makeBaseUrl(url) {
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split("/");
-    parts.pop();
-    return u.origin + parts.join("/") + "/";
-  } catch (e) {
-    return url.substring(0, url.lastIndexOf("/") + 1);
-  }
-}
-
-/**
- * 把 master playlist 内所有 #EXT-X-STREAM-INF 变体展开成独立条目。
- * 例如播放器只加载了 720p，这里仍能列出 1080p / 480p 供直接下载。
- */
-async function expandMasterVariants(master, text) {
-  const lines = text.split(/\r?\n/);
-  const variants = [];
-  let pending = null;
-
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
-    if (/^#EXT-X-STREAM-INF:/i.test(line)) {
-      pending = line;
-      continue;
-    }
-    if (line.startsWith("#")) {
-      // 独立音轨 / 字幕轨: #EXT-X-MEDIA:TYPE=AUDIO,...,URI="..."
-      if (/^#EXT-X-MEDIA:/i.test(line)) {
-        const m = line.match(/URI="([^"]+)"/i);
-        if (m) variants.push({ uri: m[1], info: line, audioOnly: /TYPE=AUDIO/i.test(line) });
-      }
-      continue;
-    }
-    if (pending) {
-      variants.push({ uri: line, info: pending, audioOnly: false });
-      pending = null;
-    }
-  }
-  if (!variants.length) return 0;
-
   const { mediaList = [] } = await chrome.storage.local.get("mediaList");
-  const newEntries = [];
-  const resolutionLabels = [];
-
-  for (const v of variants) {
-    let abs;
-    try {
-      abs = new URL(v.uri, master.url).href;
-    } catch (e) {
-      continue;
+  const item = mediaList.find((it) => it.id === entry.id || it.url === entry.url);
+  if (item) {
+    if (resolution) item.resolution = resolution;
+    if (isMasterPlaylist) {
+      item.isMaster = true;
+      item.isFeature = true;
+      item.isAd = false;
+      if (direct1080Url) item.direct1080Url = direct1080Url;
+      // 继承同标签页已有正片的时长
+      const peer = mediaList.find((it) => it.tabId === item.tabId && it.duration > 0);
+      if (peer) item.duration = peer.duration;
+    } else if (duration > 0) {
+      item.duration = Math.round(duration);
+      // 同步更新同标签页 Master 清单的时长
+      const masterItem = mediaList.find((it) => it.tabId === item.tabId && it.isMaster && !it.duration);
+      if (masterItem) masterItem.duration = Math.round(duration);
     }
-    if (isFragmentUrl(abs) || mediaList.some((it) => it.url === abs)) continue;
 
-    const rm = v.info.match(/RESOLUTION=(\d+)x(\d+)/i);
-    const bm = v.info.match(/BANDWIDTH=(\d+)/i);
-    const nm = v.info.match(/NAME="([^"]+)"/i);
-    const height = rm ? parseInt(rm[2], 10) : 0;
-    const label = height ? `${height}P` : (nm ? nm[1] : (bm ? `${Math.round(parseInt(bm[1], 10) / 1000)}kbps` : ""));
-    if (height) resolutionLabels.push(`${height}P`);
+    if (hasKey) {
+      item.hasKey = true;
+      item.keyUrl = keyUrl;
+    }
 
-    const e = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-      url: abs,
-      tabId: master.tabId,
-      frameId: master.frameId || 0,
-      pageTitle: master.pageTitle,
-      pageUrl: master.pageUrl,
-      mediaType: v.audioOnly ? "audio" : "m3u8",
-      referer: master.referer || master.pageUrl || "",
-      userAgent: master.userAgent || "",
-      cookie: master.cookie || "",
-      authorization: master.authorization || "",
-      baseUrl: makeBaseUrl(abs),
-      contentType: "",
-      contentLength: 0,
-      timestamp: Date.now(),
-      duration: 0,
-      resolution: rm ? `${rm[1]}x${rm[2]}` : "",
-      bandwidth: bm ? parseInt(bm[1], 10) : 0,
-      variantLabel: label,
-      isVariant: true,
-      masterUrl: master.url,
-      hasKey: false,
-      keyUrl: "",
-      isAd: false,
-      adReason: "",
-      isFeature: false,
-      sourceType: "master_variant"
-    };
-    mediaList.unshift(e);
-    newEntries.push(e);
+    const hasEndlist = text.includes("#EXT-X-ENDLIST");
+    if (hasEndlist && item.duration > 0 && item.duration <= 45 && (AD_URL_REGEX.test(item.url) || item.duration <= 25)) {
+      item.isAd = true;
+      item.adReason = `疑似片头广告切片 (${item.duration}秒)`;
+    } else if (item.duration > 45 || item.isMaster) {
+      item.isAd = false;
+      item.adReason = "";
+      item.isFeature = true;
+    }
+
+    // 同标签页动态对比判定
+    const tabStreams = mediaList.filter((it) => it.tabId === item.tabId && it.duration > 0);
+    const maxDur = Math.max(...tabStreams.map((it) => it.duration), 0);
+    if (maxDur >= 300) {
+      tabStreams.forEach((it) => {
+        if (!it.isMaster && it.duration <= 60 && it.duration < maxDur / 4) {
+          it.isAd = true;
+          it.adReason = `同页面对比判定为广告切片 (${it.duration}秒 vs 正片 ${Math.round(maxDur / 60)}分钟)`;
+          it.isFeature = false;
+        } else if (it.duration === maxDur || it.isMaster) {
+          it.isFeature = true;
+          it.isAd = false;
+        }
+      });
+    }
+
+    await chrome.storage.local.set({ mediaList });
   }
-
-  const masterItem = mediaList.find((it) => it.url === master.url && it.tabId === master.tabId);
-  if (masterItem) {
-    masterItem.isMaster = true;
-    masterItem.variantCount = variants.length;
-    masterItem.variantResolutions = [...new Set(resolutionLabels)].sort((a, b) => parseInt(b) - parseInt(a));
-    masterItem.resolution = masterItem.variantResolutions[0] || masterItem.resolution || "";
-  }
-
-  if (mediaList.length > MAX_ITEMS) mediaList.length = MAX_ITEMS;
-  await chrome.storage.local.set({ mediaList });
-  if (master.tabId >= 0) {
-    updateBadgeForTab(master.tabId, mediaList.filter((it) => it.tabId === master.tabId).length);
-  }
-
-  // 异步补齐每个变体的时长 / 加密信息；media playlist 不含 STREAM-INF，不会递归展开
-  newEntries.forEach((e) => {
-    if (e.mediaType === "m3u8") parseM3u8Metadata(e).catch(() => {});
-  });
-  return newEntries.length;
 }
 
 // 4. 与本地桌面客户端通信
@@ -748,7 +568,6 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "SNIFFED_MEDIA" && req.data) {
-    // 来自 content_script / inject.js 的注入嗅探
     if (!isFragmentUrl(req.data.url)) {
       captureMediaRequest(
         {
@@ -766,47 +585,6 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       );
     }
     sendResponse({ success: true });
-    return true;
-  }
-
-  if (req.action === "ENSURE_MAIN_INJECT") {
-    const tabId = sender.tab ? sender.tab.id : -1;
-    const frameId = typeof sender.frameId === "number" ? sender.frameId : 0;
-    if (tabId >= 0 && chrome.scripting) {
-      chrome.scripting.executeScript({
-        target: { tabId, frameIds: [frameId] },
-        world: "MAIN",
-        files: ["inject.js"]
-      }).then(() => sendResponse({ success: true }))
-        .catch((e) => sendResponse({ success: false, error: String(e) }));
-      return true;
-    }
-    sendResponse({ success: false, error: "tab 不可用" });
-    return true;
-  }
-
-  if (req.action === "DEEP_FOUND_MEDIA" && req.data && Array.isArray(req.data.urls)) {
-    // 页面源码 / JS 变量 / API 响应 / iframe 的深度扫描结果
-    const tabId = sender.tab ? sender.tab.id : -1;
-    const deepHeaders = {
-      referer: req.data.pageUrl || "",
-      userAgent: req.data.userAgent || "",
-      cookie: req.data.cookie || ""
-    };
-    req.data.urls.slice(0, 80).forEach((u) => {
-      if (!u || isFragmentUrl(u)) return;
-      captureMediaRequest(
-        {
-          url: u,
-          tabId,
-          frameId: typeof sender.frameId === "number" ? sender.frameId : 0,
-          requestHeaders: [],
-          deepHeaders
-        },
-        null
-      );
-    });
-    sendResponse({ success: true, count: req.data.urls.length });
     return true;
   }
 
@@ -832,7 +610,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
 
   if (req.action === "CHECK_CLIENT_STATUS") {
-    localFetch("/api/status", { method: "GET" })
+    localFetch("/api/status", { method: "GET" }, 2500)
       .then((r) => r.json())
       .then((data) => {
         if (data && data.language) {
@@ -865,13 +643,13 @@ function detectBrowserProxy() {
       if (chrome.proxy && chrome.proxy.settings) {
         chrome.proxy.settings.get({ incognito: false }, (config) => {
           if (chrome.runtime.lastError || !config || !config.value) {
-            resolve({ mode: "system", proxyUrl: "", label: "系统/默认代理" });
+            resolve({ mode: "system", proxyUrl: "", label: "跟随系统代理" });
             return;
           }
           const val = config.value;
           let mode = val.mode || "system";
           let proxyUrl = "";
-          let label = "系统/默认代理";
+          let label = "跟随系统代理";
 
           if (val.rules) {
             const p = val.rules.singleProxy || val.rules.proxyForHttps || val.rules.proxyForHttp;
@@ -923,6 +701,11 @@ async function pushTaskToLocalClient(taskData) {
           item.headers.Origin = u.origin;
         } catch (e) {}
       }
+      Object.keys(item.headers).forEach((k) => {
+        if (!item.headers[k] || !String(item.headers[k]).trim()) {
+          delete item.headers[k];
+        }
+      });
     };
     if (Array.isArray(taskData)) {
       taskData.forEach(fillProxy);
@@ -931,17 +714,25 @@ async function pushTaskToLocalClient(taskData) {
     }
   } catch (e) {}
 
-  try {
-    const resp = await localFetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(taskData)
-    }, 20000);
-    if (resp.ok) {
-      return await resp.json();
-    }
-  } catch (e) {
-    return new Promise((resolve) => {
+  for (const host of ['127.0.0.1', 'localhost']) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+      const resp = await fetch(`http://${host}:18910/api/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(taskData),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (resp.ok) {
+        return await resp.json();
+      }
+    } catch (e) {}
+  }
+
+  return new Promise((resolve) => {
+    try {
       chrome.runtime.sendNativeMessage(
         "com.m3u8.sniffer",
         taskData,
@@ -956,13 +747,14 @@ async function pushTaskToLocalClient(taskData) {
           }
         }
       );
-    });
-  }
+    } catch (e) {
+      resolve({ success: false, error: String(e) });
+    }
+  });
 }
 
-// 自动检测客户端语言变化并向扩展内所有页面分发同步
 function syncClientLanguage() {
-  localFetch("/api/status", { method: "GET" })
+  localFetch("/api/status", { method: "GET" }, 2500)
     .then((r) => r.json())
     .then((data) => {
       if (data && data.language) {
@@ -978,11 +770,6 @@ function syncClientLanguage() {
 setInterval(syncClientLanguage, 15000);
 syncClientLanguage();
 
-/**
- * 客户端离线时的在线预览兜底：把 hls.js 播放器直接注入目标网页。
- * 页面上下文发起的请求自带页面 Referer / Cookie，且 CDN 本来就对该 origin 开放，
- * 比从 chrome-extension:// 的 popup 里跨域直连可靠得多。
- */
 async function injectInlineHlsPlayer(tabId, item) {
   if (!(tabId >= 0)) return { success: false, error: "目标页面已关闭" };
   const isM3u8 = item.mediaType === "m3u8" || /\.m3u8(\?|$)/i.test(item.url);
@@ -1049,15 +836,12 @@ async function injectInlineHlsPlayer(tabId, item) {
           });
           hls.on(window.Hls.Events.ERROR, (evt, data) => {
             if (data && data.fatal) {
-              status.textContent = "播放失败：" + (data.type || "") + " / " + (data.details || "") +
-                "（若仍失败，请启动星流桌面客户端后使用代理预览）";
+              status.textContent = "播放失败：" + (data.type || "") + " / " + (data.details || "");
             }
           });
         } else if (cfg.isM3u8 && video.canPlayType("application/vnd.apple.mpegurl")) {
           video.src = cfg.url;
           video.play().catch(() => {});
-        } else if (cfg.isM3u8) {
-          status.textContent = "当前页面无法加载 hls.js，请启动星流桌面客户端后重试代理预览。";
         } else {
           video.src = cfg.url;
           video.play().catch(() => {});

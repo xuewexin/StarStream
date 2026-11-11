@@ -86,42 +86,16 @@
     return title.trim() || fallbackTabTitle || defaultTitle;
   }
 
-  // 2. 接收来自 inject.js 的深层嗅探消息（单条直链 / 批量深度扫描结果）
+  // 2. 接收来自 inject.js 的深层嗅探消息
   window.addEventListener('message', (event) => {
     if (event.source !== window || !event.data || event.data.source !== 'CATCATCH_INJECTOR') return;
     const payload = event.data.payload;
-    if (!payload) return;
+    if (!payload || !payload.url || payload.url.startsWith('blob:') || isFragmentUrl(payload.url)) return;
 
-    const common = {
-      pageUrl: payload.pageUrl || window.location.href,
-      referer: payload.referer || window.location.href,
-      userAgent: payload.userAgent || navigator.userAgent,
-      cookie: payload.cookie || ''
-    };
-    const rawUrls = Array.isArray(payload.urls) && payload.urls.length
-      ? payload.urls
-      : (payload.url ? [payload.url] : []);
-    const valid = rawUrls.filter((u) => u && !u.startsWith('blob:') && !isFragmentUrl(u));
-    if (!valid.length) return;
-
-    const srcType = payload.sourceType || 'hook';
-    if (valid.length > 1 || /scan|body|mutation|deep/i.test(srcType)) {
-      chrome.runtime.sendMessage({
-        action: 'DEEP_FOUND_MEDIA',
-        data: Object.assign({ urls: valid, sourceType: srcType }, common)
-      }).catch(() => {});
-    } else {
-      chrome.runtime.sendMessage({
-        action: 'SNIFFED_MEDIA',
-        data: Object.assign({
-          url: valid[0],
-          title: payload.title || document.title || '',
-          pageUrl: common.pageUrl,
-          mediaType: payload.mediaType || 'video',
-          sourceType: srcType
-        }, common)
-      }).catch(() => {});
-    }
+    chrome.runtime.sendMessage({
+      action: 'SNIFFED_MEDIA',
+      data: payload
+    }).catch(() => {});
   });
 
   // 3. IDM 悬浮下载条 (支持闲置自动渐隐、标签页切换清理与一键关闭)
@@ -307,31 +281,33 @@
           const durSec = Math.floor(mediaEl.duration || 0);
           const nonAds = res.media.filter((i) => !i.isAd || durSec > 45);
           const pool = nonAds.length > 0 ? nonAds : res.media;
-          // 默认获取画质最高和时长最长的正片
+          // 默认获取画质最高和时长最长的正片 (优先 1080P 或 Master 清单)
           pool.sort((a, b) => {
-            // 由 master playlist 展开出的具体清晰度子流优先于 master 本身
-            if (a.isVariant && !b.isVariant) return -1;
-            if (!a.isVariant && b.isVariant) return 1;
-            if (a.isFeature && !b.isFeature) return -1;
-            if (!a.isFeature && b.isFeature) return 1;
             if (!a.isAd && b.isAd) return -1;
             if (a.isAd && !b.isAd) return 1;
 
-            // 1. 时长最长降序
-            const durA = Number(a.duration || 0);
-            const durB = Number(b.duration || 0);
-            if (Math.abs(durA - durB) > 3) {
-              return durB - durA;
-            }
-
-            // 2. 画质最高降序
+            // 1. 画质最高降序 (优先 1080P / 高分辨率)
             const resA = getResolutionScore(a.resolution);
             const resB = getResolutionScore(b.resolution);
             if (resA !== resB) {
               return resB - resA;
             }
 
-            // 3. 流媒体格式优先
+            // 2. 主清单优先 (Master 清单内含所有高画质轨道，N_m3u8DL-RE 会自动选择最佳画质)
+            if (a.isMaster && !b.isMaster) return -1;
+            if (!a.isMaster && b.isMaster) return 1;
+
+            if (a.isFeature && !b.isFeature) return -1;
+            if (!a.isFeature && b.isFeature) return 1;
+
+            // 3. 时长最长降序
+            const durA = Number(a.duration || 0);
+            const durB = Number(b.duration || 0);
+            if (Math.abs(durA - durB) > 3) {
+              return durB - durA;
+            }
+
+            // 4. 流媒体格式优先
             if (a.mediaType === 'm3u8' && b.mediaType !== 'm3u8') return -1;
             if (a.mediaType !== 'm3u8' && b.mediaType === 'm3u8') return 1;
 
@@ -520,34 +496,30 @@
         }
       };
 
+      let pushed = false;
       try {
         Object.keys(taskData.headers).forEach((k) => {
           if (!taskData.headers[k]) delete taskData.headers[k];
         });
-        let resp = null;
-        for (const host of ['127.0.0.1', 'localhost']) {
-          try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 8000);
-            resp = await fetch(`http://${host}:18910/api/tasks`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(taskData),
-              signal: controller.signal
-            });
-            clearTimeout(timer);
-            if (resp.ok) break;
-          } catch (e) {
-            resp = null;
-          }
-        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2500);
+        const resp = await fetch(`http://127.0.0.1:18910/api/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(taskData),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
         if (resp && resp.ok) {
+          pushed = true;
           pushBtn.textContent = t('cap_pushed', '已加入下载队列');
           pushBtn.className = 'catcatch-btn success';
           setTimeout(() => removeFloatingBar(), 1500);
           return;
         }
-      } catch (err) {
+      } catch (err) {}
+
+      if (!pushed) {
         chrome.runtime.sendMessage({
           action: 'PUSH_TO_CLIENT',
           data: taskData
