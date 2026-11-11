@@ -23,7 +23,12 @@
 **All-in-One Web Audio/Video Sniffer Extension + Industrial Multithreaded Downloader Client + Built-in N_m3u8DL-RE & FFmpeg Core**
 
 [![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
+[![Stars](https://img.shields.io/github/stars/xuewexin/StarStream?style=flat-square&logo=github&color=f5c518&label=Stars)](https://github.com/xuewexin/StarStream/stargazers)
+[![Forks](https://img.shields.io/github/forks/xuewexin/StarStream?style=flat-square&logo=github&color=8b5cf6&label=Forks)](https://github.com/xuewexin/StarStream/forks)
+[![Downloads](https://img.shields.io/github/downloads/xuewexin/StarStream/total?style=flat-square&color=10b981&label=Downloads)](https://github.com/xuewexin/StarStream/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/xuewexin/StarStream?style=flat-square&color=0ea5e9&label=Last%20Commit)](https://github.com/xuewexin/StarStream/commits/main)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
+[![Chrome](https://img.shields.io/badge/Chrome%20%7C%20Edge-MV3-4285f4.svg?style=flat-square&logo=googlechrome)](#)
 [![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](#)
@@ -65,6 +70,18 @@
 </p>
 
 </div>
+
+---
+
+> [!TIP]
+> ### 🆕 What's new in v3.2.3 (2026-11-11)
+>
+> - 🎬 **Live-style HLS fixed** — Playlists without `#EXT-X-ENDLIST` are detected automatically and recorded with `--live-real-time-merge`; no more instant 0% / exit-code-1 failures.
+> - 🌐 **Chrome 142+ compatible** — Local Network Access workaround with `127.0.0.1` → `localhost` fallback and an actionable permission hint.
+> - ⚙️ **Settings panel no longer collapses** — per-video config, save directory, thread count and proxy survive list re-renders.
+> - 🚀 **Proxy logic corrected** — direct-first, stale-proxy fallback, loopback always direct.
+>
+> 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
 
 ---
 
@@ -312,3 +329,23 @@ We will respond and address your questions and feedback as soon as possible! Tha
 
 ### 🏷️ Search Topics & SEO Keywords
 `m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+---
+
+<div align="center">
+
+### ⭐ Found it useful? Give it a star
+
+Every star helps more people discover the project — and keeps the updates coming.
+
+<a href="https://github.com/xuewexin/StarStream/stargazers">
+  <img src="https://img.shields.io/badge/⭐%20Star%20this%20repo-Support%20the%20project-f5c518?style=for-the-badge&logo=github&logoColor=white" alt="Star this repo">
+</a>
+<a href="https://github.com/xuewexin/StarStream/issues">
+  <img src="https://img.shields.io/badge/🐛%20Report%20a%20bug-Issues-f87171?style=for-the-badge&logo=github&logoColor=white" alt="Report issue">
+</a>
+<a href="https://github.com/xuewexin/StarStream/releases/latest">
+  <img src="https://img.shields.io/badge/⬇️%20Download%20latest-Releases-2563eb?style=for-the-badge&logo=github&logoColor=white" alt="Download latest">
+</a>
+
+</div>

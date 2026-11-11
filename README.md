@@ -24,7 +24,12 @@
 **全能网页音视频智能嗅探扩展 + IDM 工业级多线程下载客户端 + 内置 N_m3u8DL-RE 与 FFmpeg 核心**
 
 [![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
+[![Stars](https://img.shields.io/github/stars/xuewexin/StarStream?style=flat-square&logo=github&color=f5c518&label=Stars)](https://github.com/xuewexin/StarStream/stargazers)
+[![Forks](https://img.shields.io/github/forks/xuewexin/StarStream?style=flat-square&logo=github&color=8b5cf6&label=Forks)](https://github.com/xuewexin/StarStream/forks)
+[![Downloads](https://img.shields.io/github/downloads/xuewexin/StarStream/total?style=flat-square&color=10b981&label=Downloads)](https://github.com/xuewexin/StarStream/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/xuewexin/StarStream?style=flat-square&color=0ea5e9&label=Last%20Commit)](https://github.com/xuewexin/StarStream/commits/main)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
+[![Chrome](https://img.shields.io/badge/Chrome%20%7C%20Edge-MV3-4285f4.svg?style=flat-square&logo=googlechrome)](#)
 [![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
 [![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
 [![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](#)
@@ -66,6 +71,34 @@
 </p>
 
 </div>
+
+---
+
+> [!TIP]
+> ### 🆕 最新版本 v3.2.3 · 2026-11-11
+>
+> | 更新 | 说明 |
+> | --- | --- |
+> | 🎬 **直播式 HLS 全面修复** | 自动识别无 `#EXT-X-ENDLIST` 的清单并切换「实时录制合并」，彻底解决**抓到视频却下载失败 / 任务 0% 退出** |
+> | 🌐 **Chrome 142+ 兼容** | 适配 Local Network Access 限制，扩展自动在 `127.0.0.1` / `localhost` 间回退，并给出授权引导 |
+> | ⚙️ **设置面板修复** | 卡片配置、保存目录、线程与代理选择在列表刷新后不再被重置折叠 |
+> | 🚀 **代理策略修正** | 直连优先、失效代理自动降级、回环地址强制直连，杜绝系统代理污染导致的 502 |
+>
+> 👉 [查看完整更新日志 CHANGELOG](CHANGELOG.md) · [下载最新版](https://github.com/xuewexin/StarStream/releases/latest)
+
+---
+
+## 🎯 一句话了解 StarStream
+
+> **猫抓 (CatCatch) + IDM + N_m3u8DL-RE 的一体化替代方案**：浏览器里播放什么，就能抓到什么；抓到什么，就能以多线程工业级速度下载成 MP4。
+
+| 你可能遇到 | StarStream 的做法 |
+| --- | --- |
+| 网页视频只有 360P，找不到 1080P 地址 | 自动解析 `master.m3u8`，把**每一路清晰度展开成独立条目**，1080P/4K 直接下 |
+| 抓到 m3u8 却下载失败、进度一直 0% | 自动判定**直播式 HLS**（无 ENDLIST）并切换实时录制，不再崩溃退出 |
+| 站点有防盗链，下载器报 403 | 自动携带 **Referer / Origin / Cookie / UA**，并复用浏览器同款代理 |
+| 猫抓只能抓、不能批量管理 | 内置**任务队列、并发控制、暂停续传、格式转换、悬浮监控球** |
+| 换浏览器/换电脑就要重装一堆工具 | 便携包内置 **FFmpeg + N_m3u8DL-RE + N_m3u8DL-CLI**，解压即用 |
 
 ---
 
@@ -410,6 +443,18 @@ StarStream-Pro/
 
 ---
 
+## ⭐ Star 趋势
+
+如果这个项目帮你省下了找工具、配环境、修下载失败的时间，欢迎点一个 Star —— 这是开源作者持续更新的最大动力。
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" alt="Star History Chart" width="620">
+  </a>
+</p>
+
+---
+
 ## 📄 开源许可证
 
 本项目基于 [MIT License](LICENSE) 许可协议开源。<br>
@@ -428,4 +473,29 @@ StarStream-Pro/
 ---
 
 ### 🏷️ 核心技术与检索索引 (Search Topics & Keywords)
-`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+**中文关键词**：`M3U8下载器` · `网页视频下载` · `视频嗅探` · `猫抓替代` · `猫抓插件` · `HLS下载` · `直播流录制` · `抖音去水印` · `B站视频下载` · `YouTube下载` · `浏览器扩展` · `多线程下载` · `FFmpeg图形界面` · `N_m3u8DL图形版` · `SimpleG升级版` · `IDM替代` · `视频解析工具` · `m3u8转mp4`
+
+**English keywords**：`m3u8-downloader` · `video-downloader` · `catcatch-alternative` · `cat-catch` · `n-m3u8dl-re-gui` · `simpleg-upgrade` · `ffmpeg-gui` · `hls-stream-sniffer` · `dash-mpd-downloader` · `browser-extension` · `chrome-extension` · `edge-extension` · `manifest-v3` · `live-hls-recorder` · `bilibili-video-download` · `douyin-watermark-free` · `chrome-video-extractor` · `yt-dlp-gui` · `stream-recorder` · `idm-alternative` · `media-downloader` · `video-sniffer` · `hls-downloader` · `windows-desktop-app` · `pyqt5`
+
+---
+
+<div align="center">
+
+### ⭐ 觉得好用？点个 Star 支持一下
+
+你的每一个 Star，都会让更多人找到这个项目，也会让作者更有动力继续修 Bug、加功能。
+
+<a href="https://github.com/xuewexin/StarStream/stargazers">
+  <img src="https://img.shields.io/badge/⭐%20Star%20this%20repo-支持项目-f5c518?style=for-the-badge&logo=github&logoColor=white" alt="Star this repo">
+</a>
+<a href="https://github.com/xuewexin/StarStream/issues">
+  <img src="https://img.shields.io/badge/🐛%20反馈问题-Issues-f87171?style=for-the-badge&logo=github&logoColor=white" alt="Report issue">
+</a>
+<a href="https://github.com/xuewexin/StarStream/releases/latest">
+  <img src="https://img.shields.io/badge/⬇️%20下载最新版-Releases-2563eb?style=for-the-badge&logo=github&logoColor=white" alt="Download latest">
+</a>
+
+<sub>如果项目对你有帮助，也欢迎分享给同样需要「网页视频下载」的朋友。</sub>
+
+</div>
