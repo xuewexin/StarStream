@@ -5,11 +5,12 @@ CatCatch Downloader - Configuration & Multi-Proxy Manager
 import os
 import json
 import sys
+import time
 import uuid
 import re
 import urllib.request
 
-APP_VERSION = "v3.2.3"
+APP_VERSION = "v3.2.4"
 
 if getattr(sys, 'frozen', False):
     ROOT_DIR = os.path.dirname(os.path.abspath(sys.executable))

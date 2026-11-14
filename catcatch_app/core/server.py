@@ -362,7 +362,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         self._send_json_response(200, {
             "status": "ok",
             "app": "StarStream Downloader",
-            "version": "3.2.3",
+            "version": "3.2.4",
             "ffmpeg_available": ff_ok,
             "ffmpeg_info": ff_msg,
             "ffmpeg_path": get_ffmpeg_path(),
