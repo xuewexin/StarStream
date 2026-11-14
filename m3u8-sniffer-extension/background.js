@@ -209,6 +209,19 @@ async function captureMediaRequest(details, respInfo) {
     referer = pageUrl;
   }
 
+  // 凭证同步机制：若网络监听未捕获到完整 Cookie (如受限于 Chrome 扩展请求头过滤)，主动调用 chrome.cookies 提取完整会话凭证
+  if (!cookie && chrome.cookies) {
+    try {
+      const targetDomain = pageUrl ? new URL(pageUrl).hostname : (url ? new URL(url).hostname : "");
+      if (targetDomain) {
+        const cks = await chrome.cookies.getAll({ domain: targetDomain });
+        if (cks && cks.length > 0) {
+          cookie = cks.map(c => `${c.name}=${c.value}`).join("; ");
+        }
+      }
+    } catch (e) {}
+  }
+
   const mediaType = detectMediaType(url, respInfo ? respInfo.contentType : "");
 
   let baseUrl = "";

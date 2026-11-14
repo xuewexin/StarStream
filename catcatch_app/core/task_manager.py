@@ -215,6 +215,23 @@ class TaskManager(QObject):
             self.start_task(task_id)
         return True
 
+    def break_task_throttle(self, task_id):
+        """主动打破限速：刷新凭证与Token，并重置传输链路以打破 CDN 限速"""
+        task = self.get_task(task_id)
+        if not task:
+            return False
+        
+        worker = self._active_workers.get(task_id)
+        if worker and hasattr(worker, "trigger_throttle_break"):
+            worker.trigger_throttle_break()
+            return True
+        else:
+            from .download_stream import refresh_task_credentials
+            refresh_task_credentials(task, proxy=task.get("proxy"))
+            self.save_tasks()
+            self.start_task(task_id)
+            return True
+
     def pause_task(self, task_id):
         task = self.get_task(task_id)
         if not task:

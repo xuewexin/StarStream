@@ -1092,6 +1092,9 @@ class MainWindow(QMainWindow):
         act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), t("ctx_pause"))
         act_pau.triggered.connect(self._action_pause_selected)
 
+        act_break = menu.addAction(get_icon("zap", "#f59e0b", 14), t("ctx_break_throttle", default="⚡ 打破限速并刷新凭证 (重置CDN极速链路)"))
+        act_break.triggered.connect(self._action_break_throttle_selected)
+
         if len(ids) == 1:
             act_rename = menu.addAction(get_icon("edit", "#38bdf8", 14), t("ctx_rename", default="重命名任务..."))
             act_rename.triggered.connect(self._action_rename_selected)
@@ -1324,6 +1327,15 @@ class MainWindow(QMainWindow):
         finally:
             self.table.setUpdatesEnabled(True)
             self.refresh_table()
+
+    def _action_break_throttle_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        for t_id in ids:
+            task_manager.break_task_throttle(t_id)
+        self.statusBar().showMessage(f"已触发 {len(ids)} 个任务打破限速与刷新凭证，正在重置 CDN 传输链路...", 4000)
+        self.refresh_table()
 
     def _set_proxy_for_selected(self, ids, proxy_str):
         for t_id in ids:

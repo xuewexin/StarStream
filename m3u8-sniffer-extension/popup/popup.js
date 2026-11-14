@@ -387,6 +387,21 @@
       btn.textContent = t('cap_pushing', '推送中...');
       btn.disabled = true;
 
+      if (chrome.cookies) {
+        for (const it of selectedItems) {
+          if (!it.cookie) {
+            try {
+              const u = it.pageUrl || it.referer || it.url;
+              const dom = new URL(u).hostname;
+              const cks = await chrome.cookies.getAll({ domain: dom });
+              if (cks && cks.length > 0) {
+                it.cookie = cks.map(c => `${c.name}=${c.value}`).join('; ');
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
       const tasks = selectedItems.map((it) => {
         const ref = it.referer || it.pageUrl || '';
         let orig = '';
@@ -1171,7 +1186,7 @@
       if (cfg.threadCount) {
         cmd += ` --thread-count ${cfg.threadCount}`;
       }
-      cmd += ` --auto-select --live-perform-as-vod -M format=mp4`;
+      cmd += ` --auto-select --live-perform-as-vod --append-url-params -M format=mp4`;
       if (proxyForCmd) {
         cmd += ` --custom-proxy "${proxyForCmd}"`;
       }
@@ -1180,6 +1195,9 @@
       }
       if (item.userAgent) {
         cmd += ` -H "User-Agent: ${item.userAgent}"`;
+      }
+      if (item.cookie) {
+        cmd += ` -H "Cookie: ${item.cookie}"`;
       }
 
       navigator.clipboard.writeText(cmd).then(() => {
@@ -1205,6 +1223,19 @@
       let orig = '';
       if (ref) {
         try { orig = new URL(ref).origin; } catch (e) {}
+      }
+
+      // 推送前确保拥有最新 Cookie 凭证
+      if (!item.cookie && chrome.cookies) {
+        try {
+          const dom = (ref ? new URL(ref).hostname : (item.url ? new URL(item.url).hostname : ''));
+          if (dom) {
+            const cks = await chrome.cookies.getAll({ domain: dom });
+            if (cks && cks.length > 0) {
+              item.cookie = cks.map(c => `${c.name}=${c.value}`).join('; ');
+            }
+          }
+        } catch (e) {}
       }
       const taskData = {
         url: item.url,

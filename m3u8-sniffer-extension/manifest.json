@@ -12,7 +12,8 @@
     "nativeMessaging",
     "scripting",
     "activeTab",
-    "proxy"
+    "proxy",
+    "cookies"
   ],
   "host_permissions": [
     "<all_urls>",

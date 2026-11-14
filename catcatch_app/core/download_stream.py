@@ -39,6 +39,85 @@ def is_loopback_url(url):
     return host in ("127.0.0.1", "localhost", "::1", "0.0.0.0") or host.startswith("127.")
 
 
+def refresh_task_credentials(task_data, proxy=None, on_log=None):
+    """
+    智能刷新流媒体凭证与会话 Cookie (参考猫抓与业界断流重连机制)
+    1. 请求来源页 (Referer / pageUrl) 获取最新 Set-Cookie 与会话凭证
+    2. 请求原始媒体清单链接获取重定向后携带的全新 Token/签名参数
+    """
+    url = task_data.get("url", "")
+    headers = dict(task_data.get("headers", {}))
+    ref = task_data.get("referer") or task_data.get("pageUrl") or headers.get("Referer")
+    
+    proxies = None
+    if proxy and proxy.lower() not in ["none", "direct", "system"]:
+        proxies = {"http": proxy, "https": proxy}
+    
+    session = requests.Session()
+    req_headers = {
+        "User-Agent": headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        "Accept": "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+    }
+    if ref:
+        req_headers["Referer"] = ref
+    if headers.get("Origin"):
+        req_headers["Origin"] = headers.get("Origin")
+    if headers.get("Cookie"):
+        req_headers["Cookie"] = headers.get("Cookie")
+
+    refreshed_items = []
+    
+    # 步骤 1: 访问源页面拉取最新 Cookie
+    if ref and not is_loopback_url(ref):
+        try:
+            r_page = session.get(ref, headers=req_headers, proxies=proxies, timeout=5, verify=False)
+            if r_page.cookies:
+                cookie_dict = session.cookies.get_dict()
+                old_cookie_str = headers.get("Cookie", "")
+                old_cookies = {}
+                for part in old_cookie_str.split(";"):
+                    if "=" in part:
+                        k, v = part.strip().split("=", 1)
+                        old_cookies[k.strip()] = v.strip()
+                old_cookies.update(cookie_dict)
+                new_cookie_str = "; ".join(f"{k}={v}" for k, v in old_cookies.items())
+                headers["Cookie"] = new_cookie_str
+                task_data.setdefault("headers", {})["Cookie"] = new_cookie_str
+                refreshed_items.append("源站会话 Cookie")
+        except Exception:
+            pass
+
+    # 步骤 2: 重新请求主 M3U8 地址，获取更新后的 CDN 签名 URL 或重定向 Token
+    if url and not is_loopback_url(url):
+        try:
+            r_url = session.get(url, headers=req_headers, proxies=proxies, timeout=6, allow_redirects=True, stream=True, verify=False)
+            if r_url.url and r_url.url != url:
+                task_data["url"] = r_url.url
+                refreshed_items.append("最新 Token 重定向地址")
+            if r_url.cookies:
+                cookie_dict = r_url.cookies.get_dict()
+                old_cookie_str = headers.get("Cookie", "")
+                old_cookies = {}
+                for part in old_cookie_str.split(";"):
+                    if "=" in part:
+                        k, v = part.strip().split("=", 1)
+                        old_cookies[k.strip()] = v.strip()
+                old_cookies.update(cookie_dict)
+                new_cookie_str = "; ".join(f"{k}={v}" for k, v in old_cookies.items())
+                headers["Cookie"] = new_cookie_str
+                task_data.setdefault("headers", {})["Cookie"] = new_cookie_str
+                if "源站会话 Cookie" not in refreshed_items:
+                    refreshed_items.append("CDN 节点 Cookie")
+            r_url.close()
+        except Exception:
+            pass
+
+    if refreshed_items and on_log:
+        on_log(f"[凭证智能刷新] 已成功更新: {' + '.join(refreshed_items)}")
+    return bool(refreshed_items)
+
+
 class StreamDownloadTask:
     def __init__(self, task_data, on_progress=None, on_log=None, on_finished=None):
         self.task_data = task_data
@@ -50,6 +129,26 @@ class StreamDownloadTask:
         self._is_cancelled = False
         self._thread = None
         self.output_file = ""
+        self._throttle_break_count = 0
+        self._last_throttle_break_time = 0.0
+        self._manual_throttle_break_requested = False
+
+    def trigger_throttle_break(self):
+        """外部主动触发打破限速与刷新凭证"""
+        self._manual_throttle_break_requested = True
+        if self.process:
+            try:
+                if os.name == 'nt':
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                else:
+                    self.process.kill()
+            except Exception:
+                pass
 
     def start(self):
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -191,7 +290,9 @@ class StreamDownloadTask:
             # 必须始终强制传递 --auto-select，彻底防止非控制台环境下因交互提示而崩溃
             cmd.append("--auto-select")
             cmd.append("--no-ansi-color")
-            cmd.extend(["--download-retry-count", "2"])
+            # 关键：将主 M3U8 的 URL 鉴权/Token 参数自动拼接到每个分片中，彻底解决无 Token 分片被 CDN 判定为未授权而限速为 300~400KB/s 的流控问题
+            cmd.append("--append-url-params")
+            cmd.extend(["--download-retry-count", "3"])
             cmd.extend(["--http-request-timeout", "10"])
 
             if not self.task_data.get("del_after_done", config.get("del_tmp_files", True)):
@@ -200,8 +301,17 @@ class StreamDownloadTask:
             if ffmpeg_exe:
                 cmd.extend(["--ffmpeg-binary-path", ffmpeg_exe])
             
-            thread_count = str(self.task_data.get("thread_count", config.get("max_threads_per_task", 16)))
-            cmd.extend(["--thread-count", thread_count])
+            raw_thread = self.task_data.get("thread_count", config.get("max_threads_per_task", 16))
+            try:
+                tc_int = int(raw_thread)
+            except Exception:
+                tc_int = 16
+            # 若多次发生被 CDN 限流，自适应降低并发数 (如降至 8~10 线程)，避免触发 CDN 边缘节点的防刷限流机制
+            if self._throttle_break_count >= 2 and tc_int > 10:
+                tc_int = 10
+                if self.on_log:
+                    self.on_log(f"[并发调优] 检测到频繁流控限制，自适应调整并发线程为 {tc_int} 以规避 CDN 频次封锁")
+            cmd.extend(["--thread-count", str(tc_int)])
 
             # 请求头与防盗链智能修补
             headers = dict(self.task_data.get("headers", {}))
@@ -409,6 +519,8 @@ class StreamDownloadTask:
             peak_bps = 0.0
             cli_start_time = time.time()
             last_refresh_log_time = 0.0
+            low_speed_start_time = 0.0
+            throttle_break_triggered = False
             speed_str = ""
             eta_str = ""
             proxy_err_count = 0
@@ -526,13 +638,59 @@ class StreamDownloadTask:
                         if smooth_bps > peak_bps:
                             peak_bps = smooth_bps
 
-                        if (now - cli_start_time >= 6.0) and (peak_bps > 250 * 1024) and (smooth_bps < peak_bps * 0.20):
-                            if now - last_refresh_log_time >= 10.0:
-                                last_refresh_log_time = now
-                                if self.on_log:
-                                    self.on_log(
-                                        f"[自动重连加速] 监测到当前下载速率 ({format_size(smooth_bps)}/s) 低于传输峰值 ({format_size(peak_bps)}/s) 的 1/5，已触发链路保活与动态网络优化！"
-                                    )
+                        # --- 核心机制：智能打破限速 (Active Throttle Breaking) ---
+                        # 识别 CDN 针对长连接 Token 桶耗尽、单片鉴权失效所施加的 300~500 KB/s 恶性限速
+                        # 当检测到限速持续达标时，主动重置连接并刷新凭证，促使 CDN 重置带宽突发桶
+                        if (not self._is_cancelled and
+                            self._throttle_break_count < 10 and
+                            now - cli_start_time >= 9.0 and
+                            percent < 97.0 and
+                            (tot_parts <= 0 or tot_parts - cur_parts > 6) and
+                            (now - self._last_throttle_break_time >= 20.0)):
+                            
+                            is_in_throttle_zone = (50 * 1024 <= smooth_bps <= 650 * 1024)
+                            is_speed_suppressed = (peak_bps > 1.2 * 1024 * 1024 and smooth_bps < peak_bps * 0.25) or (now - cli_start_time >= 15.0 and is_in_throttle_zone)
+                            
+                            if is_in_throttle_zone and is_speed_suppressed:
+                                if low_speed_start_time <= 0:
+                                    low_speed_start_time = now
+                                elif now - low_speed_start_time >= 6.5:
+                                    throttle_break_triggered = True
+                                    self._throttle_break_count += 1
+                                    self._last_throttle_break_time = now
+                                    if self.on_log:
+                                        self.on_log(
+                                            f"[智能打破限速 #{self._throttle_break_count}] 检测到传输速率持续受限于 {format_size(smooth_bps)}/s (CDN限流区间)！正在自动刷新会话 Token 并重建极速传输链路..."
+                                        )
+                                    try:
+                                        if os.name == 'nt':
+                                            subprocess.run(["taskkill", "/F", "/T", "/PID", str(self.process.pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
+                                        else:
+                                            self.process.kill()
+                                    except Exception:
+                                        pass
+                                    break
+                            else:
+                                low_speed_start_time = 0.0
+                        else:
+                            low_speed_start_time = 0.0
+
+                        # 监测外部是否手动请求了打破限速
+                        if self._manual_throttle_break_requested and not self._is_cancelled:
+                            self._manual_throttle_break_requested = False
+                            throttle_break_triggered = True
+                            self._throttle_break_count += 1
+                            self._last_throttle_break_time = now
+                            if self.on_log:
+                                self.on_log(f"[手动打破限速] 用户主动触发刷新凭证与重建极速传输链路...")
+                            try:
+                                if os.name == 'nt':
+                                    subprocess.run(["taskkill", "/F", "/T", "/PID", str(self.process.pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=subprocess.CREATE_NO_WINDOW)
+                                else:
+                                    self.process.kill()
+                            except Exception:
+                                pass
+                            break
 
                         if smooth_bps > 1024:
                             speed_str = f"{format_size(smooth_bps)}/s"
@@ -610,6 +768,14 @@ class StreamDownloadTask:
                 if self.on_log:
                     self.on_log(f"[代理自愈重连] 原代理连接失败，已自动无缝切换为新节点: {new_p}，继续断点续传...")
                 self.task_data["proxy"] = new_p
+                return self._run_cli(cli_path)
+
+            if throttle_break_triggered and not self._is_cancelled:
+                # 刷新凭证、源站 Cookie 与 Token
+                refresh_task_credentials(self.task_data, proxy=proxy, on_log=self.on_log)
+                time.sleep(0.3)
+                if self.on_log:
+                    self.on_log(f"[链路重建] 凭证刷新完毕，无缝启动全新传输链路继续断点续传（自动跳过已完成分片）...")
                 return self._run_cli(cli_path)
 
             # 检测是否成功生成最终媒体文件
@@ -805,6 +971,11 @@ class StreamDownloadTask:
                 if not line or line.startswith("#"):
                     continue
                 full_ts_url = urljoin(base_url, line)
+                # 将主清单 URL 的 Token 参数追加至分片中 (同 --append-url-params)
+                if "?" in base_url and "?" not in full_ts_url:
+                    full_ts_url = f"{full_ts_url}?{base_url.split('?', 1)[1]}"
+                elif "?" in url and "?" not in full_ts_url:
+                    full_ts_url = f"{full_ts_url}?{url.split('?', 1)[1]}"
                 ts_urls.append(full_ts_url)
 
             if not ts_urls:
@@ -826,6 +997,12 @@ class StreamDownloadTask:
                 if self._is_cancelled:
                     return
                 ts_filename = os.path.join(tmp_dir, f"segment_{idx:05d}.ts")
+                if os.path.exists(ts_filename) and os.path.getsize(ts_filename) > 0:
+                    with lock:
+                        downloaded_count += 1
+                        total_bytes_downloaded += os.path.getsize(ts_filename)
+                        ts_files.append((idx, ts_filename))
+                    return
                 for retry in range(4):
                     if self._is_cancelled:
                         return
