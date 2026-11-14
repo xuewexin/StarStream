@@ -315,34 +315,63 @@ async function captureMediaRequest(details, respInfo) {
       }
     }
 
-    // 生成或实时更新 【B站音画合一】 复合媒体条目
-    const cleanTitle = (bEntry.pageTitle || 'B站视频').replace(/^【B站音画合一】\s*/, '').trim();
-    const compositeItem = {
-      id: `bili_${cid}`,
-      url: bEntry.videoUrl || url,
-      audioUrl: bEntry.audioUrl || '',
-      tabId: tabId,
-      pageTitle: `【B站音画合一】${cleanTitle}`,
-      pageUrl: bEntry.pageUrl || pageUrl,
-      mediaType: 'bili_dash',
-      referer: bEntry.referer || 'https://www.bilibili.com/',
-      userAgent: bEntry.userAgent || userAgent,
-      cookie: bEntry.cookie || cookie,
-      baseUrl: url.substring(0, url.lastIndexOf('/') + 1),
-      contentType: 'video/mp4',
-      contentLength: bEntry.videoLength + bEntry.audioLength,
-      frameId: 0,
-      timestamp: Date.now(),
-      duration: 0,
-      resolution: bEntry.videoQuality || '1080P',
-      hasKey: false,
-      isAd: false,
-      isFeature: true,
-      isMaster: true,
-      isBiliDash: true
-    };
+    // 生成或实时更新 【B站音画合一】 复合媒体条目与独立音频条目
+    const cleanTitle = (bEntry.pageTitle || 'B站视频').replace(/^【B站音画合一】\s*/, '').replace(/^【B站音频轨】\s*/, '').trim();
 
-    storageQueue = storageQueue.then(() => insertIntoStorage(compositeItem)).catch(() => {});
+    if (bEntry.videoUrl) {
+      const compositeItem = {
+        id: `bili_${cid}`,
+        url: bEntry.videoUrl,
+        audioUrl: bEntry.audioUrl || '',
+        tabId: tabId,
+        pageTitle: `【B站音画合一】${cleanTitle}`,
+        pageUrl: bEntry.pageUrl || pageUrl,
+        mediaType: 'bili_dash',
+        referer: bEntry.referer || 'https://www.bilibili.com/',
+        userAgent: bEntry.userAgent || userAgent,
+        cookie: bEntry.cookie || cookie,
+        baseUrl: bEntry.videoUrl.substring(0, bEntry.videoUrl.lastIndexOf('/') + 1),
+        contentType: 'video/mp4',
+        contentLength: bEntry.videoLength + bEntry.audioLength,
+        frameId: 0,
+        timestamp: Date.now(),
+        duration: 0,
+        resolution: bEntry.videoQuality || '1080P',
+        hasKey: false,
+        isAd: false,
+        isFeature: true,
+        isMaster: true,
+        isBiliDash: true
+      };
+      storageQueue = storageQueue.then(() => insertIntoStorage(compositeItem)).catch(() => {});
+    }
+
+    if (bEntry.audioUrl) {
+      const audioItem = {
+        id: `bili_audio_${cid}`,
+        url: bEntry.audioUrl,
+        tabId: tabId,
+        pageTitle: `【B站音频轨】${cleanTitle}`,
+        pageUrl: bEntry.pageUrl || pageUrl,
+        mediaType: 'audio',
+        referer: bEntry.referer || 'https://www.bilibili.com/',
+        userAgent: bEntry.userAgent || userAgent,
+        cookie: bEntry.cookie || cookie,
+        baseUrl: bEntry.audioUrl.substring(0, bEntry.audioUrl.lastIndexOf('/') + 1),
+        contentType: 'audio/mp4',
+        contentLength: bEntry.audioLength,
+        frameId: 0,
+        timestamp: Date.now(),
+        duration: 0,
+        resolution: '192K 高清音质',
+        hasKey: false,
+        isAd: false,
+        isFeature: false,
+        isMaster: false
+      };
+      storageQueue = storageQueue.then(() => insertIntoStorage(audioItem)).catch(() => {});
+    }
+
     await storageQueue;
     return;
   }
