@@ -128,14 +128,18 @@ chrome.webRequest.onHeadersReceived.addListener(
     const isMasterStream =
       contentType.includes("vnd.apple.mpegurl") ||
       contentType.includes("x-mpegurl") ||
+      contentType.includes("mpegurl") ||
       contentType.includes("dash+xml");
 
     const isCompleteMedia =
       (contentType.startsWith("video/") || contentType.startsWith("audio/")) &&
-      !isFragmentUrl(url) &&
-      (MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url) || contentLength > 1024 * 1024);
+      !isFragmentUrl(url);
 
-    if (isMasterStream || isCompleteMedia || MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url)) {
+    const isOctetStreamMedia =
+      (contentType.includes("octet-stream") || contentType.includes("binary")) &&
+      (PLAYLIST_EXT_REGEX.test(url) || MEDIA_EXT_REGEX.test(url));
+
+    if (isMasterStream || isCompleteMedia || isOctetStreamMedia || MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url)) {
       captureMediaRequest(details, {
         contentType,
         contentLength,
@@ -343,18 +347,28 @@ function updateBadgeForTab(tabId, count) {
   }
 }
 
-// 标签页刷新、重新加载或导航离开时：清除旧记录
+// 标签页真正导航离开当前网站时才清理旧记录（绝不因 status: loading、广告加载或局部刷新而误删视频）
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo) => {
-  if (changeInfo.status === "loading") {
+  if (changeInfo.url) {
     try {
-      chrome.action.setBadgeText({ tabId, text: "" });
+      const newUrl = new URL(changeInfo.url);
+      const { mediaList = [] } = await chrome.storage.local.get("mediaList");
+      const tabItems = mediaList.filter((it) => it.tabId === tabId);
+      if (tabItems.length > 0) {
+        const prevPage = tabItems[0].pageUrl;
+        if (prevPage) {
+          try {
+            const oldUrl = new URL(prevPage);
+            // 只有顶级域名完全改变时，才清理该标签页的历史记录
+            if (oldUrl.host !== newUrl.host) {
+              const filtered = mediaList.filter((it) => it.tabId !== tabId);
+              await chrome.storage.local.set({ mediaList: filtered });
+              chrome.action.setBadgeText({ tabId, text: "" });
+            }
+          } catch (e) {}
+        }
+      }
     } catch (e) {}
-
-    const { mediaList = [] } = await chrome.storage.local.get("mediaList");
-    const filtered = mediaList.filter((it) => it.tabId !== tabId);
-    if (filtered.length !== mediaList.length) {
-      await chrome.storage.local.set({ mediaList: filtered });
-    }
   }
 });
 

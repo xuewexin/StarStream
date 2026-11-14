@@ -191,8 +191,8 @@ class StreamDownloadTask:
             # 必须始终强制传递 --auto-select，彻底防止非控制台环境下因交互提示而崩溃
             cmd.append("--auto-select")
             cmd.append("--no-ansi-color")
-            cmd.extend(["--download-retry-count", "3"])
-            cmd.extend(["--http-request-timeout", "15"])
+            cmd.extend(["--download-retry-count", "2"])
+            cmd.extend(["--http-request-timeout", "10"])
 
             if not self.task_data.get("del_after_done", config.get("del_tmp_files", True)):
                 cmd.extend(["--del-after-done", "false"])
@@ -411,6 +411,9 @@ class StreamDownloadTask:
             last_refresh_log_time = 0.0
             speed_str = ""
             eta_str = ""
+            proxy_err_count = 0
+            last_proxy_err_time = 0.0
+            dead_proxy_detected = False
 
             while True:
                 if self._is_cancelled:
@@ -442,6 +445,25 @@ class StreamDownloadTask:
                     line = ansi_pattern.sub('', raw_line).strip()
                     if not line:
                         continue
+
+                    # 实时监测代理是否挂死 (如端口断开、积极拒绝等)
+                    if proxy and any(k in line for k in ["积极拒绝", "无法连接", "Connection refused", "proxy connection failed", "Proxy error", "is not reachable"]):
+                        now_t = time.time()
+                        if now_t - last_proxy_err_time < 12.0:
+                            proxy_err_count += 1
+                        else:
+                            proxy_err_count = 1
+                        last_proxy_err_time = now_t
+
+                        if proxy_err_count >= 4:
+                            dead_proxy_detected = True
+                            if self.on_log:
+                                self.on_log(f"[代理故障中断] 检测到代理 ({proxy}) 频繁拒绝连接或离线！立即终止当前重试，自动转移可用节点...")
+                            try:
+                                self.process.kill()
+                            except Exception:
+                                pass
+                            break
 
                     # 优先检测是否为分片进度行
                     m_head = re_head.search(line)
@@ -575,6 +597,20 @@ class StreamDownloadTask:
                 if self.on_finished:
                     self.on_finished(False, "任务已手动取消", "")
                 return
+
+            if dead_proxy_detected and not self._is_cancelled:
+                actives = detect_local_active_proxies(force_refresh=True)
+                new_p = ""
+                for act in actives:
+                    if act.get("url") and act["url"] != proxy:
+                        new_p = act["url"]
+                        break
+                if not new_p:
+                    new_p = "direct"
+                if self.on_log:
+                    self.on_log(f"[代理自愈重连] 原代理连接失败，已自动无缝切换为新节点: {new_p}，继续断点续传...")
+                self.task_data["proxy"] = new_p
+                return self._run_cli(cli_path)
 
             # 检测是否成功生成最终媒体文件
             actual_output = self._find_downloaded_file(save_dir, save_name)

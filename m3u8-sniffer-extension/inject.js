@@ -155,21 +155,72 @@
     return origOpen.apply(this, arguments);
   };
 
-  // 5. 检查页面上已经存在的媒体元素
+  // 5. 深度扫描页面上所有媒体元素、分发源以及已加载的网络资源缓存
   function checkExistingMedia() {
+    // 5.1 扫描 performance 资源加载记录 (捕获在 inject.js 运行前就已经发出的所有网络流)
+    try {
+      if (window.performance && typeof window.performance.getEntriesByType === 'function') {
+        const resources = window.performance.getEntriesByType('resource');
+        for (let i = 0; i < resources.length; i++) {
+          const u = resources[i].name;
+          if (u && (MEDIA_REGEX.test(u) || SHORT_VIDEO_CDN_REGEX.test(u)) && !isFragment(u) && !u.startsWith('blob:')) {
+            notifyMedia({
+              url: u,
+              mediaType: PLAYLIST_REGEX.test(u) ? 'm3u8' : 'video',
+              sourceType: 'performance_resource'
+            });
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 5.2 扫描 DOM 中的 video, audio, source 标签
     try {
       document.querySelectorAll('video, audio').forEach((el) => {
         const src = el.currentSrc || el.src;
         if (src && !src.startsWith('blob:') && !src.startsWith('data:') && !isFragment(src)) {
           notifyMedia({
             url: src,
-            mediaType: el.tagName.toLowerCase() === 'audio' ? 'audio' : 'video',
-            sourceType: 'existing_element'
+            mediaType: el.tagName.toLowerCase() === 'audio' ? 'audio' : (PLAYLIST_REGEX.test(src) ? 'm3u8' : 'video'),
+            sourceType: 'dom_element'
           });
         }
+        el.querySelectorAll('source').forEach((s) => {
+          const sSrc = s.src || s.getAttribute('src');
+          if (sSrc && !sSrc.startsWith('blob:') && !sSrc.startsWith('data:') && !isFragment(sSrc)) {
+            notifyMedia({
+              url: sSrc,
+              mediaType: PLAYLIST_REGEX.test(sSrc) ? 'm3u8' : 'video',
+              sourceType: 'dom_source'
+            });
+          }
+        });
+      });
+    } catch (e) {}
+
+    // 5.3 扫描 iframe 引用
+    try {
+      document.querySelectorAll('iframe').forEach((ifr) => {
+        try {
+          const iSrc = ifr.src || ifr.getAttribute('src');
+          if (iSrc && (MEDIA_REGEX.test(iSrc) || PLAYLIST_REGEX.test(iSrc)) && !isFragment(iSrc)) {
+            notifyMedia({
+              url: iSrc,
+              mediaType: PLAYLIST_REGEX.test(iSrc) ? 'm3u8' : 'video',
+              sourceType: 'dom_iframe'
+            });
+          }
+        } catch (e) {}
       });
     } catch (e) {}
   }
+
+  // 监听来自扩展弹窗的手动深度重新嗅探指令
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.action === 'CATCATCH_DO_RESNIFF') {
+      checkExistingMedia();
+    }
+  });
 
   // 监听页面播放事件
   document.addEventListener('play', (e) => {
@@ -180,7 +231,7 @@
         if (src && !src.startsWith('blob:') && !src.startsWith('data:') && !isFragment(src)) {
           notifyMedia({
             url: src,
-            mediaType: el.tagName.toLowerCase() === 'audio' ? 'audio' : 'video',
+            mediaType: el.tagName.toLowerCase() === 'audio' ? 'audio' : (PLAYLIST_REGEX.test(src) ? 'm3u8' : 'video'),
             sourceType: 'event_play'
           });
         }

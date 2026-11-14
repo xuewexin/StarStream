@@ -357,9 +357,20 @@ QTableWidget {{
 }}
 
 QTableWidget::item {{
-    padding: 8px 6px;
+    padding: 6px 8px;
     border-bottom: 1px solid {t["border_subtle"]};
     color: {t["text"]};
+}}
+
+QTableWidget QLineEdit {{
+    background-color: {t["bg_card"]};
+    color: {t["text"]};
+    border: 1.5px solid {t["accent"]};
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 13px;
+    min-height: 26px;
+    selection-background-color: {t["accent"]};
 }}
 
 QTableWidget::item:selected {{

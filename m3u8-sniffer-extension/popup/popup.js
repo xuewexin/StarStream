@@ -67,6 +67,7 @@
 
     if (el('brandTitle')) el('brandTitle').textContent = t('brand_title');
     if (el('clientStatusText')) el('clientStatusText').textContent = clientOnline ? t('status_online') : t('status_offline');
+    if (el('btnResniff')) el('btnResniff').title = typeof ExtI18n !== 'undefined' ? (ExtI18n.t('tip_resniff') || '重新嗅探 / 深度扫描当前网页视频') : '重新嗅探 / 深度扫描当前网页视频';
     if (el('btnFragments')) el('btnFragments').title = t('tip_fragments');
     if (el('btnSettings')) el('btnSettings').title = t('tip_settings');
     if (el('btnClear')) el('btnClear').title = t('tip_clear');
@@ -512,6 +513,13 @@
       });
     }
 
+    const btnResniff = document.getElementById('btnResniff');
+    if (btnResniff) {
+      btnResniff.addEventListener('click', () => {
+        triggerResniff();
+      });
+    }
+
     document.getElementById('btnSettings').addEventListener('click', () => {
       settingsPanel.classList.remove('hidden');
     });
@@ -527,6 +535,35 @@
       settingsPanel.classList.add('hidden');
     });
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+  }
+
+  async function triggerResniff() {
+    const btn = document.getElementById('btnResniff');
+    if (btn) btn.classList.add('spinning');
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tabs && tabs[0] && tabs[0].id) {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'RESNIFF_ACTIVE_TAB' }, () => {
+          if (chrome.runtime.lastError) {
+            try {
+              chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                files: ['content_script.js']
+              }).catch(() => {});
+            } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {}
+
+    setTimeout(() => {
+      loadAndRenderMedia();
+    }, 350);
+
+    setTimeout(() => {
+      loadAndRenderMedia();
+      if (btn) btn.classList.remove('spinning');
+    }, 1200);
   }
 
   function handleClientStatusOnline(data) {
@@ -966,27 +1003,29 @@
       ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐: ${detectedProxy.proxyUrl})`
       : (detectedProxy.mode === 'direct' ? `${t('cfg_proxy_browser', '跟随浏览器代理')} (直连)` : `${t('cfg_proxy_browser', '跟随浏览器代理')} (推荐)`);
 
+    const savedCfg = expandedConfigState.get(item.id) || {};
+    const isExpanded = !!savedCfg.expanded;
+    const curP = savedCfg.proxy || 'auto';
+
     let proxyOptionsHtml = `
-      <option value="auto" selected>${browserProxyLabel}</option>
-      <option value="direct">${t('cfg_proxy_direct')}</option>
-      <option value="default">${t('cfg_proxy_default')}</option>
+      <option value="auto" ${curP === 'auto' ? 'selected' : ''}>${browserProxyLabel}</option>
+      <option value="direct" ${curP === 'direct' ? 'selected' : ''}>${t('cfg_proxy_direct')}</option>
+      <option value="default" ${curP === 'default' ? 'selected' : ''}>${t('cfg_proxy_default')}</option>
     `;
     if (clientDetectedProxies && clientDetectedProxies.length > 0) {
       clientDetectedProxies.forEach((p) => {
-        proxyOptionsHtml += `<option value="${p.url}">${p.name}</option>`;
+        const isSel = curP === p.url ? 'selected' : '';
+        proxyOptionsHtml += `<option value="${p.url}" ${isSel}>${p.name}</option>`;
       });
     } else {
       proxyOptionsHtml += `
-        <option value="http://127.0.0.1:1080">sing-box / SOCKS5 (1080)</option>
-        <option value="http://127.0.0.1:7890">Clash / Verge (7890)</option>
-        <option value="socks5://127.0.0.1:10808">v2rayN SOCKS5 (10808)</option>
-        <option value="http://127.0.0.1:10809">v2rayN HTTP (10809)</option>
+        <option value="http://127.0.0.1:7890" ${curP === 'http://127.0.0.1:7890' ? 'selected' : ''}>Clash / Verge (7890)</option>
+        <option value="http://127.0.0.1:1080" ${curP === 'http://127.0.0.1:1080' ? 'selected' : ''}>sing-box / SOCKS5 (1080)</option>
+        <option value="socks5://127.0.0.1:10808" ${curP === 'socks5://127.0.0.1:10808' ? 'selected' : ''}>v2rayN SOCKS5 (10808)</option>
+        <option value="http://127.0.0.1:10809" ${curP === 'http://127.0.0.1:10809' ? 'selected' : ''}>v2rayN HTTP (10809)</option>
       `;
     }
-    proxyOptionsHtml += `<option value="custom">${t('cfg_proxy_custom')}</option>`;
-
-    const savedCfg = expandedConfigState.get(item.id) || {};
-    const isExpanded = !!savedCfg.expanded;
+    proxyOptionsHtml += `<option value="custom" ${curP === 'custom' ? 'selected' : ''}>${t('cfg_proxy_custom')}</option>`;
 
     card.innerHTML = `
       <div class="card-top">
@@ -1080,7 +1119,8 @@
       });
     }
 
-    configBtn.addEventListener('click', () => {
+    configBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       configPanel.classList.toggle('hidden');
       syncState();
     });

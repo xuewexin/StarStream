@@ -185,11 +185,14 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(10, 135)
 
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(44)
+        self.table.verticalHeader().setMinimumSectionSize(38)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
+        self.table.itemChanged.connect(self._on_table_item_changed)
 
         right_layout.addWidget(self.table)
         splitter.addWidget(right_container)
@@ -435,6 +438,7 @@ class MainWindow(QMainWindow):
         # 分类大项
         cat_root = QTreeWidgetItem(self.tree, [t("tasks_cat")])
         cat_root.setIcon(0, get_icon("folder", "#71717a", 16))
+        cat_root.setFlags(cat_root.flags() & ~Qt.ItemIsSelectable)
         cat_root.setExpanded(True)
 
         self.node_all = QTreeWidgetItem(cat_root, [t("all_tasks"), "all"])
@@ -455,6 +459,7 @@ class MainWindow(QMainWindow):
         # 格式媒体大项
         type_root = QTreeWidgetItem(self.tree, [t("media_types")])
         type_root.setIcon(0, get_icon("toolbox", "#71717a", 16))
+        type_root.setFlags(type_root.flags() & ~Qt.ItemIsSelectable)
         type_root.setExpanded(True)
 
         self.node_m3u8 = QTreeWidgetItem(type_root, [t("stream_media"), "m3u8"])
@@ -472,6 +477,7 @@ class MainWindow(QMainWindow):
         # 便捷工具大项
         tools_root = QTreeWidgetItem(self.tree, [t("common_tools")])
         tools_root.setIcon(0, get_icon("toolbox", "#71717a", 16))
+        tools_root.setFlags(tools_root.flags() & ~Qt.ItemIsSelectable)
         tools_root.setExpanded(True)
 
         self.node_parser = QTreeWidgetItem(tools_root, [t("workbench"), "tool_parser"])
@@ -759,17 +765,25 @@ class MainWindow(QMainWindow):
         if item is None:
             item = QTableWidgetItem()
             self.table.setItem(row, col, item)
-        item.setText(str(text))
-        if color is not None:
-            item.setForeground(color)
-        if font is not None:
-            item.setFont(font)
-        if align is not None:
-            item.setTextAlignment(align)
-        if tooltip is not None:
-            item.setToolTip(tooltip)
-        if role_data is not None:
-            item.setData(Qt.UserRole, role_data)
+        self.table.blockSignals(True)
+        try:
+            item.setText(str(text))
+            if col == 1:
+                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+            else:
+                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+            if color is not None:
+                item.setForeground(color)
+            if font is not None:
+                item.setFont(font)
+            if align is not None:
+                item.setTextAlignment(align)
+            if tooltip is not None:
+                item.setToolTip(tooltip)
+            if role_data is not None:
+                item.setData(Qt.UserRole, role_data)
+        finally:
+            self.table.blockSignals(False)
         return item
 
     def _render_row(self, row, t_task):
@@ -888,9 +902,7 @@ class MainWindow(QMainWindow):
         self._set_cell_item(row, 9, text_status, color=QColor(color_status), align=Qt.AlignCenter, tooltip=tip)
 
         # 10. 添加时间
-        item_time = QTableWidgetItem(t_task.get("created_at", ""))
-        item_time.setTextAlignment(Qt.AlignCenter)
-        self.table.setItem(row, 10, item_time)
+        self._set_cell_item(row, 10, t_task.get("created_at", ""), color=text_sec_col, align=Qt.AlignCenter)
 
     def _find_row_by_task_id(self, task_id):
         for r in range(self.table.rowCount()):
@@ -1080,6 +1092,10 @@ class MainWindow(QMainWindow):
         act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), t("ctx_pause"))
         act_pau.triggered.connect(self._action_pause_selected)
 
+        if len(ids) == 1:
+            act_rename = menu.addAction(get_icon("edit", "#38bdf8", 14), t("ctx_rename", default="重命名任务..."))
+            act_rename.triggered.connect(self._action_rename_selected)
+
         menu.addSeparator()
 
         # --- 针对选中任务的独立代理切换子菜单 ---
@@ -1088,7 +1104,7 @@ class MainWindow(QMainWindow):
         act_direct = menu_proxy.addAction(get_icon("check", "#a1a1aa", 12), t("ctx_direct"))
         act_direct.triggered.connect(lambda: self._set_proxy_for_selected(ids, "DIRECT"))
 
-        eff_p = config.get_effective_proxy()
+        eff_p = config.get_effective_proxy(validate=False)
         eff_desc = f"{t('cfg_proxy_default', default='跟随全局设置')} ({eff_p if eff_p else t('ctx_direct')})"
         act_global = menu_proxy.addAction(get_icon("settings", "#a1a1aa", 12), eff_desc)
         act_global.triggered.connect(lambda: self._set_proxy_for_selected(ids, "GLOBAL"))
@@ -1156,6 +1172,42 @@ class MainWindow(QMainWindow):
         act_del_all.triggered.connect(self._action_delete_tasks_with_files)
 
         menu.exec_(self.table.mapToGlobal(pos))
+
+    def _action_rename_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task_id = ids[0]
+        task = task_manager.get_task(task_id)
+        if not task:
+            return
+        cur_title = task.get("title") or ""
+        new_title, ok = QInputDialog.getText(self, "重命名任务", "请输入新的任务名称:", QLineEdit.Normal, cur_title)
+        if ok and new_title.strip():
+            clean_name = new_title.strip()
+            task["title"] = clean_name
+            task["save_name"] = re.sub(r'[\\/*?:"<>|]', '_', clean_name).strip()
+            task_manager.update_task(task_id, {"title": clean_name, "save_name": task["save_name"]})
+            task_manager.save_tasks()
+            self.refresh_table()
+
+    def _on_table_item_changed(self, item):
+        if not item or item.column() != 1:
+            return
+        row = item.row()
+        it_id = self.table.item(row, 0)
+        if not it_id:
+            return
+        task_id = it_id.data(Qt.UserRole)
+        new_title = item.text().strip()
+        if not task_id or not new_title:
+            return
+        task = task_manager.get_task(task_id)
+        if task and task.get("title") != new_title:
+            task["title"] = new_title
+            task["save_name"] = re.sub(r'[\\/*?:"<>|]', '_', new_title).strip()
+            task_manager.update_task(task_id, {"title": new_title, "save_name": task["save_name"]})
+            task_manager.save_tasks()
 
     def _on_cell_double_clicked(self, row, col):
         it = self.table.item(row, 0)

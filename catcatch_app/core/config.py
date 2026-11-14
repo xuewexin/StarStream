@@ -281,11 +281,19 @@ def is_proxy_alive(proxy_url, timeout=0.5):
         return False, str(e)
 
 
-def detect_local_active_proxies():
+_ACTIVE_PROXIES_CACHE = None
+_ACTIVE_PROXIES_CACHE_TIME = 0.0
+
+def detect_local_active_proxies(force_refresh=False):
     """
-    快速全自动扫描常见本地代理客户端监听端口 (sing-box 1080, Clash 7890/7891, v2rayN 10808/10809, SOCKS5 3080 等)
-    返回当前存活在线的本地代理列表
+    超高速并发扫描常见本地代理客户端监听端口 (sing-box 1080, Clash 7890/7891, v2rayN 10808/10809, SOCKS5 3080 等)
+    使用并发线程池 + 6秒内存缓存，彻底消除主界面右键与按钮卡顿 (0ms 响应)
     """
+    global _ACTIVE_PROXIES_CACHE, _ACTIVE_PROXIES_CACHE_TIME
+    now = time.time()
+    if not force_refresh and _ACTIVE_PROXIES_CACHE is not None and (now - _ACTIVE_PROXIES_CACHE_TIME < 6.0):
+        return list(_ACTIVE_PROXIES_CACHE)
+
     candidates = [
         ("singbox_1080", "sing-box / SOCKS5 (1080)", "http://127.0.0.1:1080", "127.0.0.1", 1080),
         ("clash_7890", "Clash / Verge (7890)", "http://127.0.0.1:7890", "127.0.0.1", 7890),
@@ -295,16 +303,28 @@ def detect_local_active_proxies():
         ("socks_3080", "Local SOCKS5 (3080)", "socks5://127.0.0.1:3080", "127.0.0.1", 3080),
     ]
     import socket
-    active = []
-    for pid, name, url, host, port in candidates:
+    from concurrent.futures import ThreadPoolExecutor
+
+    def check_cand(item):
+        pid, name, url, host, port = item
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.settimeout(0.3)
+            s.settimeout(0.2)
             s.connect((host, port))
             s.close()
-            active.append({"id": pid, "name": f"{name} (在线)", "url": url, "port": port})
+            return {"id": pid, "name": f"{name} (在线)", "url": url, "port": port}
         except Exception:
-            pass
+            return None
+
+    active = []
+    with ThreadPoolExecutor(max_workers=len(candidates)) as pool:
+        results = pool.map(check_cand, candidates)
+        for r in results:
+            if r:
+                active.append(r)
+
+    _ACTIVE_PROXIES_CACHE = active
+    _ACTIVE_PROXIES_CACHE_TIME = now
     return active
 
 
@@ -517,23 +537,23 @@ class Config:
             if selected_url:
                 if not validate:
                     return selected_url
-                is_alive, _ = is_proxy_alive(selected_url, timeout=0.4)
+                is_alive, _ = is_proxy_alive(selected_url, timeout=0.25)
                 if is_alive:
                     return selected_url
-                # 若配置的代理端口离线 (超时或拒绝连接)，先在用户配置的其它代理列表中寻找活着的节点
-                for p in proxies:
-                    cand_url = normalize_proxy_url(p.get("url", ""))
-                    if cand_url and cand_url != selected_url:
-                        alive, _ = is_proxy_alive(cand_url, timeout=0.3)
-                        if alive:
-                            return cand_url
-                # 探活本机常见客户端活跃端口 (sing-box, Clash, v2ray 等)
+                # 优先快速探活本机活跃在线端口 (Clash 7890 等)
                 actives = detect_local_active_proxies()
                 if actives:
                     return actives[0]["url"]
+                # 若配置的代理端口离线，在用户配置的其它代理列表中寻找活着的节点
+                for p in proxies:
+                    cand_url = normalize_proxy_url(p.get("url", ""))
+                    if cand_url and cand_url != selected_url:
+                        alive, _ = is_proxy_alive(cand_url, timeout=0.2)
+                        if alive:
+                            return cand_url
                 # 尝试系统代理
                 sys_p = detect_system_proxy()
-                if sys_p and is_proxy_alive(sys_p, timeout=0.3)[0]:
+                if sys_p and is_proxy_alive(sys_p, timeout=0.2)[0]:
                     return sys_p
                 return selected_url
         return ""

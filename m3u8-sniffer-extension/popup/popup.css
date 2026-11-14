@@ -161,6 +161,17 @@ body {
   border-color: var(--border-color);
 }
 
+.btn-icon.spinning svg {
+  animation: icon-spin 0.75s linear infinite;
+  color: var(--accent-blue);
+}
+
+@keyframes icon-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .icon-svg {
   width: 15px;
   height: 15px;

@@ -98,6 +98,51 @@
     }).catch(() => {});
   });
 
+  // 响应来自 popup 的深度重新嗅探指令
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.action === 'RESNIFF_ACTIVE_TAB') {
+      try {
+        window.postMessage({ action: 'CATCATCH_DO_RESNIFF' }, '*');
+      } catch (e) {}
+      try {
+        document.querySelectorAll('video, audio').forEach((el) => {
+          const src = el.currentSrc || el.src;
+          if (src && !src.startsWith('blob:') && !isFragmentUrl(src)) {
+            chrome.runtime.sendMessage({
+              action: 'SNIFFED_MEDIA',
+              data: {
+                url: src,
+                title: cleanVideoTitle(document.title),
+                pageUrl: window.location.href,
+                referer: window.location.href,
+                mediaType: el.tagName.toLowerCase() === 'audio' ? 'audio' : (PLAYLIST_REGEX.test(src) ? 'm3u8' : 'video'),
+                sourceType: 'content_script_resniff'
+              }
+            }).catch(() => {});
+          }
+          el.querySelectorAll('source').forEach((s) => {
+            const sSrc = s.src || s.getAttribute('src');
+            if (sSrc && !sSrc.startsWith('blob:') && !isFragmentUrl(sSrc)) {
+              chrome.runtime.sendMessage({
+                action: 'SNIFFED_MEDIA',
+                data: {
+                  url: sSrc,
+                  title: cleanVideoTitle(document.title),
+                  pageUrl: window.location.href,
+                  referer: window.location.href,
+                  mediaType: PLAYLIST_REGEX.test(sSrc) ? 'm3u8' : 'video',
+                  sourceType: 'content_script_resniff_source'
+                }
+              }).catch(() => {});
+            }
+          });
+        });
+      } catch (e) {}
+      sendResponse({ status: 'ok' });
+    }
+    return true;
+  });
+
   // 3. IDM 悬浮下载条 (支持闲置自动渐隐、标签页切换清理与一键关闭)
   let activeFloatingBtn = null;
   let activePanel = null;
