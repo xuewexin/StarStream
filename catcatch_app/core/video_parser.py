@@ -9,7 +9,7 @@ import json
 import urllib.parse
 import requests
 
-from .config import config
+from .config import config, should_bypass_proxy
 
 
 def parse_video_url(url: str, proxy: str = "") -> dict:
@@ -49,6 +49,10 @@ def parse_video_url(url: str, proxy: str = "") -> dict:
     session.headers.update(headers)
     if proxies:
         session.proxies.update(proxies)
+
+    if should_bypass_proxy(target_url):
+        session.proxies.clear()
+        session.trust_env = False
 
     domain = urllib.parse.urlparse(target_url).netloc.lower()
     lower_path = target_url.lower().split("?")[0]
@@ -249,7 +253,47 @@ def _parse_bilibili(url, session):
         duration = v_data.get("duration", 0)
         cover = v_data.get("pic", "")
 
-        # 调取 playurl 接口获取高画质 mp4 / flv 播放地址 (fnval=0 请求 mp4 直链流)
+        # 1. 优先请求 DASH 格式 (fnval=16)，获取最高画质视频流与独立音频流
+        dash_api = f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&qn=80&fnval=16&fnver=0&fourk=1"
+        try:
+            dash_resp = session.get(dash_api, headers=headers_bili, timeout=8).json()
+            if dash_resp.get("code") == 0:
+                dash_data = dash_resp.get("data", {}).get("dash", {})
+                videos = dash_data.get("video", [])
+                audios = dash_data.get("audio", [])
+                if videos:
+                    best_video = max(videos, key=lambda v: v.get("id", 0))
+                    v_url = best_video.get("baseUrl") or best_video.get("base_url")
+                    a_url = ""
+                    if audios:
+                        best_audio = max(audios, key=lambda a: a.get("id", 0))
+                        a_url = best_audio.get("baseUrl") or best_audio.get("base_url")
+
+                    q_id = best_video.get("id", 80)
+                    q_name = "1080P" if q_id >= 80 else ("720P" if q_id >= 64 else "480P")
+                    if q_id >= 120: q_name = "4K"
+                    elif q_id == 116: q_name = "1080P60"
+                    elif q_id == 112: q_name = "1080P+"
+
+                    return {
+                        "success": True,
+                        "title": title,
+                        "url": v_url,
+                        "audio_url": a_url,
+                        "media_type": "bili_dash" if a_url else "video",
+                        "duration": duration,
+                        "resolution": q_name,
+                        "cover": cover,
+                        "headers": {
+                            "Referer": "https://www.bilibili.com",
+                            "User-Agent": headers_bili["User-Agent"]
+                        },
+                        "error": ""
+                    }
+        except Exception:
+            pass
+
+        # 2. 调取 playurl 接口获取高画质 mp4 / flv 播放地址 (fnval=0 请求 mp4 直链流兜底)
         play_api = f"https://api.bilibili.com/x/player/playurl?bvid={bvid}&cid={cid}&qn=80&fnval=0&fnver=0&fourk=1"
         play_resp = session.get(play_api, headers=headers_bili, timeout=8).json()
 

@@ -15,7 +15,7 @@ import requests
 
 from .config import (
     config, find_nm3u8dl, get_temp_segments_dir,
-    is_proxy_alive, detect_local_active_proxies
+    is_proxy_alive, detect_local_active_proxies, should_bypass_proxy
 )
 from .download_file import format_size
 from .ffmpeg_engine import get_ffmpeg_path, concat_ts_list
@@ -241,6 +241,10 @@ class StreamDownloadTask:
         if proxy and is_loopback_url(url):
             if self.on_log:
                 self.on_log("[代理策略] 目标为本机地址，已强制直连（忽略代理设置）")
+            proxy = ""
+        elif proxy and should_bypass_proxy(url):
+            if self.on_log:
+                self.on_log("[智能分流] 目标为国内高速 CDN 节点，已自动切换极速直连模式（规避海外代理拦截与 IP 绑定报错）")
             proxy = ""
 
         # 严格过滤与探活：若指定的代理无法连通（如端口已关闭或配置过时），自动秒级探测本机在线代理兜底！
@@ -886,6 +890,10 @@ class StreamDownloadTask:
         os.makedirs(tmp_dir, exist_ok=True)
 
         proxy = self.task_data.get("proxy") or config.get_effective_proxy()
+        if proxy and should_bypass_proxy(url):
+            if self.on_log:
+                self.on_log("[智能分流] 目标为国内高速 CDN 节点，已自动切换极速直连模式（规避海外代理拦截与 IP 绑定报错）")
+            proxy = None
         if proxy and proxy not in ["none", "direct"]:
             is_alive, check_msg = is_proxy_alive(proxy)
             if not is_alive:

@@ -11,6 +11,11 @@
   // 针对主流短视频平台 CDN 流识别
   const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com)/i;
 
+  function isBiliDashUrl(url) {
+    if (!url) return false;
+    return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|\b\d{6,14}-\d+-\d+\.m4s\b)/i.test(url);
+  }
+
   // 严格过滤已知分片与切片特征 (过滤 .ts/.m4s 切片、Range 分段、init.mp4 初始化段)
   const FRAGMENT_REGEX = /(\.ts|\.m4s|\.m4v|\.vtt|\.srt|\.key|\.mp2t)(\?|#|$)|([-_/](seg|segment|chunk|frag|slice|part)[-_/\d]+)|(\b(init\.mp4|range=|\/stream\/segment))/i;
 
@@ -18,6 +23,7 @@
     if (!url) return true;
     const clean = String(url).split('#')[0];
     if (PLAYLIST_REGEX.test(clean)) return false; // 媒体清单永远放行！
+    if (isBiliDashUrl(clean)) return false; // B站完整DASH流绝非切片，放行！
     return FRAGMENT_REGEX.test(clean);
   }
 
@@ -33,6 +39,7 @@
         source: 'CATCATCH_INJECTOR',
         payload: {
           url: data.url,
+          audioUrl: data.audioUrl || '',
           title: document.title || '',
           pageUrl: window.location.href,
           referer: window.location.href,
@@ -157,6 +164,30 @@
 
   // 5. 深度扫描页面上所有媒体元素、分发源以及已加载的网络资源缓存
   function checkExistingMedia() {
+    // 5.0 针对 B站 页面原生 __playinfo__ 进行音画双轨嗅探
+    try {
+      const pi = window.__playinfo__;
+      if (pi && pi.data && pi.data.dash) {
+        const dash = pi.data.dash;
+        const videos = dash.video || [];
+        const audios = dash.audio || [];
+        if (videos.length > 0) {
+          const bestVideo = videos.reduce((prev, curr) => ((curr.id || 0) > (prev.id || 0) ? curr : prev), videos[0]);
+          const bestAudio = audios.length > 0 ? audios.reduce((prev, curr) => ((curr.id || 0) > (prev.id || 0) ? curr : prev), audios[0]) : null;
+          const vUrl = bestVideo.baseUrl || bestVideo.base_url || '';
+          const aUrl = bestAudio ? (bestAudio.baseUrl || bestAudio.base_url || '') : '';
+          if (vUrl) {
+            notifyMedia({
+              url: vUrl,
+              audioUrl: aUrl,
+              mediaType: 'bili_dash',
+              sourceType: 'bili_playinfo'
+            });
+          }
+        }
+      }
+    } catch (e) {}
+
     // 5.1 扫描 performance 资源加载记录 (捕获在 inject.js 运行前就已经发出的所有网络流)
     try {
       if (window.performance && typeof window.performance.getEntriesByType === 'function') {

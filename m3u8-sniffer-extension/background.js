@@ -35,17 +35,65 @@ const SEGMENT_EXT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)
 const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
 
 /**
+ * 判断是否为 B站 等 DASH 音画分离完整轨道流（绝非微小分片切片）
+ */
+function isBiliDashUrl(url) {
+  if (!url) return false;
+  return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|\b\d{6,14}-\d+-\d+\.m4s\b)/i.test(url);
+}
+
+/**
  * 精确判断是否为碎片切片
  */
 function isFragmentUrl(url) {
   if (!url) return true;
   const clean = String(url).split('#')[0];
   if (PLAYLIST_EXT_REGEX.test(clean)) return false; // 清单优先放行
+  if (isBiliDashUrl(clean)) return false; // B站音视频独立轨为完整媒体文件，放行！
   if (SEGMENT_EXT_REGEX.test(clean)) return true;
   if (/(^|\/)(init\.mp4|init\.m4s)$/i.test(clean.split('?')[0])) return true;
   if (/(^|\/)(segment|chunk|frag|seg|part)[-_.]?\d+\.(ts|m4s|mp4|m4v)/i.test(clean)) return true;
   if (/\/stream\/segment\//i.test(clean)) return true;
   return false;
+}
+
+// B站 DASH 音视频双流配对缓存池
+const biliStreamsMap = new Map();
+
+function parseBiliM4s(url) {
+  if (!url) return null;
+  const m = url.match(/(\d{6,14})-(\d+)-(\d+)\.m4s/i);
+  if (!m) return null;
+  const cid = m[1];
+  const part = m[2];
+  const streamId = parseInt(m[3], 10);
+  const isAudio = (streamId >= 30200 && streamId <= 30299);
+  return { cid, part, streamId, isAudio };
+}
+
+function getBiliQualityLabel(streamId) {
+  const qMap = {
+    127: "8K 超清",
+    126: "杜比视界",
+    125: "HDR 真彩",
+    120: "4K 超清",
+    116: "1080P60",
+    112: "1080P+",
+    100026: "1080P 高码率",
+    100024: "720P60",
+    80: "1080P 高清",
+    74: "720P60",
+    64: "720P",
+    32: "480P",
+    16: "360P"
+  };
+  return qMap[streamId] || (streamId >= 80 ? "1080P" : "720P");
+}
+
+function shouldBypassProxy(url) {
+  if (!url) return false;
+  const u = String(url).toLowerCase();
+  return /(bilivideo\.(com|cn)|bilibili\.com|hdslb\.com|b23\.tv|douyinvod\.com|douyin\.com|snssdk\.com|iesdouyin\.com|kwaicdn\.com|kwai\.net|kuaishou\.com|xhscdn\.com|xiaohongshu\.com|weibo\.com|qq\.com|iqiyi\.com|youku\.com)/i.test(u);
 }
 
 // 常见广告切片流与推广联盟正则识别
@@ -220,6 +268,83 @@ async function captureMediaRequest(details, respInfo) {
         }
       }
     } catch (e) {}
+  }
+
+  // 针对 B站 DASH 音画分离完整流进行智能配对
+  const biliInfo = parseBiliM4s(url);
+  if (biliInfo) {
+    const { cid, part, streamId, isAudio } = biliInfo;
+    let bEntry = biliStreamsMap.get(cid);
+    if (!bEntry) {
+      bEntry = {
+        cid,
+        part,
+        tabId,
+        pageTitle: pageTitle || 'B站高清视频',
+        pageUrl,
+        referer: referer || 'https://www.bilibili.com/',
+        userAgent,
+        cookie,
+        videoUrl: '',
+        videoQuality: '1080P',
+        videoStreamId: 0,
+        videoLength: 0,
+        audioUrl: '',
+        audioStreamId: 0,
+        audioLength: 0
+      };
+      biliStreamsMap.set(cid, bEntry);
+    }
+    if (pageTitle && (!bEntry.pageTitle || bEntry.pageTitle === 'B站高清视频')) {
+      bEntry.pageTitle = pageTitle;
+    }
+    if (cookie && !bEntry.cookie) bEntry.cookie = cookie;
+
+    if (isAudio) {
+      if (!bEntry.audioUrl || streamId > bEntry.audioStreamId) {
+        bEntry.audioUrl = url;
+        bEntry.audioStreamId = streamId;
+        if (respInfo && respInfo.contentLength) bEntry.audioLength = respInfo.contentLength;
+      }
+    } else {
+      if (!bEntry.videoUrl || streamId > bEntry.videoStreamId) {
+        bEntry.videoUrl = url;
+        bEntry.videoStreamId = streamId;
+        bEntry.videoQuality = getBiliQualityLabel(streamId);
+        if (respInfo && respInfo.contentLength) bEntry.videoLength = respInfo.contentLength;
+      }
+    }
+
+    // 生成或实时更新 【B站音画合一】 复合媒体条目
+    const cleanTitle = (bEntry.pageTitle || 'B站视频').replace(/^【B站音画合一】\s*/, '').trim();
+    const compositeItem = {
+      id: `bili_${cid}`,
+      url: bEntry.videoUrl || url,
+      audioUrl: bEntry.audioUrl || '',
+      tabId: tabId,
+      pageTitle: `【B站音画合一】${cleanTitle}`,
+      pageUrl: bEntry.pageUrl || pageUrl,
+      mediaType: 'bili_dash',
+      referer: bEntry.referer || 'https://www.bilibili.com/',
+      userAgent: bEntry.userAgent || userAgent,
+      cookie: bEntry.cookie || cookie,
+      baseUrl: url.substring(0, url.lastIndexOf('/') + 1),
+      contentType: 'video/mp4',
+      contentLength: bEntry.videoLength + bEntry.audioLength,
+      frameId: 0,
+      timestamp: Date.now(),
+      duration: 0,
+      resolution: bEntry.videoQuality || '1080P',
+      hasKey: false,
+      isAd: false,
+      isFeature: true,
+      isMaster: true,
+      isBiliDash: true
+    };
+
+    storageQueue = storageQueue.then(() => insertIntoStorage(compositeItem)).catch(() => {});
+    await storageQueue;
+    return;
   }
 
   const mediaType = detectMediaType(url, respInfo ? respInfo.contentType : "");
@@ -857,7 +982,9 @@ async function pushTaskToLocalClient(taskData) {
   try {
     const browserProxy = await detectBrowserProxy();
     const fillProxy = (item) => {
-      if (!item.proxy || item.proxy === 'auto' || item.proxy === 'browser') {
+      if (shouldBypassProxy(item.url)) {
+        item.proxy = 'direct';
+      } else if (!item.proxy || item.proxy === 'auto' || item.proxy === 'browser') {
         if (browserProxy && browserProxy.proxyUrl) {
           item.proxy = browserProxy.proxyUrl;
         } else if (browserProxy && browserProxy.mode === 'direct') {

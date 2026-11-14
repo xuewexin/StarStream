@@ -10,7 +10,7 @@ import uuid
 import re
 import urllib.request
 
-APP_VERSION = "v3.2.4"
+APP_VERSION = "v3.2.5"
 
 if getattr(sys, 'frozen', False):
     ROOT_DIR = os.path.dirname(os.path.abspath(sys.executable))
@@ -592,3 +592,30 @@ config = Config()
 get_effective_proxy = config.get_effective_proxy
 get_config = lambda: config._config
 load_config = config.load
+
+DOMESTIC_BYPASS_PATTERNS = [
+    "bilivideo.com", "bilivideo.cn", "bilibili.com", "hdslb.com", "b23.tv",
+    "douyinvod.com", "douyin.com", "snssdk.com", "iesdouyin.com", "bytegoofy.com", "bytedance.com",
+    "kwaicdn.com", "kwai.net", "kuaishou.com",
+    "xhscdn.com", "xiaohongshu.com",
+    "weibo.com", "weibocdn.com",
+    "qq.com", "gtimg.com", "qpic.cn",
+    "iqiyi.com", "qiyi.com", "iqiypic.com",
+    "youku.com", "ykimg.com",
+    "mgtv.com", "hunantv.com",
+    "sohu.com", "acfun.cn"
+]
+
+
+def should_bypass_proxy(url):
+    """
+    智能识别国内高速 CDN 节点与流媒体直链
+    由于此类平台大多强制校验客户端真实 IP (如 oi= IP 散列)，
+    若通过海外代理或异地代理抓取易触发 403 Forbidden 或连接超时，
+    因此一律自动切换为极速直连模式以确保 100% 下载成功率。
+    """
+    if not url:
+        return False
+    u = str(url).lower()
+    return any(p in u for p in DOMESTIC_BYPASS_PATTERNS)
+

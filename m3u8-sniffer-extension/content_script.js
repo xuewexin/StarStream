@@ -45,10 +45,15 @@
   // 精确分片识别：清单 (m3u8/mpd) 永不被当作切片丢弃
   const PLAYLIST_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
   const SEGMENT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)/i;
+  function isBiliDashUrl(url) {
+    if (!url) return false;
+    return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|\b\d{6,14}-\d+-\d+\.m4s\b)/i.test(url);
+  }
   function isFragmentUrl(url) {
     if (!url) return true;
     const clean = String(url).split('#')[0];
     if (PLAYLIST_REGEX.test(clean)) return false;
+    if (isBiliDashUrl(clean)) return false;
     if (SEGMENT_REGEX.test(clean)) return true;
     if (/(^|\/)(init\.mp4|init\.m4s)$/i.test(clean.split('?')[0])) return true;
     if (/(^|\/)(segment|chunk|frag|seg|part)[-_.]?\d+\.(ts|m4s|mp4|m4v)/i.test(clean)) return true;
@@ -410,6 +415,7 @@
           const chosen = pool[0];
           resolve({
             url: chosen.url,
+            audioUrl: chosen.audioUrl || '',
             mediaType: chosen.mediaType || 'm3u8',
             format: (chosen.mediaType || 'm3u8').toUpperCase(),
             resolution: bestResOf(chosen),
@@ -581,6 +587,7 @@
 
       const taskData = {
         url: mediaInfo.url,
+        audioUrl: mediaInfo.audioUrl || '',
         title: currentTitle,
         saveName: currentTitle,
         mediaType: mediaInfo.mediaType,

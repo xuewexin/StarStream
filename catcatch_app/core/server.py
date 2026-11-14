@@ -521,7 +521,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         # - 如果插件传递了 "system"，优先获取实际 Windows 系统代理；
         # - 如果插件传递了 "auto"、"default" 或未设置，自动使用客户端当前生效的探活代理
         custom_proxy = (item.get("proxy") or "").strip()
-        from .config import normalize_proxy_url, detect_system_proxy, is_proxy_alive
+        from .config import normalize_proxy_url, detect_system_proxy, is_proxy_alive, should_bypass_proxy
         mode = str(config.get("proxy_mode", "none")).lower()
         try:
             _host = (urlparse(url).hostname or "").lower()
@@ -529,7 +529,7 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         except Exception:
             _is_loopback = False
 
-        if _is_loopback or custom_proxy.lower() in ["direct", "none"]:
+        if _is_loopback or should_bypass_proxy(url) or custom_proxy.lower() in ["direct", "none"]:
             final_proxy = "direct"
         elif custom_proxy.lower() in ["auto", "default", "__default__", ""]:
             # 关键修复：客户端配置为直连时绝不能再回退到系统代理，否则失效的系统代理会让全部下载 502
@@ -549,12 +549,17 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 # 插件传来的代理已失效（浏览器代理/历史代理），退回客户端生效代理，再不行直连
                 final_proxy = config.get_effective_proxy(validate=True) or "direct"
 
+        audio_url = (item.get("audioUrl") or item.get("audio_url") or "").strip()
+        if not audio_url and 'p_res' in locals() and p_res.get("audio_url"):
+            audio_url = p_res.get("audio_url")
+
         task_info = {
             "url": url,
+            "audio_url": audio_url,
             "title": title,
             "resolution": item.get("resolution", ""),
             "duration": item.get("duration", 0),
-            "media_type": media_type,
+            "media_type": media_type or ("bili_dash" if audio_url else "video"),
             "save_dir": save_dir,
             "save_name": title,
             "headers": headers,

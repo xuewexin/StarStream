@@ -725,7 +725,9 @@ class MainWindow(QMainWindow):
             if status != self.current_category:
                 return False
         elif self.current_category in ["m3u8", "video", "audio", "file"]:
-            if media != self.current_category:
+            if self.current_category in ["m3u8", "video"] and media == "bili_dash":
+                pass
+            elif media != self.current_category:
                 return False
 
         if self.search_keyword:
@@ -825,6 +827,9 @@ class MainWindow(QMainWindow):
             type_col = QColor("#a78bfa" if not is_light else "#6366f1")
         elif mtype in ["VIDEO", "MP4"]:
             type_col = QColor("#3875f6" if not is_light else "#2563eb")
+        elif mtype in ["BILI_DASH", "DASH"]:
+            mtype = "音画合一"
+            type_col = QColor("#ec4899" if not is_light else "#db2777")
         elif mtype in ["AUDIO", "MP3"]:
             type_col = QColor("#34d399" if not is_light else "#059669")
         self._set_cell_item(row, 4, f"[{mtype}]", color=type_col, align=Qt.AlignCenter)

@@ -6,10 +6,15 @@
   // 精确分片识别：m3u8/mpd 清单永远放行，避免误杀深层高画质地址
   const PLAYLIST_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
   const SEGMENT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)/i;
+  function isBiliDashUrl(url) {
+    if (!url) return false;
+    return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|\b\d{6,14}-\d+-\d+\.m4s\b)/i.test(url);
+  }
   function isFragmentUrl(url) {
     if (!url) return true;
     const clean = String(url).split('#')[0];
     if (PLAYLIST_REGEX.test(clean)) return false;
+    if (isBiliDashUrl(clean)) return false; // B站音视频完整轨放行！
     if (SEGMENT_REGEX.test(clean)) return true;
     if (/(^|\/)(init\.mp4|init\.m4s)$/i.test(clean.split('?')[0])) return true;
     if (/(^|\/)(segment|chunk|frag|seg|part)[-_.]?\d+\.(ts|m4s|mp4|m4v)/i.test(clean)) return true;
@@ -410,6 +415,7 @@
         }
         return {
           url: it.url,
+          audioUrl: it.audioUrl || '',
           title: it.pageTitle || 'video',
           saveName: it.pageTitle || 'video',
           mediaType: it.mediaType,
@@ -983,7 +989,14 @@
     const domain = getDomain(item.url);
     const title = item.pageTitle || '视频流';
 
-    let tagsHtml = `<span class="tag-badge tag-type">${(item.mediaType || 'media').toUpperCase()}</span>`;
+    let tagsHtml = `<span class="tag-badge tag-type" style="${item.mediaType === 'bili_dash' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; font-weight: bold;' : ''}">${item.mediaType === 'bili_dash' ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
+    if (item.mediaType === 'bili_dash') {
+      if (item.audioUrl) {
+        tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="已成功抓取并配对高品质独立音频轨">已配对音频</span>`;
+      } else {
+        tagsHtml += `<span class="tag-badge" style="background:#f59e0b;color:#fff;" title="正在监听音频轨，若未加载可点击上方重新嗅探">等待音频</span>`;
+      }
+    }
     if (item.isMaster) {
       tagsHtml += `<span class="tag-badge" style="background:#2563eb;color:#fff;font-weight:600;" title="主清单 (Master Playlist)，N_m3u8DL-RE 将自动选择最高画质 1080P">最高画质 1080P</span>`;
     }
@@ -1052,7 +1065,7 @@
       <div class="card-tags">${tagsHtml}</div>
       <div class="card-url-box" title="${t('tip_copy_url', '点击复制完整直链')}">${escapeHtml(item.url)}</div>
       <div class="card-actions">
-        <button class="btn-sm btn-primary action-push">${t('btn_push')}</button>
+        <button class="btn-sm btn-primary action-push">${item.mediaType === 'bili_dash' ? '一键合并下载' : t('btn_push')}</button>
         <button class="btn-sm btn-secondary action-config" title="${t('btn_config')}">${t('btn_config')}</button>
         <button class="btn-sm btn-secondary action-copy-cmd" title="${t('btn_copy_cmd')}">${t('btn_copy_cmd')}</button>
         <button class="btn-sm btn-secondary action-preview">${t('btn_preview')}</button>
@@ -1239,6 +1252,7 @@
       }
       const taskData = {
         url: item.url,
+        audioUrl: item.audioUrl || '',
         title: titleInput.value.trim() || item.pageTitle || 'video',
         saveName: titleInput.value.trim() || item.pageTitle || 'video',
         mediaType: item.mediaType,
@@ -1475,8 +1489,16 @@
           });
         } else {
           previewVideo.src = item.url;
+          if (item.audioUrl) {
+            previewAudio.src = item.audioUrl;
+            previewAudio.currentTime = 0;
+            previewAudio.play().catch(() => {});
+            previewVideo.onplay = () => previewAudio.play().catch(() => {});
+            previewVideo.onpause = () => previewAudio.pause();
+            previewVideo.onseeking = () => { previewAudio.currentTime = previewVideo.currentTime; };
+          }
           previewVideo.play().catch(() => {});
-          if (statusEl) statusEl.textContent = '▶ 视频播放中';
+          if (statusEl) statusEl.textContent = item.audioUrl ? '▶ 音画双轨同步播放中' : '▶ 视频播放中';
         }
       }
     });
