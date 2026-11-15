@@ -113,10 +113,15 @@ class TaskManager(QObject):
         if not save_name:
             save_name = "video"
 
+        audio_url = (task_info.get("audio_url") or task_info.get("audioUrl") or "").strip()
+        if audio_url and media_type not in ["m3u8", "bili_dash"]:
+            media_type = "bili_dash"
+
         blob_err = "blob: 为浏览器临时内存对象，非网络地址。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！"
         task = {
             "id": task_id,
             "url": url,
+            "audio_url": audio_url,
             "title": raw_title,
             "resolution": res_formatted,
             "duration": dur_formatted,
@@ -127,6 +132,13 @@ class TaskManager(QObject):
             "format": task_info.get("format", "mp4"),
             "proxy": task_info.get("proxy", ""),
             "thread_count": task_info.get("thread_count", config.get("max_threads_per_task", 16)),
+            "baseUrl": task_info.get("baseUrl") or task_info.get("base_url") or "",
+            "pageUrl": task_info.get("pageUrl") or task_info.get("referer") or "",
+            "referer": task_info.get("referer") or task_info.get("pageUrl") or "",
+            "browser_name": task_info.get("browser_name") or "",
+            "user_agent": task_info.get("user_agent") or "",
+            "verification_required": task_info.get("verification_required", False),
+            "verification_url": task_info.get("verification_url", ""),
             "status": "error" if is_blob else ("waiting" if auto_start else "paused"),
             "progress": 0.0,
             "speed": "失败" if is_blob else "",
@@ -367,7 +379,10 @@ class TaskManager(QObject):
             self.save_tasks()
             self._schedule_next()
 
-        if task["media_type"] == "m3u8":
+        audio_target = (task.get("audio_url") or task.get("audioUrl") or "").strip()
+        if audio_target or task.get("media_type") == "bili_dash":
+            worker = FileDownloadTask(task, on_progress=on_prog, on_log=on_log, on_finished=on_fin)
+        elif task.get("media_type") == "m3u8":
             worker = StreamDownloadTask(task, on_progress=on_prog, on_log=on_log, on_finished=on_fin)
         else:
             worker = FileDownloadTask(task, on_progress=on_prog, on_log=on_log, on_finished=on_fin)

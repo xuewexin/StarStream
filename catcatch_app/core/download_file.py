@@ -74,6 +74,26 @@ class FileDownloadTask:
         self._is_paused = False
         self._thread = None
         self.output_file = ""
+        self.proxy = None
+        self.session = None
+        self._throttle_break_requested = False
+
+    def trigger_throttle_break(self):
+        """外部主动触发打破限速与刷新凭证"""
+        self._throttle_break_requested = True
+        if self.on_log:
+            self.on_log("[打破限速] 已触发凭证刷新与 CDN 链路重置...")
+        try:
+            from .download_stream import refresh_task_credentials
+            refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+            if self.session:
+                try:
+                    self.session.close()
+                except Exception:
+                    pass
+                self.session = get_requests_session(self.proxy)
+        except Exception:
+            pass
 
     def start(self):
         self._thread = threading.Thread(target=self._run, daemon=True)
@@ -100,8 +120,25 @@ class FileDownloadTask:
         save_name = self.task_data.get("save_name") or ""
         headers = self.task_data.get("headers", {})
 
+        # 动态对齐爬取浏览器（Edge / Chrome）的真实 User-Agent 与 Client Hints
+        browser_name = self.task_data.get("browser_name") or ""
+        user_agent = self.task_data.get("user_agent") or headers.get("User-Agent") or ""
+        if not user_agent:
+            if browser_name == "Edge":
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+            else:
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+        is_edge = "Edg/" in user_agent or browser_name == "Edge"
+        ch_ua = '"Microsoft Edge";v="131", "Chromium";v="131", "Not_A Brand";v="24"' if is_edge else '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
+
         req_headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "User-Agent": user_agent,
+            "Accept": "*/*",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            "sec-ch-ua": ch_ua,
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"'
         }
         req_headers.update({k: v for k, v in headers.items() if v})
 
@@ -174,10 +211,21 @@ class FileDownloadTask:
                             proxy = None
         else:
             proxy = None
+        self.proxy = proxy
         self.session = get_requests_session(proxy)
 
+        # 尝试跟随爬取浏览器同步最新凭证与 Cookie
+        try:
+            from .download_stream import refresh_task_credentials
+            refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+            # 刷新可能返回的重定向新 URL 或 Cookie
+            url = self.task_data.get("url") or url
+            req_headers.update({k: v for k, v in self.task_data.get("headers", {}).items() if v})
+        except Exception:
+            pass
+
         # 检查是否为 DASH 音视频双流任务 (如 B站 音画合一)
-        audio_url = self.task_data.get("audio_url")
+        audio_url = (self.task_data.get("audio_url") or self.task_data.get("audioUrl") or "").strip()
         if audio_url or self.task_data.get("media_type") == "bili_dash":
             if audio_url:
                 self._download_dual_stream(url, audio_url, req_headers, save_dir, save_name)
@@ -325,6 +373,25 @@ class FileDownloadTask:
                     chunk_headers = dict(headers)
                     chunk_headers["Range"] = f"bytes={cur_start}-{end_byte}"
                     with self.session.get(url, headers=chunk_headers, stream=True, timeout=25) as r:
+                        if r.status_code in (401, 403, 412):
+                            if self.on_log:
+                                self.on_log(f"[分块 {idx}] 遇到 HTTP {r.status_code} 凭证失效，正在跟随浏览器自动刷新 Token/Cookie...")
+                            from .download_stream import refresh_task_credentials
+                            refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+                            headers.update(self.task_data.get("headers", {}))
+                            chunk_headers.update(headers)
+                            time.sleep(1.0)
+                            if attempt >= max_retries - 2:
+                                try:
+                                    from .server import record_access_abnormality
+                                    record_access_abnormality(self.task_data, reason=f"目标站点返回 HTTP {r.status_code} 访问异常或触发人机验证", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                                    self.task_data["verification_required"] = True
+                                    self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                                    if self.on_log:
+                                        self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证，请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
+                                except Exception:
+                                    pass
+                            continue
                         if r.status_code not in (200, 206):
                             r.raise_for_status()
                         with open(part_path, mode) as f:
@@ -437,6 +504,25 @@ class FileDownloadTask:
                     mode = "ab"
 
                 with self.session.get(url, headers=cur_headers, stream=True, timeout=25) as r:
+                    if r.status_code in (401, 403, 412):
+                        if self.on_log:
+                            self.on_log(f"遇到 HTTP {r.status_code} 凭证失效，正在跟随浏览器自动刷新 Token/Cookie...")
+                        from .download_stream import refresh_task_credentials
+                        refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+                        headers.update(self.task_data.get("headers", {}))
+                        cur_headers.update(headers)
+                        time.sleep(1.0)
+                        if attempt >= max_retries - 2:
+                            try:
+                                from .server import record_access_abnormality
+                                record_access_abnormality(self.task_data, reason=f"目标站点返回 HTTP {r.status_code} 访问异常或触发人机验证", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                                self.task_data["verification_required"] = True
+                                self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                                if self.on_log:
+                                    self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证，请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
+                            except Exception:
+                                pass
+                        continue
                     if r.status_code not in (200, 206):
                         r.raise_for_status()
                     if total_size <= 0:
@@ -528,6 +614,12 @@ class FileDownloadTask:
             self.on_log(f"[音画合一] 视频轨: {video_url[:80]}...")
             self.on_log(f"[音画合一] 音频轨: {audio_url[:80]}...")
 
+        # 针对 B站 等平台的防盗链和跨域标头校验
+        if any(d in video_url or d in audio_url for d in ["bilivideo.com", "bilivideo.cn", "bilibili.com", "hdslb.com"]):
+            ref = self.task_data.get("referer") or self.task_data.get("pageUrl") or "https://www.bilibili.com/"
+            req_headers["Referer"] = ref
+            req_headers["Origin"] = "https://www.bilibili.com"
+
         # 1. 下载视频轨 (0% -> 65%)
         if self.on_log:
             self.on_log("[音画合一] 正在高速下载 1080P/高清独立视频轨...")
@@ -555,22 +647,54 @@ class FileDownloadTask:
                 self.on_finished(False, "未找到 FFmpeg 组件，无法合并音视频", "")
             return
 
+        v_size = os.path.getsize(tmp_video) if os.path.exists(tmp_video) else 0
+        a_size = os.path.getsize(tmp_audio) if os.path.exists(tmp_audio) else 0
+        if v_size == 0 or a_size == 0:
+            err = f"音视频分轨文件不完整: 视频轨大小 {format_size(v_size)}, 音频轨大小 {format_size(a_size)}"
+            if self.on_log:
+                self.on_log(f"[音画合一报错] {err}")
+            if self.on_finished:
+                self.on_finished(False, err, "")
+            return
+
         if self.on_log:
-            self.on_log("[音画合一] 音视频双轨已全部就绪，正在调用内置 FFmpeg 进行极速混流封装...")
+            self.on_log(f"[音画合一] 音视频双轨已全部就绪: 视频轨 ({format_size(v_size)}) + 音频轨 ({format_size(a_size)})，正在调用内置 FFmpeg 进行极速混流封装...")
         if self.on_progress:
             self.on_progress(90.0, "混流封装中", "00:02", 0, 0)
 
+        # 显式流映射（-map 0:v:0 -map 1:a:0 彻底避免静音轨或默认选轨错误丢弃真实音频）
         cmd = [
             ff_exe, "-y",
             "-i", tmp_video,
             "-i", tmp_audio,
-            "-c", "copy",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-c:a", "copy",
             "-movflags", "+faststart",
             final_mp4
         ]
         flags = subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
         try:
             res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, timeout=120)
+            # 若无损 copy 混流受阻（例如部分音轨编码非 AAC，无法以 copy 形式装入 MP4），自动降级为 AAC 极速转码混流
+            if res.returncode != 0 or not os.path.exists(final_mp4) or os.path.getsize(final_mp4) == 0:
+                if self.on_log:
+                    self.on_log("[音画合一] 无损直接混流受限，正在自动降级转码为 AAC 高清音轨混流...")
+                fallback_cmd = [
+                    ff_exe, "-y",
+                    "-i", tmp_video,
+                    "-i", tmp_audio,
+                    "-map", "0:v:0",
+                    "-map", "1:a:0",
+                    "-c:v", "copy",
+                    "-c:a", "aac",
+                    "-b:a", "192k",
+                    "-movflags", "+faststart",
+                    final_mp4
+                ]
+                res = subprocess.run(fallback_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=flags, timeout=180)
+
             if res.returncode == 0 and os.path.exists(final_mp4) and os.path.getsize(final_mp4) > 0:
                 try:
                     if os.path.exists(tmp_video): os.remove(tmp_video)
@@ -674,6 +798,25 @@ class FileDownloadTask:
                     chunk_headers = dict(headers)
                     chunk_headers["Range"] = f"bytes={cur_start}-{end_byte}"
                     with self.session.get(url, headers=chunk_headers, stream=True, timeout=25) as r:
+                        if r.status_code in (401, 403, 412):
+                            if self.on_log:
+                                self.on_log(f"[分块 {idx}] 遇到 HTTP {r.status_code} 凭证失效，正在跟随浏览器自动刷新 Token/Cookie...")
+                            from .download_stream import refresh_task_credentials
+                            refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+                            headers.update(self.task_data.get("headers", {}))
+                            chunk_headers.update(headers)
+                            time.sleep(1.0)
+                            if attempt >= max_retries - 2:
+                                try:
+                                    from .server import record_access_abnormality
+                                    record_access_abnormality(self.task_data, reason=f"目标站点返回 HTTP {r.status_code} 访问异常或触发人机验证", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                                    self.task_data["verification_required"] = True
+                                    self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                                    if self.on_log:
+                                        self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证，请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
+                                except Exception:
+                                    pass
+                            continue
                         if r.status_code not in (200, 206):
                             r.raise_for_status()
                         with open(part_path, mode) as f:
@@ -754,6 +897,25 @@ class FileDownloadTask:
                     mode = "ab"
 
                 with self.session.get(url, headers=cur_headers, stream=True, timeout=25) as r:
+                    if r.status_code in (401, 403, 412):
+                        if self.on_log:
+                            self.on_log(f"遇到 HTTP {r.status_code} 凭证失效，正在跟随浏览器自动刷新 Token/Cookie...")
+                        from .download_stream import refresh_task_credentials
+                        refresh_task_credentials(self.task_data, proxy=self.proxy, on_log=self.on_log)
+                        headers.update(self.task_data.get("headers", {}))
+                        cur_headers.update(headers)
+                        time.sleep(1.0)
+                        if attempt >= max_retries - 2:
+                            try:
+                                from .server import record_access_abnormality
+                                record_access_abnormality(self.task_data, reason=f"目标站点返回 HTTP {r.status_code} 访问异常或触发人机验证", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                                self.task_data["verification_required"] = True
+                                self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                                if self.on_log:
+                                    self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证，请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
+                            except Exception:
+                                pass
+                        continue
                     if r.status_code not in (200, 206):
                         r.raise_for_status()
                     if total_size <= 0:

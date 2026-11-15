@@ -36,16 +36,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.3_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.6_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20Standalone%20EXE-StarStream.exe%20(Auto--scan%20Engines)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip">
-    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.3.zip%20(177KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip">
+    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.6.zip%20(180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
   </a>
   &nbsp;&nbsp;
   <a href="#-comparison--alternatives-why-choose-starstream">
@@ -74,12 +74,12 @@
 ---
 
 > [!TIP]
-> ### 🆕 What's new in v3.2.3 (2026-11-11)
+> ### 🆕 What's new in v3.2.6 (2026-11-15)
 >
-> - 🎬 **Live-style HLS fixed** — Playlists without `#EXT-X-ENDLIST` are detected automatically and recorded with `--live-real-time-merge`; no more instant 0% / exit-code-1 failures.
-> - 🌐 **Chrome 142+ compatible** — Local Network Access workaround with `127.0.0.1` → `localhost` fallback and an actionable permission hint.
-> - ⚙️ **Settings panel no longer collapses** — per-video config, save directory, thread count and proxy survive list re-renders.
-> - 🚀 **Proxy logic corrected** — direct-first, stale-proxy fallback, loopback always direct.
+> - 🎬 **DASH Audio/Video 100% Remuxing Fixed** — Resolved missing `audio_url` in TaskManager; rebuilt FFmpeg stream mapping (`-map 0:v:0 -map 1:a:0`) with AAC transcoding fallback. Completely eradicated the bug where video preview had sound but downloaded MP4 had no audio!
+> - 🛡️ **Anti-Bot & Captcha Challenge Breakthrough** — Captures HTTP 412 / Geetest / Cloudflare challenges. Shows `Verification Required` label with 1-click browser challenge solver, and browser extension immediately syncs fresh credentials to resume downloads seamlessly.
+> - 🌐 **Dynamic Browser Fingerprint Alignment** — Dynamically aligns User-Agent and Client Hints with the actual sniffing browser (Edge / Chrome) to defeat TLS/fingerprint-based anti-scraping blocks.
+> - 🖱️ **Ghost Click / Penetration Fixed** — Eradicated phantom click feedback on the previous window position when the main window is minimized to system tray or floating widget.
 >
 > 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
 

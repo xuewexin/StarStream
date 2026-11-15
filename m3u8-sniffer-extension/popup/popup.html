@@ -60,6 +60,20 @@
       </div>
     </header>
 
+    <!-- 访问异常 / 人机验证警告横幅 (引导用户手动打破人机验证) -->
+    <div id="abnormalAccessBanner" class="abnormal-banner hidden">
+      <div class="abnormal-badge-row">
+        <span class="abnormal-badge">🛡️ 安全风控 / 需人机验证</span>
+        <span id="abnormalDomain" class="abnormal-domain"></span>
+      </div>
+      <div id="abnormalTitle" class="abnormal-title">检测到访问异常 (HTTP 412 / 滑块验证码)</div>
+      <div id="abnormalDesc" class="abnormal-desc">由于高频下载或凭证失效，目标站点触发了安全验证。请在真实浏览器中打开页面完成滑块或点选认证。</div>
+      <div class="abnormal-actions">
+        <button id="btnOpenVerificationPage" class="btn-verify-primary">👉 前往网页完成验证</button>
+        <button id="btnSyncAndResume" class="btn-verify-secondary">✨ 已完成，同步凭证</button>
+      </div>
+    </div>
+
     <!-- 页面生命周期范围 (只显示当前还存在的网站视频，页面消失自动刷新清理) -->
     <div class="scope-tabs-bar">
       <button id="scopeCurrentTab" class="scope-btn active" title="仅显示当前正浏览网页上抓取的视频">当前网页视频</button>

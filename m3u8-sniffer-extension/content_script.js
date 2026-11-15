@@ -166,6 +166,7 @@
     autoHideTimer = setTimeout(() => {
       if (activeFloatingBtn && !activePanel && !isMouseOverBtn) {
         activeFloatingBtn.classList.add('catcatch-btn-hidden');
+        activeFloatingBtn.style.display = 'none';
       }
     }, delay);
   }
@@ -246,6 +247,7 @@
 
     if (activeFloatingBtn && activeFloatingBtn.__targetMedia === mediaEl) {
       // 唤醒并重新开始倒计时自动消失
+      activeFloatingBtn.style.display = 'inline-flex';
       activeFloatingBtn.classList.remove('catcatch-btn-hidden');
       resetAutoHideTimer(3500);
       return;
@@ -273,6 +275,7 @@
     btn.addEventListener('mouseenter', () => {
       isMouseOverBtn = true;
       if (autoHideTimer) clearTimeout(autoHideTimer);
+      btn.style.display = 'inline-flex';
       btn.classList.remove('catcatch-btn-hidden');
     });
 
@@ -299,6 +302,7 @@
     // 监听播放器上的鼠标移动，有操作时唤醒，闲置 3.5 秒后自动隐去
     mediaEl.addEventListener('mousemove', () => {
       if (activeFloatingBtn && !mediaEl.__catcatch_dismissed) {
+        activeFloatingBtn.style.display = 'inline-flex';
         activeFloatingBtn.classList.remove('catcatch-btn-hidden');
         resetAutoHideTimer(3500);
       }
@@ -413,6 +417,13 @@
             return (b.timestamp || 0) - (a.timestamp || 0);
           });
           const chosen = pool[0];
+          if (!chosen.audioUrl && (chosen.mediaType === 'bili_dash' || chosen.mediaType === 'video' || (chosen.url && chosen.url.includes('bilivideo')))) {
+            const aTrack = pool.find(it => it.mediaType === 'audio' || (it.url && it.url.includes('30280.m4s')));
+            if (aTrack) {
+              chosen.audioUrl = aTrack.url;
+              chosen.mediaType = 'bili_dash';
+            }
+          }
           resolve({
             url: chosen.url,
             audioUrl: chosen.audioUrl || '',
@@ -585,6 +596,10 @@
         }
       }
 
+      const ua = mediaInfo.userAgent || navigator.userAgent;
+      const isEdge = /Edg\//i.test(ua);
+      const browserName = isEdge ? "Edge" : (/Firefox\//i.test(ua) ? "Firefox" : "Chrome");
+
       const taskData = {
         url: mediaInfo.url,
         audioUrl: mediaInfo.audioUrl || '',
@@ -594,12 +609,14 @@
         resolution: mediaInfo.resolution || resStr || '',
         duration: mediaInfo.duration || durSec || 0,
         proxy: finalProxy,
+        browserName: browserName,
+        userAgent: ua,
         pageUrl: window.location.href,
         referer: mediaInfo.referer || window.location.href,
         headers: {
           Referer: mediaInfo.referer || window.location.href,
           Origin: (() => { try { return new URL(mediaInfo.referer || window.location.href).origin; } catch (e) { return window.location.origin; } })(),
-          'User-Agent': mediaInfo.userAgent || navigator.userAgent,
+          'User-Agent': ua,
           Cookie: mediaInfo.cookie || ''
         }
       };

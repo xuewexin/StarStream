@@ -70,6 +70,18 @@ def diagnose_error(log_lines=None, error_msg="", url=""):
     # 过滤时间戳（如 23:21:56.504）与纯数字段，避免毫秒数或版本号误触发 HTTP 状态码正则
     text_clean = re.sub(r"\d{1,2}:\d{2}:\d{2}(?:\.\d+)?", " ", all_text)
 
+    # 0.5 浏览器访问异常 / 安全风控 / 人机验证拦截 (HTTP 412 / 验证码 / 滑块 / Cloudflare)
+    if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*412\b|Precondition\s*Failed|sec\.bilibili\.com|验证码|人机验证|人机认证|安全验证|滑块|geetest|cf-chl|Cloudflare\s*challenge|Just\s*a\s*moment|访问过于频繁.*?验证|风控)", text_clean, re.I):
+        return (
+            "目标站点触发安全风控 / 人机验证 (HTTP 412 / 验证码拦截)",
+            "目标流媒体服务端检测到访问频率异常或需要人机身份核验（如 B站/各平台滑块验证码或安全挑战）。\n"
+            "【操作指引 - 手动打破人机验证】\n"
+            "1. 请在软件任务列表右键点击该任务，选择【🛡️ 去浏览器人机验证 / 异常认证 (打破风控)】；\n"
+            "2. 软件将自动为您在真实浏览器中唤起视频播放页面或风控验证页；\n"
+            "3. 在打开的浏览器页面中完成滑块拖动、验证码点选或刷新页面直至视频正常起播；\n"
+            "4. 浏览器扩展插件将自动捕获并同步最新通行凭证（Cookie/Token），任务将立即无缝继续高速下载！"
+        )
+
     # 1. HTTP 403 Forbidden
     if re.search(r"(?:HTTP[/\s]*(?:status|code|response)?[:\s]*403\b|forbidden|status\s*code\s*[:=]?\s*403\b)", text_clean, re.I):
         return (

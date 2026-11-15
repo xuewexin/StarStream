@@ -47,6 +47,90 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* 访问异常与人机风控警告横幅 */
+.abnormal-banner {
+  margin: 8px 12px 4px 12px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(245, 158, 11, 0.16));
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  animation: bannerFadeIn 0.3s ease-out;
+}
+.abnormal-banner.hidden {
+  display: none !important;
+}
+.abnormal-badge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.abnormal-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.22);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.abnormal-domain {
+  font-size: 11px;
+  color: #a1a1aa;
+}
+.abnormal-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fca5a5;
+}
+.abnormal-desc {
+  font-size: 11px;
+  color: #d4d4d8;
+  line-height: 1.4;
+}
+.abnormal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.btn-verify-primary {
+  flex: 1;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn-verify-primary:hover {
+  opacity: 0.9;
+}
+.btn-verify-secondary {
+  flex: 1;
+  background: rgba(56, 117, 246, 0.2);
+  border: 1px solid rgba(56, 117, 246, 0.4);
+  color: #60a5fa;
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-verify-secondary:hover {
+  background: rgba(56, 117, 246, 0.35);
+}
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* 页面生命周期范围切换 */
 .scope-tabs-bar {
   display: flex;

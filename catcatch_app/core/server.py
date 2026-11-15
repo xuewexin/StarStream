@@ -18,6 +18,70 @@ from .task_manager import task_manager
 from .ffmpeg_engine import is_ffmpeg_available, get_ffmpeg_path
 from .cache_cleaner import get_fragment_folders, clean_all_fragment_folders
 
+# 浏览器爬取端会话凭证与 Token 刷新共享池 (跟随爬取视频的真实浏览器特征)
+BROWSER_COOKIE_POOL = {}
+TOKEN_REFRESH_REQUESTS = set()
+ABNORMAL_ACCESS_REPORTS = {}
+_TOKEN_LOCK = threading.Lock()
+
+def request_browser_token_refresh(domain):
+    if not domain:
+        return
+    with _TOKEN_LOCK:
+        TOKEN_REFRESH_REQUESTS.add(domain)
+
+def get_cached_browser_credentials(domain):
+    if not domain:
+        return None
+    with _TOKEN_LOCK:
+        return BROWSER_COOKIE_POOL.get(domain)
+
+def record_access_abnormality(task_data, reason="检测到目标站点触发访问异常或人机验证", verification_url=""):
+    ref = task_data.get("referer") or task_data.get("pageUrl") or task_data.get("url") or ""
+    dom = ""
+    try:
+        dom = urlparse(ref).hostname or ""
+    except Exception:
+        pass
+    if not dom:
+        try:
+            dom = urlparse(task_data.get("url", "")).hostname or ""
+        except Exception:
+            pass
+    if not verification_url:
+        verification_url = task_data.get("referer") or task_data.get("pageUrl") or task_data.get("url") or ""
+    report = {
+        "task_id": task_data.get("id"),
+        "domain": dom,
+        "title": task_data.get("title") or task_data.get("save_name") or "未命名任务",
+        "reason": reason,
+        "verification_url": verification_url,
+        "time": time.time()
+    }
+    with _TOKEN_LOCK:
+        if dom:
+            ABNORMAL_ACCESS_REPORTS[dom] = report
+            TOKEN_REFRESH_REQUESTS.add(dom)
+        elif task_data.get("id"):
+            ABNORMAL_ACCESS_REPORTS[str(task_data.get("id"))] = report
+    return report
+
+def clear_access_abnormality(domain_or_task_id=""):
+    with _TOKEN_LOCK:
+        if not domain_or_task_id:
+            ABNORMAL_ACCESS_REPORTS.clear()
+            return
+        if domain_or_task_id in ABNORMAL_ACCESS_REPORTS:
+            del ABNORMAL_ACCESS_REPORTS[domain_or_task_id]
+        else:
+            for k, v in list(ABNORMAL_ACCESS_REPORTS.items()):
+                if v.get("task_id") == domain_or_task_id or v.get("domain") == domain_or_task_id:
+                    del ABNORMAL_ACCESS_REPORTS[k]
+
+def get_active_abnormal_reports():
+    with _TOKEN_LOCK:
+        return list(ABNORMAL_ACCESS_REPORTS.values())
+
 
 MOBILE_HTML = """<!DOCTYPE html>
 <html lang="zh-CN">
@@ -353,6 +417,23 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/browser/token-requests":
+            with _TOKEN_LOCK:
+                domains = list(TOKEN_REFRESH_REQUESTS)
+            self._send_json_response(200, {"success": True, "domains": domains})
+            return
+
+        elif path == "/api/browser/cookies":
+            with _TOKEN_LOCK:
+                pool_copy = dict(BROWSER_COOKIE_POOL)
+            self._send_json_response(200, {"success": True, "cookies": pool_copy})
+            return
+
+        elif path == "/api/browser/abnormal-access":
+            reports = get_active_abnormal_reports()
+            self._send_json_response(200, {"success": True, "reports": reports})
+            return
+
         self._send_json_response(404, {"error": "Not Found"})
 
     def _send_status_json(self):
@@ -441,6 +522,53 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
                 self._send_json_response(200, {"success": True, "language": new_lang})
                 return
 
+        elif path == "/api/browser/cookies":
+            dom = (data.get("domain") or "").strip()
+            cookie_val = data.get("cookie") or ""
+            browser_name = data.get("browserName") or ""
+            user_agent = data.get("userAgent") or ""
+            if dom and cookie_val:
+                with _TOKEN_LOCK:
+                    BROWSER_COOKIE_POOL[dom] = {
+                        "cookie": cookie_val,
+                        "browserName": browser_name,
+                        "userAgent": user_agent,
+                        "time": time.time()
+                    }
+                    if dom in TOKEN_REFRESH_REQUESTS:
+                        TOKEN_REFRESH_REQUESTS.remove(dom)
+                try:
+                    for t in task_manager.get_all_tasks():
+                        t_ref = t.get("pageUrl") or t.get("referer") or t.get("url") or ""
+                        if dom in t_ref:
+                            t.setdefault("headers", {})["Cookie"] = cookie_val
+                            if user_agent and not t.get("headers", {}).get("User-Agent"):
+                                t["headers"]["User-Agent"] = user_agent
+                except Exception:
+                    pass
+            self._send_json_response(200, {"success": True, "domain": dom})
+            return
+
+        elif path == "/api/browser/abnormal-access/report":
+            rep = record_access_abnormality(data, reason=data.get("reason", "检测到访问异常"), verification_url=data.get("verification_url", ""))
+            self._send_json_response(200, {"success": True, "report": rep})
+            return
+
+        elif path == "/api/browser/abnormal-access/resolve":
+            dom = data.get("domain", "")
+            t_id = data.get("task_id", "")
+            clear_access_abnormality(dom or t_id)
+            # 自动通知 task_manager 尝试恢复任务
+            try:
+                for t in task_manager.get_all_tasks():
+                    if t.get("id") == t_id or (dom and dom in (t.get("referer") or t.get("pageUrl") or t.get("url") or "")):
+                        t["verification_required"] = False
+                        task_manager.break_task_throttle(t.get("id"))
+            except Exception:
+                pass
+            self._send_json_response(200, {"success": True, "message": "已清除访问异常状态并恢复下载"})
+            return
+
         self._send_json_response(404, {"error": "Not Found"})
 
     def do_DELETE(self):
@@ -464,28 +592,45 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
         if url.startswith("blob:"):
             raise ValueError("无法下载 blob: 链接（此为浏览器临时内存对象，非网络地址）。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！")
         
-        # 整理字段以适应 task_manager
+        # 整理字段以适应 task_manager 并保存真实爬取浏览器特征
         title = item.get("title") or item.get("pageTitle") or item.get("name") or "video"
         media_type = item.get("mediaType") or item.get("type") or ""
+        browser_name = item.get("browserName") or item.get("browser") or ""
+        user_agent = item.get("userAgent") or ""
+        page_url = item.get("pageUrl") or item.get("referer") or ""
+        ref_url = item.get("referer") or item.get("pageUrl") or ""
         
         headers = dict(item.get("headers", {}))
-        if "referer" in item and "Referer" not in headers and item["referer"]:
-            headers["Referer"] = item["referer"]
-        if "pageUrl" in item and "Referer" not in headers and item["pageUrl"]:
-            headers["Referer"] = item["pageUrl"]
-        if "userAgent" in item and "User-Agent" not in headers and item["userAgent"]:
-            headers["User-Agent"] = item["userAgent"]
+        if ref_url and "Referer" not in headers:
+            headers["Referer"] = ref_url
+        if user_agent and "User-Agent" not in headers:
+            headers["User-Agent"] = user_agent
         if "cookie" in item and "Cookie" not in headers and item["cookie"]:
             headers["Cookie"] = item["cookie"]
 
-        # 智能防盗链补齐：若有 Referer 自动补齐 Origin
-        if headers.get("Referer") and not headers.get("Origin"):
+        # 智能防盗链补齐：针对 B站 视频流强制对齐防盗链头
+        if any(d in url.lower() for d in ["bilivideo.com", "bilibili.com", "hdslb.com"]):
+            if "Referer" not in headers or not headers["Referer"]:
+                headers["Referer"] = ref_url or "https://www.bilibili.com/"
+            if "Origin" not in headers:
+                headers["Origin"] = "https://www.bilibili.com"
+        elif headers.get("Referer") and not headers.get("Origin"):
             try:
                 ref_u = urlparse(headers["Referer"])
                 if ref_u.scheme and ref_u.netloc:
                     headers["Origin"] = f"{ref_u.scheme}://{ref_u.netloc}"
             except Exception:
                 pass
+
+        # 尝试从浏览器实时凭证池同步填充最新 Cookie
+        try:
+            dom = urlparse(ref_url or url).hostname or ""
+            if dom:
+                cred = get_cached_browser_credentials(dom)
+                if cred and cred.get("cookie") and "Cookie" not in headers:
+                    headers["Cookie"] = cred["cookie"]
+        except Exception:
+            pass
 
         # 智能全网逆向解析: 若为主流短视频平台分享链接，自动在后台提取无水印直链
         if any(d in url.lower() for d in ["douyin.com", "bilibili.com", "b23.tv", "kuaishou.com", "xiaohongshu.com"]):
@@ -566,7 +711,11 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             "thread_count": thread_count,
             "proxy": final_proxy,
             "baseUrl": item.get("baseUrl") or item.get("base_url") or "",
-            "format": item.get("format", "mp4")
+            "format": item.get("format", "mp4"),
+            "pageUrl": page_url,
+            "referer": ref_url,
+            "browser_name": browser_name,
+            "user_agent": user_agent or headers.get("User-Agent", "")
         }
 
         task_id = task_manager.add_task(task_info, auto_start=True)

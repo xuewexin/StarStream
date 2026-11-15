@@ -37,16 +37,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.3_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.6_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20独立单文件-StarStream.exe%20(自动扫描前置引擎)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip">
-    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.3.zip%20(仅%20177KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip">
+    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.6.zip%20(仅%20180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
   &nbsp;&nbsp;
   <a href="#-同类开源项目横向对比与选型指南-comparison--alternatives">
@@ -75,14 +75,14 @@
 ---
 
 > [!TIP]
-> ### 🆕 最新版本 v3.2.3 · 2026-11-11
+> ### 🆕 最新版本 v3.2.6 · 2026-11-15
 >
 > | 更新 | 说明 |
 > | --- | --- |
-> | 🎬 **直播式 HLS 全面修复** | 自动识别无 `#EXT-X-ENDLIST` 的清单并切换「实时录制合并」，彻底解决**抓到视频却下载失败 / 任务 0% 退出** |
-> | 🌐 **Chrome 142+ 兼容** | 适配 Local Network Access 限制，扩展自动在 `127.0.0.1` / `localhost` 间回退，并给出授权引导 |
-> | ⚙️ **设置面板修复** | 卡片配置、保存目录、线程与代理选择在列表刷新后不再被重置折叠 |
-> | 🚀 **代理策略修正** | 直连优先、失效代理自动降级、回环地址强制直连，杜绝系统代理污染导致的 502 |
+> | 🎬 **DASH 独立音视频 100% 混流闭环** | 彻底修复 `TaskManager` 任务池 `audio_url` 字段丢失缺陷，重构 FFmpeg 显式流映射（`-map 0:v:0 -map 1:a:0`）与 AAC 自动降级转码混流，彻底根除**预览有声音但下载无声音** |
+> | 🛡️ **安全风控与人机验证异常穿透** | 自动捕获 HTTP 412 / 极验 / 验证码 / Cloudflare 拦截；客户端标记 `需人机认证` 并支持一键唤起真实浏览器，扩展端一键回传新凭证即时复活断点续传 |
+> | 🌐 **动态对齐爬取浏览器指纹** | 解除 Token/Cookie 刷新参数写死，动态跟随嗅探到视频流的真实浏览器（Edge / Chrome）User-Agent 与 Client Hints 凭证，规避反爬指纹拦截 |
+> | 🖱️ **隐藏窗口穿透反馈根除** | 彻底修复客户端主窗口在隐藏（最小化到系统托盘或桌面悬浮球）后，原主窗口屏幕位置依然响应鼠标点击和穿透反馈的问题 |
 >
 > 👉 [查看完整更新日志 CHANGELOG](CHANGELOG.md) · [下载最新版](https://github.com/xuewexin/StarStream/releases/latest)
 

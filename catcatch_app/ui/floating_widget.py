@@ -17,10 +17,10 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QProgressBar,
     QScrollArea, QFrame, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QPoint, QRectF, QTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QPoint, QRect, QRectF, QTimer, pyqtSignal
 from PyQt5.QtGui import (
     QPainter, QColor, QFont, QPen, QBrush, QLinearGradient,
-    QRadialGradient, QPainterPath, QPixmap
+    QRadialGradient, QPainterPath, QPixmap, QRegion
 )
 
 from catcatch_app.core.config import config
@@ -53,6 +53,16 @@ class FloatingDashboardPanel(QWidget):
         self._refresh_timer = QTimer(self)
         self._refresh_timer.timeout.connect(self.refresh_data)
         self._refresh_timer.start(1000)
+
+    def hideEvent(self, event):
+        if hasattr(self, "_refresh_timer") and self._refresh_timer.isActive():
+            self._refresh_timer.stop()
+        super().hideEvent(event)
+
+    def showEvent(self, event):
+        if hasattr(self, "_refresh_timer") and not self._refresh_timer.isActive():
+            self._refresh_timer.start(1000)
+        super().showEvent(event)
 
     def _init_ui(self):
         root_layout = QVBoxLayout(self)
@@ -379,7 +389,17 @@ class FloatingDashboardPanel(QWidget):
             r2.addWidget(pct_lbl)
 
             tid = t.get("id")
-            if t.get("status") == "downloading":
+            if t.get("verification_required"):
+                btn_act = QPushButton("去验证")
+                btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 3px; padding: 1px 4px; font-weight: bold;")
+                v_u = t.get("verification_url") or t.get("referer") or t.get("pageUrl") or t.get("url") or ""
+                def _do_open_v(u=v_u):
+                    from PyQt5.QtGui import QDesktopServices
+                    from PyQt5.QtCore import QUrl
+                    if u:
+                        QDesktopServices.openUrl(QUrl(u))
+                btn_act.clicked.connect(lambda _, u=v_u: _do_open_v(u))
+            elif t.get("status") == "downloading":
                 btn_act = QPushButton("暂停")
                 btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: transparent; border: 1px solid #78350f; border-radius: 3px; padding: 1px 4px;")
                 btn_act.clicked.connect(lambda _, x=tid: task_manager.pause_task(x))
@@ -485,6 +505,40 @@ class FloatingWidget(QWidget):
         w = int(base_w * self.scale_factor)
         h = int(base_h * self.scale_factor)
         self.setFixedSize(w, h)
+        self._update_widget_mask()
+
+    def _update_widget_mask(self):
+        """设置精确的窗口点击区域遮罩，使挂件外部透明区域彻底点击穿透，杜绝透明边缘幽灵捕获鼠标事件"""
+        try:
+            w, h = self.width(), self.height()
+            s = self.scale_factor
+            if self.skin == "water_sphere":
+                cx, cy = int(50 * s), int(50 * s)
+                r = int(38 * s)
+                region = QRegion(cx - r, cy - r, r * 2, r * 2, QRegion.Ellipse)
+            elif self.skin == "starstream_core":
+                r_ball = int(32 * s)
+                reg_ball = QRegion(0, 0, r_ball * 2, r_ball * 2, QRegion.Ellipse)
+                reg_card = QRegion(int(64 * s), int(8 * s), int(100 * s), int(56 * s))
+                region = reg_ball.united(reg_card)
+            else:
+                region = QRegion(0, 0, w, h)
+            self.setMask(region)
+        except Exception:
+            pass
+
+    def hideEvent(self, event):
+        if hasattr(self, "_anim_timer") and self._anim_timer.isActive():
+            self._anim_timer.stop()
+        if hasattr(self, "_dashboard") and self._dashboard.isVisible():
+            self._dashboard.hide()
+        super().hideEvent(event)
+
+    def showEvent(self, event):
+        if hasattr(self, "_anim_timer") and not self._anim_timer.isActive():
+            self._anim_timer.start(33)
+        self._update_widget_mask()
+        super().showEvent(event)
 
     def update_stats(self, speed_str, active_count, total_count):
         """由主窗口定时器驱动更新网速和进度数据"""

@@ -237,6 +237,7 @@
 
     try {
       checkClientStatus(); // 异步探测客户端，更新在线状态标记
+      checkAbnormalAccessReports(); // 监测是否存在待人工认证的异常风控
     } catch (e) {}
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -413,6 +414,10 @@
         if (ref) {
           try { orig = new URL(ref).origin; } catch (e) {}
         }
+        const ua = it.userAgent || navigator.userAgent;
+        const isEdge = /Edg\//i.test(ua);
+        const browserName = isEdge ? "Edge" : (/Firefox\//i.test(ua) ? "Firefox" : "Chrome");
+
         return {
           url: it.url,
           audioUrl: it.audioUrl || '',
@@ -423,10 +428,12 @@
           duration: it.duration || 0,
           referer: ref,
           pageUrl: it.pageUrl || ref,
+          browserName: browserName,
+          userAgent: ua,
           headers: {
             Referer: ref,
             Origin: orig,
-            'User-Agent': it.userAgent || '',
+            'User-Agent': ua,
             Cookie: it.cookie || ''
           },
           baseUrl: it.baseUrl || ''
@@ -603,6 +610,110 @@
       }
     }
     updateProxyTips();
+    checkAbnormalAccessReports();
+  }
+
+  function showToast(msg) {
+    let tEl = document.getElementById('popupToast');
+    if (!tEl) {
+      tEl = document.createElement('div');
+      tEl.id = 'popupToast';
+      tEl.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid #3875f6;color:#ffffff;padding:8px 16px;border-radius:6px;font-size:12px;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.5);pointer-events:none;transition:opacity 0.3s;';
+      document.body.appendChild(tEl);
+    }
+    tEl.textContent = msg;
+    tEl.style.opacity = '1';
+    setTimeout(() => { tEl.style.opacity = '0'; }, 2500);
+  }
+
+  async function checkAbnormalAccessReports() {
+    const banner = document.getElementById('abnormalAccessBanner');
+    if (!banner) return;
+
+    let reports = [];
+    try {
+      const resp = await fetch(`http://127.0.0.1:${clientPort}/api/browser/abnormal-access`, { method: 'GET', cache: 'no-store' });
+      if (resp && resp.ok) {
+        const data = await resp.json();
+        if (data && data.reports) reports = data.reports;
+      }
+    } catch (e) {
+      try {
+        const stored = await chrome.storage.local.get(['activeAbnormalReports']);
+        if (stored && stored.activeAbnormalReports) reports = stored.activeAbnormalReports;
+      } catch (err) {}
+    }
+
+    if (reports && reports.length > 0) {
+      const rep = reports[0];
+      banner.classList.remove('hidden');
+      const domEl = document.getElementById('abnormalDomain');
+      const titEl = document.getElementById('abnormalTitle');
+      const descEl = document.getElementById('abnormalDesc');
+      if (domEl) domEl.textContent = rep.domain || '';
+      if (titEl) titEl.textContent = rep.title ? `【${rep.title}】触发安全风控/人机验证` : '检测到访问异常 (需人机验证)';
+      if (descEl) descEl.textContent = rep.reason || '由于访问频率过高或凭证失效，目标站点触发了安全验证。请在真实浏览器中打开页面完成滑块或点选认证。';
+
+      const btnOpen = document.getElementById('btnOpenVerificationPage');
+      if (btnOpen) {
+        btnOpen.onclick = async () => {
+          const targetUrl = rep.verification_url || (rep.domain ? `https://${rep.domain}` : 'https://www.bilibili.com');
+          chrome.tabs.query({}, (tabs) => {
+            let found = null;
+            if (rep.domain) {
+              found = tabs.find((t) => t.url && t.url.includes(rep.domain));
+            }
+            if (found) {
+              chrome.tabs.update(found.id, { active: true });
+              if (found.windowId) chrome.windows.update(found.windowId, { focused: true });
+            } else {
+              chrome.tabs.create({ url: targetUrl });
+            }
+          });
+        };
+      }
+
+      const btnSync = document.getElementById('btnSyncAndResume');
+      if (btnSync) {
+        btnSync.onclick = async () => {
+          btnSync.disabled = true;
+          btnSync.textContent = '正在同步...';
+          try {
+            if (rep.domain && chrome.cookies) {
+              const cks = await chrome.cookies.getAll({ domain: rep.domain });
+              if (cks && cks.length > 0) {
+                const cookieStr = cks.map((c) => `${c.name}=${c.value}`).join('; ');
+                await fetch(`http://127.0.0.1:${clientPort}/api/browser/cookies`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    domain: rep.domain,
+                    cookie: cookieStr,
+                    browserName: /Edg\//i.test(navigator.userAgent) ? 'Edge' : 'Chrome',
+                    userAgent: navigator.userAgent
+                  })
+                });
+              }
+            }
+            await fetch(`http://127.0.0.1:${clientPort}/api/browser/abnormal-access/resolve`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ domain: rep.domain, task_id: rep.task_id })
+            });
+            await chrome.storage.local.remove(['activeAbnormalReports']);
+            banner.classList.add('hidden');
+            showToast('✅ 凭证已同步，下载任务已恢复继续！');
+          } catch (e) {
+            showToast('同步提示: ' + e.message);
+          } finally {
+            btnSync.disabled = false;
+            btnSync.textContent = '✨ 已完成，同步凭证';
+          }
+        };
+      }
+    } else {
+      banner.classList.add('hidden');
+    }
   }
 
   async function checkClientStatus() {
@@ -989,6 +1100,15 @@
     const domain = getDomain(item.url);
     const title = item.pageTitle || '视频流';
 
+    // 智能配对：若当前为 B站/视频流且未携带音频，自动从列表同标签页检索独立音频轨并完成就地配对
+    if (!item.audioUrl && (item.mediaType === 'bili_dash' || item.mediaType === 'video' || (item.url && item.url.includes('bilivideo')))) {
+      const pairedAudio = (mediaList || []).find((other) => other.mediaType === 'audio' && (other.tabId === item.tabId || (other.pageUrl && other.pageUrl === item.pageUrl)));
+      if (pairedAudio) {
+        item.audioUrl = pairedAudio.url;
+        item.mediaType = 'bili_dash';
+      }
+    }
+
     let tagsHtml = `<span class="tag-badge tag-type" style="${item.mediaType === 'bili_dash' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; font-weight: bold;' : ''}">${item.mediaType === 'bili_dash' ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
     if (item.mediaType === 'bili_dash') {
       if (item.audioUrl) {
@@ -1250,6 +1370,10 @@
           }
         } catch (e) {}
       }
+      const ua = item.userAgent || navigator.userAgent;
+      const isEdge = /Edg\//i.test(ua);
+      const browserName = isEdge ? "Edge" : (/Firefox\//i.test(ua) ? "Firefox" : "Chrome");
+
       const taskData = {
         url: item.url,
         audioUrl: item.audioUrl || '',
@@ -1260,10 +1384,12 @@
         duration: item.duration || 0,
         referer: ref,
         pageUrl: item.pageUrl || ref,
+        browserName: browserName,
+        userAgent: ua,
         headers: {
           Referer: ref,
           Origin: orig,
-          'User-Agent': item.userAgent || '',
+          'User-Agent': ua,
           Cookie: item.cookie || ''
         },
         baseUrl: item.baseUrl || '',

@@ -48,6 +48,7 @@ class NewTaskDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         self._parse_worker = None
+        self._parsed_audio_url = ""
         self._init_ui(initial_url, initial_title)
         self._check_clipboard(initial_url)
 
@@ -213,6 +214,7 @@ class NewTaskDialog(QDialog):
     def _on_parse_success(self, res):
         self.parse_btn.setEnabled(True)
         self.url_edit.setText(res.get("url", ""))
+        self._parsed_audio_url = (res.get("audio_url") or "").strip()
         
         title = res.get("title", "")
         if title:
@@ -301,10 +303,11 @@ class NewTaskDialog(QDialog):
 
             task_info = {
                 "url": url,
+                "audio_url": self._parsed_audio_url,
                 "title": name,
                 "save_name": name,
                 "save_dir": save_dir,
-                "media_type": media_type,
+                "media_type": "bili_dash" if self._parsed_audio_url else media_type,
                 "headers": headers,
                 "thread_count": self.thread_spin.value(),
                 "proxy": final_proxy

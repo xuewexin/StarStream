@@ -41,34 +41,82 @@ def is_loopback_url(url):
 
 def refresh_task_credentials(task_data, proxy=None, on_log=None):
     """
-    智能刷新流媒体凭证与会话 Cookie (参考猫抓与业界断流重连机制)
-    1. 请求来源页 (Referer / pageUrl) 获取最新 Set-Cookie 与会话凭证
-    2. 请求原始媒体清单链接获取重定向后携带的全新 Token/签名参数
+    智能刷新流媒体凭证与会话 Cookie (严格跟随爬取该视频的真实浏览器特征与最新凭证)
+    1. 动态对齐爬取浏览器（Edge / Chrome）的真实 User-Agent 与 Sec-CH-UA 客户端指纹
+    2. 从浏览器扩展实时凭证池直接拉取目标域名最新的登录凭证与会话 Cookie
+    3. 请求来源页 (Referer / pageUrl) 与原始清单获取重定向后携带的全新 Token/签名参数
     """
     url = task_data.get("url", "")
     headers = dict(task_data.get("headers", {}))
-    ref = task_data.get("referer") or task_data.get("pageUrl") or headers.get("Referer")
+    ref = task_data.get("referer") or task_data.get("pageUrl") or headers.get("Referer") or ""
     
+    # 动态跟随爬取视频的浏览器特征，严禁写死单个固定 Chrome 版本
+    browser_name = task_data.get("browser_name") or ""
+    user_agent = task_data.get("user_agent") or headers.get("User-Agent") or ""
+    if not user_agent:
+        if browser_name == "Edge":
+            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0"
+        else:
+            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+    is_edge = "Edg/" in user_agent or browser_name == "Edge"
+    ch_ua = '"Microsoft Edge";v="131", "Chromium";v="131", "Not_A Brand";v="24"' if is_edge else '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"'
+
     proxies = None
     if proxy and proxy.lower() not in ["none", "direct", "system"]:
         proxies = {"http": proxy, "https": proxy}
     
     session = requests.Session()
     req_headers = {
-        "User-Agent": headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+        "User-Agent": user_agent,
         "Accept": "*/*",
-        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "sec-ch-ua": ch_ua,
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"'
     }
-    if ref:
+
+    # B站等主流平台严格校验 Referer 与 Origin
+    if any(d in url.lower() for d in ["bilivideo.com", "bilibili.com", "hdslb.com"]):
+        if not ref or not ref.startswith("http"):
+            ref = "https://www.bilibili.com/"
         req_headers["Referer"] = ref
-    if headers.get("Origin"):
-        req_headers["Origin"] = headers.get("Origin")
+        req_headers["Origin"] = "https://www.bilibili.com"
+    elif ref:
+        req_headers["Referer"] = ref
+        if headers.get("Origin"):
+            req_headers["Origin"] = headers.get("Origin")
+
     if headers.get("Cookie"):
         req_headers["Cookie"] = headers.get("Cookie")
 
     refreshed_items = []
+
+    # 步骤 0: 优先从浏览器扩展实时凭证池同步目标域名的最新 Cookie (跟随爬取浏览器)
+    try:
+        from .server import get_cached_browser_credentials, request_browser_token_refresh
+        dom = ""
+        if ref:
+            dom = urlparse(ref).hostname or ""
+        elif url:
+            dom = urlparse(url).hostname or ""
+        if dom:
+            request_browser_token_refresh(dom)
+            cached = get_cached_browser_credentials(dom)
+            if cached and cached.get("cookie"):
+                b_cookie = cached["cookie"]
+                headers["Cookie"] = b_cookie
+                task_data.setdefault("headers", {})["Cookie"] = b_cookie
+                req_headers["Cookie"] = b_cookie
+                refreshed_items.append(f"浏览器({cached.get('browserName') or 'Browser'})实时Cookie")
+                if cached.get("userAgent"):
+                    headers["User-Agent"] = cached["userAgent"]
+                    task_data["user_agent"] = cached["userAgent"]
+                    req_headers["User-Agent"] = cached["userAgent"]
+    except Exception:
+        pass
     
-    # 步骤 1: 访问源页面拉取最新 Cookie
+    # 步骤 1: 访问源页面拉取最新 Set-Cookie
     if ref and not is_loopback_url(ref):
         try:
             r_page = session.get(ref, headers=req_headers, proxies=proxies, timeout=5, verify=False)
@@ -114,7 +162,7 @@ def refresh_task_credentials(task_data, proxy=None, on_log=None):
             pass
 
     if refreshed_items and on_log:
-        on_log(f"[凭证智能刷新] 已成功更新: {' + '.join(refreshed_items)}")
+        on_log(f"[凭证智能刷新] 已跟随爬取浏览器成功更新: {' + '.join(refreshed_items)}")
     return bool(refreshed_items)
 
 
@@ -787,6 +835,66 @@ class StreamDownloadTask:
             has_valid_output = actual_output and os.path.exists(actual_output) and os.path.getsize(actual_output) > 1024 * 1024
 
             if ret == 0 or has_valid_output:
+                # 智能音频流兜底：检查是否存在未合并的伴生独立音频文件 (如 save_name.m4a / .aac / _audio.m4a 等)
+                try:
+                    ff_exe = get_ffmpeg_path()
+                    if ff_exe and actual_output and os.path.exists(actual_output):
+                        base_stem = os.path.splitext(actual_output)[0]
+                        audio_cand = None
+                        for ext in [".m4a", ".aac", ".mp3", ".eac3", ".wav"]:
+                            for p_test in [f"{base_stem}{ext}", f"{base_stem}_audio{ext}", f"{base_stem}.audio{ext}"]:
+                                if os.path.exists(p_test) and os.path.getsize(p_test) > 1024:
+                                    audio_cand = p_test
+                                    break
+                            if audio_cand:
+                                break
+                        
+                        if audio_cand and os.path.abspath(audio_cand) != os.path.abspath(actual_output):
+                            if self.on_log:
+                                self.on_log(f"[音画智能合并] 检测到独立伴生音频文件 ({os.path.basename(audio_cand)})，正在调用 FFmpeg 进行声画合一封装...")
+                            merged_tmp = os.path.join(save_dir, f"_merged_{int(time.time())}_{os.path.basename(actual_output)}")
+                            merge_cmd = [
+                                ff_exe, "-y",
+                                "-i", actual_output,
+                                "-i", audio_cand,
+                                "-map", "0:v:0",
+                                "-map", "1:a:0",
+                                "-c:v", "copy",
+                                "-c:a", "copy",
+                                "-movflags", "+faststart",
+                                merged_tmp
+                            ]
+                            m_res = subprocess.run(merge_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creationflags, timeout=120)
+                            if m_res.returncode != 0 or not os.path.exists(merged_tmp) or os.path.getsize(merged_tmp) == 0:
+                                # 尝试 aac 转码混流
+                                merge_cmd_fb = [
+                                    ff_exe, "-y",
+                                    "-i", actual_output,
+                                    "-i", audio_cand,
+                                    "-map", "0:v:0",
+                                    "-map", "1:a:0",
+                                    "-c:v", "copy",
+                                    "-c:a", "aac",
+                                    "-b:a", "192k",
+                                    "-movflags", "+faststart",
+                                    merged_tmp
+                                ]
+                                m_res = subprocess.run(merge_cmd_fb, stdout=subprocess.PIPE, stderr=subprocess.PIPE, creationflags=creationflags, timeout=180)
+
+                            if m_res.returncode == 0 and os.path.exists(merged_tmp) and os.path.getsize(merged_tmp) > 0:
+                                try:
+                                    os.replace(merged_tmp, actual_output)
+                                    if config.get("del_tmp_files", True):
+                                        os.remove(audio_cand)
+                                    if self.on_log:
+                                        self.on_log(f"[音画智能合并] 伴生音频已完美混流进主视频: {os.path.basename(actual_output)}")
+                                except Exception as me:
+                                    if self.on_log:
+                                        self.on_log(f"[音画智能合并] 替换文件提示: {me}")
+                except Exception as e:
+                    if self.on_log:
+                        self.on_log(f"[音画智能合并提示] {e}")
+
                 # 自动转封装为标准 MP4 (带 faststart 网页秒播)
                 if config.get("auto_convert_mp4", True) and not actual_output.lower().endswith(".mp4") and os.path.exists(actual_output):
                     mp4_path = os.path.splitext(actual_output)[0] + ".mp4"
@@ -824,9 +932,21 @@ class StreamDownloadTask:
                     self.on_finished(True, "下载并合并成功", actual_output)
             else:
                 err_summary = f"下载器退出代码异常: {ret}"
-                warn_lines = [l for l in recent_lines if any(k in l for k in ["WARN", "ERROR", "FAIL", "403", "404", "401", "Exception"])]
+                warn_lines = [l for l in recent_lines if any(k in l for k in ["WARN", "ERROR", "FAIL", "403", "404", "401", "412", "Exception"])]
                 if warn_lines:
                     err_summary += f" ({warn_lines[-1]})"
+
+                all_log = " ".join(recent_lines)
+                if re.search(r"412|Precondition\s*Failed|sec\.bilibili\.com|验证码|人机验证|风控|challenge|cf-chl", all_log, re.I):
+                    try:
+                        from .server import record_access_abnormality
+                        record_access_abnormality(self.task_data, reason="目标站点触发安全风控/人机验证挑战", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                    except Exception:
+                        pass
+                    self.task_data["verification_required"] = True
+                    self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                    if self.on_log:
+                        self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证！请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
 
                 # 自适应自愈容错降级：当外部 CLI 因 403 / TLS 指纹 / 反爬阻断导致失败时，自动启动内置原生流媒体引擎
                 if not self._is_cancelled:
@@ -1090,5 +1210,16 @@ class StreamDownloadTask:
 
         except Exception as e:
             shutil.rmtree(tmp_dir, ignore_errors=True)
+            err_str = str(e)
+            if re.search(r"412|Precondition\s*Failed|403|429|sec\.bilibili\.com|验证码|人机验证|风控|challenge|cf-chl", err_str, re.I):
+                try:
+                    from .server import record_access_abnormality
+                    record_access_abnormality(self.task_data, reason=f"目标站点触发安全风控/人机验证: {err_str[:60]}", verification_url=self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url"))
+                except Exception:
+                    pass
+                self.task_data["verification_required"] = True
+                self.task_data["verification_url"] = self.task_data.get("referer") or self.task_data.get("pageUrl") or self.task_data.get("url")
+                if self.on_log:
+                    self.on_log("[安全风控告警] 目标站点触发安全风控/人机验证！请在客户端右键点击【去浏览器人机验证】并在浏览器中完成认证")
             if self.on_finished:
                 self.on_finished(False, f"内置流媒体下载器异常: {e}", "")

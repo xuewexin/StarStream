@@ -33,13 +33,14 @@ const SEGMENT_EXT_REGEX = /\.(ts|m4s|m4v|mp2t|cmfv|cmfa|vtt|srt|ass|key)(\?|#|$)
 
 // 针对抖音/快手/B站/小红书等短视频无后缀 CDN 流的智能识别正则
 const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
+const STREAM_KEYWORD_REGEX = /((\.m3u8|\.mpd|\.flv|\.mp4|\.m4s|manifest|\/dash\/|\/hls\/|\/playlist|\/master)([\?&#\/]|$))|(\b(playurl|play_url|videoplayurl|getvideo|getstream)\b)/i;
 
 /**
  * 判断是否为 B站 等 DASH 音画分离完整轨道流（绝非微小分片切片）
  */
 function isBiliDashUrl(url) {
   if (!url) return false;
-  return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|\b\d{6,14}-\d+-\d+\.m4s\b)/i.test(url);
+  return /(bilivideo\.(com|cn)|hdslb\.com|\/upgcxcode\/|\bgen=playurlv3\b|bilibili\.com|\b\d{6,14}.*?\.m4s\b)/i.test(url);
 }
 
 /**
@@ -62,12 +63,46 @@ const biliStreamsMap = new Map();
 
 function parseBiliM4s(url) {
   if (!url) return null;
-  const m = url.match(/(\d{6,14})-(\d+)-(\d+)\.m4s/i);
-  if (!m) return null;
-  const cid = m[1];
-  const part = m[2];
-  const streamId = parseInt(m[3], 10);
-  const isAudio = (streamId >= 30200 && streamId <= 30299);
+  const clean = String(url).split('?')[0];
+  if (!isBiliDashUrl(url)) return null;
+
+  let cid = '';
+  let part = '1';
+  let streamId = 0;
+
+  // 1. 匹配 123456789_nb3-1-30080.m4s 或 123456789-1-30080.m4s 或 123456789-30080.m4s
+  const m1 = clean.match(/(\d{6,14})(?:_[a-z0-9]+)?(?:-(\d+))?-(\d{2,6})\.m4s/i);
+  if (m1) {
+    cid = m1[1];
+    part = m1[2] || '1';
+    streamId = parseInt(m1[3], 10);
+  } else {
+    // 2. 匹配路径中包含 cid: /upgcxcode/xx/xx/123456789/...
+    const m2 = clean.match(/\/upgcxcode\/\d+\/\d+\/(\d{6,14})\/.*?(?:-(\d{2,6}))?\.m4s/i);
+    if (m2) {
+      cid = m2[1];
+      streamId = parseInt(m2[2] || '0', 10);
+    } else {
+      const mCid = clean.match(/(\d{6,14})/);
+      const mStream = clean.match(/[-_](\d{2,6})\.m4s/i);
+      if (mCid) cid = mCid[1];
+      if (mStream) streamId = parseInt(mStream[1], 10);
+    }
+  }
+
+  // 3. 兜底提取
+  if (!cid) {
+    const mBili = clean.match(/\/([a-zA-Z0-9_\-]+)\.m4s/i);
+    if (mBili) {
+      cid = mBili[1].split('-')[0] || 'bili_stream';
+      const mStream = mBili[1].match(/(\d{2,6})$/);
+      if (mStream) streamId = parseInt(mStream[1], 10);
+    }
+  }
+
+  if (!cid) return null;
+
+  const isAudio = (streamId >= 30200 && streamId <= 30299) || /audio/i.test(clean) || /audio/i.test(url);
   return { cid, part, streamId, isAudio };
 }
 
@@ -132,14 +167,21 @@ chrome.runtime.onStartup.addListener(() => {
 // 串行队列保证存储读写原子性
 let storageQueue = Promise.resolve();
 
-// 1. 监听请求发起 (捕获 Referer, UA, Cookie, Authorization)
+// 1. 监听请求发起 (捕获 Referer, UA, Cookie, Authorization - 猫抓同款媒体探测)
 chrome.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     const url = details.url;
     if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
     if (BLACKLIST_REGEX.test(url)) return;
     if (isFragmentUrl(url)) return; // 严格过滤分片
-    if (!MEDIA_EXT_REGEX.test(url) && !SHORT_VIDEO_CDN_REGEX.test(url)) return;
+
+    const isMediaCandidate =
+      MEDIA_EXT_REGEX.test(url) ||
+      SHORT_VIDEO_CDN_REGEX.test(url) ||
+      STREAM_KEYWORD_REGEX.test(url) ||
+      details.type === "media";
+
+    if (!isMediaCandidate) return;
 
     captureMediaRequest(details, null);
   },
@@ -147,11 +189,31 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ["requestHeaders", "extraHeaders"]
 );
 
-// 2. 监听响应头部 (通过 Content-Type 捕获无后缀视频流及文件大小)
+// 2. 监听响应头部 (通过 Content-Type、Content-Disposition 及媒体特征捕获全网视频流)
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     const url = details.url;
     if (details.tabId === undefined || details.tabId === null || details.tabId < 0) return;
+
+    // 监测目标站点访问异常与风控人机验证状态 (HTTP 412 / sec.bilibili.com)
+    if (details.statusCode === 412 || (details.url && details.url.includes("sec.bilibili.com"))) {
+      let host = "";
+      try { host = new URL(details.url).hostname; } catch (e) {}
+      localFetch(
+        "/api/browser/abnormal-access/report",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            domain: host || "bilibili.com",
+            reason: "浏览器检测到访问异常 (HTTP 412 / 目标站点风控安全验证拦截)",
+            verification_url: details.url
+          })
+        },
+        2000
+      ).catch(() => {});
+    }
+
     if (BLACKLIST_REGEX.test(url)) return;
     if (isFragmentUrl(url)) return; // 严格过滤分片
 
@@ -168,10 +230,14 @@ chrome.webRequest.onHeadersReceived.addListener(
       }
     }
 
-    // 过滤常见切片 MIME 类型 (video/mp2t 为 TS 切片, video/iso.segment 为 DASH 分片)
+    // 过滤纯粹微小切片类型 (video/mp2t 为 TS 切片, video/iso.segment 为 DASH 分片)
     if (contentType.includes("mp2t") || contentType.includes("segment")) {
       return;
     }
+
+    const hasMediaDisposition =
+      contentDisposition &&
+      /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)/i.test(contentDisposition);
 
     const isMasterStream =
       contentType.includes("vnd.apple.mpegurl") ||
@@ -184,10 +250,21 @@ chrome.webRequest.onHeadersReceived.addListener(
       !isFragmentUrl(url);
 
     const isOctetStreamMedia =
-      (contentType.includes("octet-stream") || contentType.includes("binary")) &&
-      (PLAYLIST_EXT_REGEX.test(url) || MEDIA_EXT_REGEX.test(url));
+      (contentType.includes("octet-stream") || contentType.includes("binary") || !contentType) &&
+      (PLAYLIST_EXT_REGEX.test(url) || MEDIA_EXT_REGEX.test(url) || STREAM_KEYWORD_REGEX.test(url) || contentLength > 100 * 1024 || details.type === "media");
 
-    if (isMasterStream || isCompleteMedia || isOctetStreamMedia || MEDIA_EXT_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url)) {
+    const isTypeMedia = details.type === "media" && !isFragmentUrl(url);
+
+    if (
+      isMasterStream ||
+      isCompleteMedia ||
+      isOctetStreamMedia ||
+      hasMediaDisposition ||
+      isTypeMedia ||
+      MEDIA_EXT_REGEX.test(url) ||
+      SHORT_VIDEO_CDN_REGEX.test(url) ||
+      STREAM_KEYWORD_REGEX.test(url)
+    ) {
       captureMediaRequest(details, {
         contentType,
         contentLength,
@@ -270,6 +347,38 @@ async function captureMediaRequest(details, respInfo) {
     } catch (e) {}
   }
 
+  // 针对明确传入的 audioUrl (如 inject.js 对 B站 __playinfo__ 的深度配对) 优先处理
+  if (details.audioUrl || details.mediaType === 'bili_dash') {
+    const cleanTitle = (details.pageTitle || pageTitle || 'B站高清视频').replace(/^【.*?】\s*/, '').trim();
+    const compositeItem = {
+      id: `bili_dash_${tabId}_${Date.now()}`,
+      url: details.url,
+      audioUrl: details.audioUrl || '',
+      tabId: tabId,
+      pageTitle: `【B站音画合一】${cleanTitle}`,
+      pageUrl: details.pageUrl || pageUrl,
+      mediaType: 'bili_dash',
+      referer: referer || 'https://www.bilibili.com/',
+      userAgent: userAgent,
+      cookie: cookie,
+      baseUrl: details.url.substring(0, details.url.lastIndexOf('/') + 1),
+      contentType: 'video/mp4',
+      contentLength: (respInfo && respInfo.contentLength) || 0,
+      frameId: details.frameId || 0,
+      timestamp: Date.now(),
+      duration: 0,
+      resolution: '1080P',
+      hasKey: false,
+      isAd: false,
+      isFeature: true,
+      isMaster: true,
+      isBiliDash: true
+    };
+    storageQueue = storageQueue.then(() => insertIntoStorage(compositeItem)).catch(() => {});
+    await storageQueue;
+    return;
+  }
+
   // 针对 B站 DASH 音画分离完整流进行智能配对
   const biliInfo = parseBiliM4s(url);
   if (biliInfo) {
@@ -289,7 +398,7 @@ async function captureMediaRequest(details, respInfo) {
         videoQuality: '1080P',
         videoStreamId: 0,
         videoLength: 0,
-        audioUrl: '',
+        audioUrl: details.audioUrl || '',
         audioStreamId: 0,
         audioLength: 0
       };
@@ -299,6 +408,7 @@ async function captureMediaRequest(details, respInfo) {
       bEntry.pageTitle = pageTitle;
     }
     if (cookie && !bEntry.cookie) bEntry.cookie = cookie;
+    if (details.audioUrl && !bEntry.audioUrl) bEntry.audioUrl = details.audioUrl;
 
     if (isAudio) {
       if (!bEntry.audioUrl || streamId > bEntry.audioStreamId) {
@@ -376,7 +486,8 @@ async function captureMediaRequest(details, respInfo) {
     return;
   }
 
-  const mediaType = detectMediaType(url, respInfo ? respInfo.contentType : "");
+  const detectedType = detectMediaType(url, respInfo ? respInfo.contentType : "");
+  const mediaType = details.mediaType || (details.audioUrl ? "bili_dash" : detectedType);
 
   let baseUrl = "";
   try {
@@ -392,6 +503,7 @@ async function captureMediaRequest(details, respInfo) {
   const entry = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     url: url,
+    audioUrl: details.audioUrl || "",
     tabId: tabId,
     pageTitle: pageTitle,
     pageUrl: pageUrl,
@@ -466,17 +578,20 @@ function extractQualityFromUrl(url) {
   return "";
 }
 
-// 插入存储并去重
+// 插入存储并去重，同时执行音画双轨自动配对
 async function insertIntoStorage(entry) {
   let { mediaList = [] } = await chrome.storage.local.get("mediaList");
   mediaList = mediaList.filter((item) => !item.url.startsWith("blob:") && !isFragmentUrl(item.url));
 
-  const existIdx = mediaList.findIndex((item) => item.url === entry.url);
+  const existIdx = mediaList.findIndex((item) => (entry.id && item.id === entry.id) || item.url === entry.url);
   if (existIdx >= 0) {
     const old = mediaList[existIdx];
     old.referer = entry.referer || old.referer;
     old.userAgent = entry.userAgent || old.userAgent;
     old.cookie = entry.cookie || old.cookie;
+    if (entry.audioUrl) {
+      old.audioUrl = entry.audioUrl;
+    }
     if (entry.contentLength) old.contentLength = entry.contentLength;
     if (entry.contentType) {
       old.contentType = entry.contentType;
@@ -487,8 +602,47 @@ async function insertIntoStorage(entry) {
     if (entry.mediaType && entry.mediaType !== "other") {
       old.mediaType = entry.mediaType;
     }
+    if (entry.pageTitle && (!old.pageTitle || old.pageTitle.includes("未命名") || old.pageTitle === "B站视频")) {
+      old.pageTitle = entry.pageTitle;
+    }
+    if (entry.resolution && (!old.resolution || old.resolution === "720P")) {
+      old.resolution = entry.resolution;
+    }
     await chrome.storage.local.set({ mediaList });
     return;
+  }
+
+  // 跨轨智能自动配对：若新录入独立音频，自动挂载到同标签页缺少音频的视频轨
+  if (entry.mediaType === "audio" || (entry.url && entry.url.includes("30280.m4s"))) {
+    const matchingVideo = mediaList.find(
+      (it) =>
+        (it.mediaType === "video" || it.mediaType === "bili_dash") &&
+        !it.audioUrl &&
+        (it.tabId === entry.tabId || (entry.pageUrl && it.pageUrl === entry.pageUrl))
+    );
+    if (matchingVideo) {
+      matchingVideo.audioUrl = entry.url;
+      matchingVideo.mediaType = "bili_dash";
+      if (!matchingVideo.pageTitle.includes("【B站音画合一】")) {
+        matchingVideo.pageTitle = `【B站音画合一】${matchingVideo.pageTitle.replace(/^【.*?】\s*/, "")}`;
+      }
+    }
+  } else if (entry.mediaType === "video" || entry.mediaType === "bili_dash") {
+    // 若新录入视频轨且无音频，自动从同标签页已有的独立音频轨中配对
+    if (!entry.audioUrl) {
+      const matchingAudio = mediaList.find(
+        (it) =>
+          it.mediaType === "audio" &&
+          (it.tabId === entry.tabId || (entry.pageUrl && it.pageUrl === entry.pageUrl))
+      );
+      if (matchingAudio) {
+        entry.audioUrl = matchingAudio.url;
+        entry.mediaType = "bili_dash";
+        if (!entry.pageTitle.includes("【B站音画合一】")) {
+          entry.pageTitle = `【B站音画合一】${entry.pageTitle.replace(/^【.*?】\s*/, "")}`;
+        }
+      }
+    }
   }
 
   mediaList.unshift(entry);
@@ -834,6 +988,10 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       captureMediaRequest(
         {
           url: req.data.url,
+          audioUrl: req.data.audioUrl || "",
+          pageTitle: req.data.title || "",
+          pageUrl: req.data.pageUrl || "",
+          mediaType: req.data.mediaType || "",
           tabId: sender.tab ? sender.tab.id : -1,
           frameId: typeof sender.frameId === "number" ? sender.frameId : 0,
           requestHeaders: [],
@@ -1011,6 +1169,14 @@ async function pushTaskToLocalClient(taskData) {
   try {
     const browserProxy = await detectBrowserProxy();
     const fillProxy = (item) => {
+      const ua = navigator.userAgent;
+      const isEdge = /Edg\//i.test(ua);
+      item.browserName = isEdge ? "Edge" : (/Firefox\//i.test(ua) ? "Firefox" : "Chrome");
+      item.userAgent = item.userAgent || ua;
+      if (!item.headers) item.headers = {};
+      if (!item.headers["User-Agent"]) {
+        item.headers["User-Agent"] = ua;
+      }
       if (shouldBypassProxy(item.url)) {
         item.proxy = 'direct';
       } else if (!item.proxy || item.proxy === 'auto' || item.proxy === 'browser') {
@@ -1022,7 +1188,6 @@ async function pushTaskToLocalClient(taskData) {
           item.proxy = 'direct';
         }
       }
-      if (!item.headers) item.headers = {};
       if (!item.headers.Referer && (item.referer || item.pageUrl)) {
         item.headers.Referer = item.referer || item.pageUrl;
       }
@@ -1100,6 +1265,58 @@ function syncClientLanguage() {
 }
 setInterval(syncClientLanguage, 15000);
 syncClientLanguage();
+
+// 与本地客户端自动同步当前爬取浏览器的完整凭证与最新 Token
+async function syncBrowserCookiesWithClient() {
+  try {
+    const res = await localFetch("/api/browser/token-requests", { method: "GET" }, 2000);
+    const data = await res.json();
+    if (data && data.domains && Array.isArray(data.domains) && data.domains.length > 0 && chrome.cookies) {
+      for (const dom of data.domains) {
+        try {
+          const cks = await chrome.cookies.getAll({ domain: dom });
+          if (cks && cks.length > 0) {
+            const cookieStr = cks.map((c) => `${c.name}=${c.value}`).join("; ");
+            await localFetch(
+              "/api/browser/cookies",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  domain: dom,
+                  cookie: cookieStr,
+                  browserName: /Edg\//i.test(navigator.userAgent) ? "Edge" : "Chrome",
+                  userAgent: navigator.userAgent
+                })
+              },
+              2500
+            );
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 检查是否有活跃的访问异常/人机验证报告
+    try {
+      const repRes = await localFetch("/api/browser/abnormal-access", { method: "GET" }, 2000);
+      const repData = await repRes.json();
+      if (repData && repData.reports && Array.isArray(repData.reports) && repData.reports.length > 0) {
+        await chrome.storage.local.set({ activeAbnormalReports: repData.reports });
+        chrome.action.setBadgeText({ text: "!" });
+        chrome.action.setBadgeBackgroundColor({ color: "#ef4444" });
+        chrome.action.setTitle({ title: "星流媒体嗅探器 - ⚠️ 检测到访问异常 / 需人机验证" });
+      } else {
+        await chrome.storage.local.remove(["activeAbnormalReports"]);
+        const badge = await chrome.action.getBadgeText({});
+        if (badge === "!") {
+          chrome.action.setBadgeText({ text: "" });
+          chrome.action.setTitle({ title: "星流媒体嗅探器" });
+        }
+      }
+    } catch (e) {}
+  } catch (e) {}
+}
+setInterval(syncBrowserCookiesWithClient, 4000);
 
 async function injectInlineHlsPlayer(tabId, item) {
   if (!(tabId >= 0)) return { success: false, error: "目标页面已关闭" };

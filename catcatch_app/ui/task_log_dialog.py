@@ -261,6 +261,26 @@ class TaskLogDialog(QDialog):
         btn_open_folder.clicked.connect(self._open_logs_dir)
         btn_row.addWidget(btn_open_folder)
 
+        if self.task.get("verification_required") or "人机验证" in str(error_reason) or "412" in str(error_reason):
+            btn_verify = QPushButton("🛡️ 去浏览器完成人机认证")
+            btn_verify.setIcon(get_icon("globe", "#ffffff", 14))
+            btn_verify.setStyleSheet("""
+                QPushButton {
+                    background-color: #d97706;
+                    border: 1px solid #f59e0b;
+                    border-radius: 6px;
+                    color: #ffffff;
+                    font-weight: 700;
+                    font-size: 12px;
+                    padding: 6px 14px;
+                }
+                QPushButton:hover {
+                    background-color: #b45309;
+                }
+            """)
+            btn_verify.clicked.connect(self._open_browser_verification)
+            btn_row.addWidget(btn_verify)
+
         btn_row.addStretch()
 
         # 关闭按钮
@@ -364,3 +384,19 @@ class TaskLogDialog(QDialog):
     def _show_toast(self, msg):
         self.lbl_toast.setText(msg)
         QTimer.singleShot(2500, lambda: self.lbl_toast.setText(""))
+
+    def _open_browser_verification(self):
+        v_url = self.task.get("verification_url") or self.task.get("referer") or self.task.get("pageUrl") or self.task.get("url") or ""
+        if not v_url or v_url.startswith("blob:"):
+            v_url = self.task.get("pageUrl") or self.task.get("referer") or "https://www.bilibili.com/"
+        from PyQt5.QtGui import QDesktopServices
+        from PyQt5.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl(v_url))
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self, "浏览器人机验证指引",
+            "已为您在真实浏览器中打开目标网页！\n\n"
+            "1. 请在打开的浏览器中完成滑块拖动或验证码点选；\n"
+            "2. 页面视频正常播放后，嗅探插件将自动同步凭证并打破风控；\n"
+            "3. 回到主界面右键选择【打破限速并刷新凭证】即可继续高速下载。"
+        )

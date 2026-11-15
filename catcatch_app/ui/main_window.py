@@ -534,6 +534,16 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         if config.get("close_to_tray", True):
             event.ignore()
+            if hasattr(self, 'floating_widget') and self.floating_widget:
+                if hasattr(self.floating_widget, '_dashboard') and self.floating_widget._dashboard.isVisible():
+                    self.floating_widget._dashboard.hide()
+            if hasattr(self, '_active_notifiers'):
+                for n in list(self._active_notifiers):
+                    try:
+                        n.close()
+                    except Exception:
+                        pass
+                self._active_notifiers.clear()
             self.hide()
             if hasattr(self, 'tray') and self.tray.isVisible():
                 self.tray.showMessage(
@@ -897,14 +907,24 @@ class MainWindow(QMainWindow):
         text_status, color_status = status_map.get(status, (status, "#f8fafc" if not is_light else "#0f172a"))
 
         tip = ""
-        if status == "error":
-            err_title = t_task.get("error_reason") or t_task.get("error_msg") or "下载异常"
-            err_hint = t_task.get("error_hint", "")
-            tip = f"【失败原因】\n{err_title}"
-            if err_hint:
-                tip += f"\n\n【排查建议】\n{err_hint}"
-            tip += "\n\n(双击此任务或右键菜单可查看详细运行日志与诊断)"
-        self._set_cell_item(row, 9, text_status, color=QColor(color_status), align=Qt.AlignCenter, tooltip=tip)
+        if t_task.get("verification_required"):
+            text_status = "🛡️ 需人机认证"
+            color_status = "#f59e0b"
+            tip = (
+                "【安全风控拦截】目标站点检测到访问异常并触发人机核验 (HTTP 412 / 滑块验证码 / 安全挑战)！\n\n"
+                "【操作指引】请双击该任务或右键点击选择【🛡️ 去浏览器人机验证 / 异常认证 (打破风控)】，"
+                "在真实浏览器中完成验证码认证后，扩展插件将自动同步凭证并恢复极速下载。"
+            )
+            self._set_cell_item(row, 9, text_status, color=QColor(color_status), align=Qt.AlignCenter, tooltip=tip)
+        else:
+            if status == "error":
+                err_title = t_task.get("error_reason") or t_task.get("error_msg") or "下载异常"
+                err_hint = t_task.get("error_hint", "")
+                tip = f"【失败原因】\n{err_title}"
+                if err_hint:
+                    tip += f"\n\n【排查建议】\n{err_hint}"
+                tip += "\n\n(双击此任务或右键菜单可查看详细运行日志与诊断)"
+            self._set_cell_item(row, 9, text_status, color=QColor(color_status), align=Qt.AlignCenter, tooltip=tip)
 
         # 10. 添加时间
         self._set_cell_item(row, 10, t_task.get("created_at", ""), color=text_sec_col, align=Qt.AlignCenter)
@@ -1100,6 +1120,9 @@ class MainWindow(QMainWindow):
         act_break = menu.addAction(get_icon("zap", "#f59e0b", 14), t("ctx_break_throttle", default="⚡ 打破限速并刷新凭证 (重置CDN极速链路)"))
         act_break.triggered.connect(self._action_break_throttle_selected)
 
+        act_verify = menu.addAction(get_icon("globe", "#f59e0b", 14), "🛡️ 去浏览器人机验证 / 异常认证 (打破风控)")
+        act_verify.triggered.connect(self._action_open_browser_verification_for_selected)
+
         if len(ids) == 1:
             act_rename = menu.addAction(get_icon("edit", "#38bdf8", 14), t("ctx_rename", default="重命名任务..."))
             act_rename.triggered.connect(self._action_rename_selected)
@@ -1223,6 +1246,9 @@ class MainWindow(QMainWindow):
             t_id = it.data(Qt.UserRole)
             task = task_manager.get_task(t_id)
             if task:
+                if task.get("verification_required"):
+                    self._action_open_browser_verification_for_selected()
+                    return
                 if task.get("status") == "completed" and task.get("output_file"):
                     out_p = task["output_file"]
                     if os.path.exists(out_p):
@@ -1249,6 +1275,8 @@ class MainWindow(QMainWindow):
 
     def _toggle_floating_widget(self):
         if self.floating_widget.isVisible():
+            if hasattr(self.floating_widget, '_dashboard') and self.floating_widget._dashboard.isVisible():
+                self.floating_widget._dashboard.hide()
             self.floating_widget.hide()
             config.set("show_floating_widget", False)
             self.statusBar().showMessage("桌面悬浮窗已隐藏", 2000)
@@ -1341,6 +1369,44 @@ class MainWindow(QMainWindow):
             task_manager.break_task_throttle(t_id)
         self.statusBar().showMessage(f"已触发 {len(ids)} 个任务打破限速与刷新凭证，正在重置 CDN 传输链路...", 4000)
         self.refresh_table()
+
+    def _action_open_browser_verification_for_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        t_id = ids[0]
+        task = task_manager.get_task(t_id)
+        if not task:
+            return
+        v_url = task.get("verification_url") or task.get("referer") or task.get("pageUrl") or task.get("url") or ""
+        if not v_url or v_url.startswith("blob:"):
+            v_url = task.get("pageUrl") or task.get("referer") or "https://www.bilibili.com/"
+
+        from PyQt5.QtGui import QDesktopServices
+        from PyQt5.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl(v_url))
+
+        msg = (
+            "【🛡️ 真实浏览器人机认证指引】\n\n"
+            f"已为您在浏览器中打开目标视频/风控页面：\n{v_url[:90]}...\n\n"
+            "1. 请在打开的浏览器标签页中，完成滑块拖动、验证码点选或刷新页面；\n"
+            "2. 只要网页端视频能够正常起播，星流嗅探插件将自动秒级同步最新凭证；\n"
+            "3. 完成后点击下方【确定】，软件将重置链路并立即继续高速下载！"
+        )
+        ret = QMessageBox.information(
+            self, "去浏览器人机认证", msg,
+            QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Ok
+        )
+        if ret == QMessageBox.Ok:
+            task["verification_required"] = False
+            task_manager.break_task_throttle(t_id)
+            try:
+                from ..core.server import clear_access_abnormality
+                clear_access_abnormality(t_id)
+            except Exception:
+                pass
+            self.refresh_table()
+            self.statusBar().showMessage("已为任务重置链路并同步最新凭证，正在恢复极速下载...", 4000)
 
     def _set_proxy_for_selected(self, ids, proxy_str):
         for t_id in ids:

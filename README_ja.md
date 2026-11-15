@@ -31,16 +31,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20ポータブル完全版-StarStream_v3.2.3_Portable.zip%20(FFmpeg・N_m3u8DL内蔵)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable版をダウンロード">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20ポータブル完全版-StarStream_v3.2.6_Portable.zip%20(FFmpeg・N_m3u8DL内蔵)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable版をダウンロード">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20単体EXE版-StarStream.exe%20(エンジン自動検出)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exeをダウンロード">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip">
-    <img src="https://img.shields.io/badge/🧩%20ブラウザ拡張機能-Extension_v3.2.3.zip%20(177KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="拡張機能をダウンロード">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip">
+    <img src="https://img.shields.io/badge/🧩%20ブラウザ拡張機能-Extension_v3.2.6.zip%20(180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="拡張機能をダウンロード">
   </a>
   &nbsp;&nbsp;
   <a href="#-類似オープンソース比較と移行ガイド-alternatives--comparison">
@@ -65,6 +65,19 @@
 </p>
 
 </div>
+
+---
+
+
+> [!TIP]
+> ### 🆕 最新バージョン v3.2.6 · 2026-11-15
+>
+> - 🎬 **DASH 音声/映像 100% 自動合成修正** — `TaskManager` の `audio_url` 欠落を完全修正。FFmpeg 明示的ストリームマッピング (`-map 0:v:0 -map 1:a:0`) および AAC への自動フォールバックトランスコードを導入し、プレビューでは音声があるのにダウンロードした動画に音声がない問題を完全解決！
+> - 🛡️ **セキュリティ風控および CAPTCHA チャレンジ突破** — HTTP 412 / 極験 / Cloudflare チャレンジを捕捉。ワンクリックでブラウザ検証を起動し、拡張機能から最新の認証情報を即時同期してダウンロードを自動再開。
+> - 🌐 **ブラウザフィンガープリントの動的同期** — 固定 UA/Cookie を撤廃し、スニッフィングした実ブラウザ (Edge / Chrome) の User-Agent および Client Hints と動的に同期。
+> - 🖱️ **非表示時のゴーストクリックフィードバック解消** — ウィンドウ最小化時/フローティングウィジェット格納時のマウスクリック貫通現象を完全根絶。
+>
+> 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
 
 ---
 
@@ -138,14 +151,14 @@
 
 | ダウンロード種別 | 同梱コンポーネント | 利用シーン | リンク |
 |---|---|---|---|
-| **⭐ 推奨：StarStream_v3.2.3_Portable.zip ポータブル版** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 拡張機能ソース一式 | **FFmpeg / N_m3u8DL を未導入の方に最適**。解凍するだけですぐ使えます | [👉 ポータブル版をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
-| **🚀 単体実行ファイル版：StarStream.exe (82.5MB)** | 最新ビルド単体実行バイナリ | **すでに FFmpeg / N_m3u8DL をお持ちの方向け**。自動検出機能搭載。**必ず空の専用フォルダに入れて実行してください** | [👉 StarStream.exe を直接ダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
-| **🧩 拡張機能単体パッケージ (v3.2.3)** | 拡張機能ソースのみ (177KB)、MV3検知、プロキシ自動整合、再生時間・画質順ソート | Web動画検知、アクティブタブ表示、降順ソート | [👉 Extension.zip (177KB) をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
+| **⭐ 推奨：StarStream_v3.2.6_Portable.zip ポータブル版** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 拡張機能ソース一式 | **FFmpeg / N_m3u8DL を未導入の方に最適**。解凍するだけですぐ使えます | [👉 ポータブル版をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip) |
+| **🚀 単体実行ファイル版：StarStream.exe (82.5MB)** | 最新ビルド単体実行バイナリ | **すでに FFmpeg / N_m3u8DL をお持ちの方向け**。自動検出機能搭載。**必ず空の専用フォルダに入れて実行してください** | [👉 StarStream.exe を直接ダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe) |
+| **🧩 拡張機能単体パッケージ (v3.2.6)** | 拡張機能ソースのみ (180KB)、MV3検知、プロキシ自動整合、再生時間・画質順ソート | Web動画検知、アクティブタブ表示、降順ソート | [👉 Extension.zip (180KB) をダウンロード](https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip) |
 | **GitHub Releases 公式リリースページ** | 全バージョン、更新履歴、アセットの確認 | 全リリース一覧の確認 | [👉 Releases ページへ](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **ダウンロードと利用に関する重要なお知らせ (必読ガイド)**:
 > 1. **FFmpeg または N_m3u8DL を未導入の方**:
->    👉 **ポータブル版（`StarStream_v3.2.3_Portable.zip`）のダウンロードを推奨します**！必要な `ffmpeg.exe` および `N_m3u8DL-RE.exe` がすべて同梱されており、解凍するだけですぐにご利用いただけます。
+>    👉 **ポータブル版（`StarStream_v3.2.6_Portable.zip`）のダウンロードを推奨します**！必要な `ffmpeg.exe` および `N_m3u8DL-RE.exe` がすべて同梱されており、解凍するだけですぐにご利用いただけます。
 > 2. **すでに FFmpeg や N_m3u8DL を環境にお持ちの方**:
 >    👉 **単体実行ファイル（`StarStream.exe`）を直接ダウンロードしてご利用いただけます**！起動時にシステム環境変数（`PATH`）や標準フォルダーを自動スキャンし、既存のツールを自動検出して連携します。
 > 3. **⚠️ 起動時の重要なお願い**:
