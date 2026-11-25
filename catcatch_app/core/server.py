@@ -569,6 +569,69 @@ class CatCatchHTTPHandler(BaseHTTPRequestHandler):
             self._send_json_response(200, {"success": True, "message": "已清除访问异常状态并恢复下载"})
             return
 
+        elif path == "/api/series/parse":
+            target_url = (data.get("url") or data.get("pageUrl") or "").strip()
+            if not target_url:
+                self._send_json_response(400, {"success": False, "error": "缺少目标网页 URL"})
+                return
+            extra_headers = {}
+            if data.get("cookie"):
+                extra_headers["Cookie"] = data["cookie"]
+            if data.get("userAgent"):
+                extra_headers["User-Agent"] = data["userAgent"]
+            if target_url:
+                try:
+                    dom = urlparse(target_url).hostname or ""
+                    if dom and "Cookie" not in extra_headers:
+                        cred = get_cached_browser_credentials(dom)
+                        if cred and cred.get("cookie"):
+                            extra_headers["Cookie"] = cred["cookie"]
+                except Exception:
+                    pass
+            try:
+                from .video_parser import parse_series_collection
+                res = parse_series_collection(target_url, proxy=config.get_effective_proxy(), extra_headers=extra_headers)
+                self._send_json_response(200, res)
+            except Exception as e:
+                self._send_json_response(500, {"success": False, "error": str(e)})
+            return
+
+        elif path == "/api/series/download":
+            episodes = data.get("episodes") or []
+            if not episodes:
+                self._send_json_response(400, {"success": False, "error": "未提供需要下载的剧集列表"})
+                return
+            series_title = (data.get("series_title") or data.get("seriesTitle") or "合集系列").strip()
+            save_dir = (data.get("save_dir") or data.get("saveDir") or "").strip()
+            create_subdir = bool(data.get("create_subdir", data.get("createSubdir", True)))
+            add_prefix = bool(data.get("add_index_prefix", data.get("addIndexPrefix", True)))
+            extra_headers = dict(data.get("headers") or {})
+            if data.get("cookie") and "Cookie" not in extra_headers:
+                extra_headers["Cookie"] = data["cookie"]
+            if data.get("userAgent") and "User-Agent" not in extra_headers:
+                extra_headers["User-Agent"] = data["userAgent"]
+
+            try:
+                from .video_parser import submit_series_downloads
+                target_dir = submit_series_downloads(
+                    episodes=episodes,
+                    series_title=series_title,
+                    save_dir=save_dir,
+                    create_subdir=create_subdir,
+                    add_index_prefix=add_prefix,
+                    proxy=config.get_effective_proxy(),
+                    extra_headers=extra_headers,
+                )
+                self._send_json_response(200, {
+                    "success": True,
+                    "count": len(episodes),
+                    "target_dir": target_dir,
+                    "message": f"已启动同系列批量爬取任务，共 {len(episodes)} 集将陆续进入下载队列"
+                })
+            except Exception as e:
+                self._send_json_response(500, {"success": False, "error": str(e)})
+            return
+
         self._send_json_response(404, {"error": "Not Found"})
 
     def do_DELETE(self):

@@ -11,14 +11,14 @@ THEMES = {
         "id": "dark",
         "name": "暗黑曜石 (经典深色)",
         "icon_color": "#3875f6",
-        "bg_main": "#0f172a",
-        "bg_panel": "#1e293b",
-        "bg_tree": "#131b2e",
-        "bg_card": "#1e293b",
-        "bg_hover": "#334155",
-        "bg_selected": "#2563eb",
-        "border": "#334155",
-        "border_subtle": "#1e293b",
+        "bg_main": "#0b0f19",
+        "bg_panel": "#111827",
+        "bg_tree": "#0e1422",
+        "bg_card": "#131c31",
+        "bg_hover": "#1e293b",
+        "bg_selected": "#1e3a8a",
+        "border": "#243047",
+        "border_subtle": "#172033",
         "border_focus": "#38bdf8",
         "accent": "#38bdf8",
         "accent_hover": "#60a5fa",
@@ -26,7 +26,7 @@ THEMES = {
         "text": "#f8fafc",
         "text_secondary": "#cbd5e1",
         "text_muted": "#94a3b8",
-        "scroll_handle": "#334155",
+        "scroll_handle": "#2b3852",
         "scroll_handle_hover": "#475569",
         "is_light": False,
     },
@@ -307,6 +307,13 @@ QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QComboBox {{
     selection-color: #ffffff;
 }}
 
+QLineEdit#toolbarSearchEdit {{
+    border-radius: 15px;
+    padding: 5px 12px;
+    font-size: 12px;
+    background-color: {bg_tree_css};
+}}
+
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus, QSpinBox:focus, QComboBox:focus {{
     border-color: {t["border_focus"]};
 }}
@@ -323,14 +330,14 @@ QTreeWidget {{
     border-top: none;
     border-bottom: none;
     border-left: none;
-    padding: 8px 6px;
+    padding: 10px 8px;
     outline: none;
 }}
 
 QTreeWidget::item {{
-    padding: 7px 10px;
-    border-radius: 6px;
-    margin: 2px 2px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    margin: 2px 3px;
     color: {t["text_secondary"]};
     font-weight: 500;
 }}
@@ -349,17 +356,22 @@ QTreeWidget::item:selected {{
 /* 中央多任务表格 */
 QTableWidget {{
     background-color: {bg_table_css};
-    border: none;
-    gridline-color: {t["border_subtle"]};
+    border: 1px solid {t["border_subtle"]};
+    border-radius: 8px;
+    gridline-color: transparent;
     selection-background-color: {bg_item_selected};
     selection-color: #ffffff;
     outline: none;
 }}
 
 QTableWidget::item {{
-    padding: 6px 8px;
+    padding: 7px 10px;
     border-bottom: 1px solid {t["border_subtle"]};
     color: {t["text"]};
+}}
+
+QTableWidget::item:hover {{
+    background-color: {t["bg_hover"]};
 }}
 
 QTableWidget QLineEdit {{
@@ -380,23 +392,23 @@ QTableWidget::item:selected {{
 
 QHeaderView::section {{
     background-color: {bg_header_css};
-    color: {t["text_secondary"]};
-    padding: 8px 6px;
+    color: {t["text_muted"]};
+    padding: 9px 8px;
     border: none;
     border-bottom: 1px solid {t["border"]};
     border-right: 1px solid {t["border_subtle"]};
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11.5px;
 }}
 
-/* 进度条 */
+/* 进度条 (流光胶囊渐变) */
 QProgressBar {{
     border: 1px solid {t["border"]};
-    border-radius: 4px;
+    border-radius: 7px;
     text-align: center;
     background-color: {bg_panel_css};
     color: #ffffff;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 600;
     min-height: 14px;
     max-height: 14px;
@@ -404,7 +416,7 @@ QProgressBar {{
 
 QProgressBar::chunk {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {t["accent"]}, stop:1 {t["accent_gradient_end"]});
-    border-radius: 3px;
+    border-radius: 6px;
 }}
 
 /* 细致滚动条 */

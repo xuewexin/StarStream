@@ -37,16 +37,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.6_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20便携全套包-StarStream_v3.2.7_Portable.zip%20(内置%20FFmpeg%20与%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="下载 Portable 便携包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20独立单文件-StarStream.exe%20(自动扫描前置引擎)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="直接下载 StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip">
-    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.6.zip%20(仅%20180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip">
+    <img src="https://img.shields.io/badge/🧩%20浏览器嗅探扩展-Extension_v3.2.7.zip%20(仅%20180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="单独下载浏览器嗅探插件">
   </a>
   &nbsp;&nbsp;
   <a href="#-同类开源项目横向对比与选型指南-comparison--alternatives">
@@ -75,7 +75,7 @@
 ---
 
 > [!TIP]
-> ### 🆕 最新版本 v3.2.6 · 2026-11-15
+> ### 🆕 最新版本 v3.2.7 · 2026-11-15
 >
 > | 更新 | 说明 |
 > | --- | --- |

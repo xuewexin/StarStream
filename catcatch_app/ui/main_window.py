@@ -185,8 +185,9 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(10, 135)
 
         self.table.verticalHeader().setVisible(False)
-        self.table.verticalHeader().setDefaultSectionSize(44)
-        self.table.verticalHeader().setMinimumSectionSize(38)
+        self.table.verticalHeader().setDefaultSectionSize(46)
+        self.table.verticalHeader().setMinimumSectionSize(40)
+        self.table.setShowGrid(False)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.ExtendedSelection)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -201,16 +202,20 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
         self.setCentralWidget(central_widget)
 
-        # 3. 底部状态栏
+        # 3. 底部状态栏 (微胶囊徽章布局)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
 
         self.lbl_server_status = QLabel("通信服务: 端口 18910 就绪")
-        self.lbl_server_status.setStyleSheet("color: #4ade80; font-weight: 500; margin-left: 8px;")
+        self.lbl_server_status.setStyleSheet(
+            "color: #4ade80; font-weight: 600; margin-left: 8px; "
+            "background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.25); "
+            "border-radius: 9px; padding: 2px 9px; font-size: 11px;"
+        )
         self.status_bar.addWidget(self.lbl_server_status)
 
         self.lbl_ffmpeg_status = QLabel("FFmpeg: 检测中...")
-        self.lbl_ffmpeg_status.setStyleSheet("color: #71717a; margin-left: 14px;")
+        self.lbl_ffmpeg_status.setStyleSheet("color: #94a3b8; margin-left: 10px; font-size: 11.5px;")
         self.status_bar.addWidget(self.lbl_ffmpeg_status)
 
         # N_m3u8DL 引擎状态指示交互按钮 (未检测到时醒目提示并一键直达下载)
@@ -221,12 +226,12 @@ class MainWindow(QMainWindow):
         # 代理状态指示交互按钮 (点击直达代理配置)
         self.btn_proxy_status = QPushButton("代理: 检测中...")
         self.btn_proxy_status.setIcon(get_icon("globe", "#9ca3af", 14))
-        self.btn_proxy_status.setStyleSheet("border: none; background: transparent; color: #9ca3af; padding: 2px 6px; font-size: 12px;")
+        self.btn_proxy_status.setStyleSheet("border: none; background: transparent; color: #94a3b8; padding: 2px 8px; font-size: 11.5px;")
         self.btn_proxy_status.clicked.connect(self._action_proxy_settings)
         self.status_bar.addWidget(self.btn_proxy_status)
 
         self.lbl_stats = QLabel("任务: 0 项")
-        self.lbl_stats.setStyleSheet("color: #71717a; margin-left: 12px;")
+        self.lbl_stats.setStyleSheet("color: #94a3b8; margin-left: 10px; font-size: 11.5px;")
         self.status_bar.addWidget(self.lbl_stats)
 
         self.status_bar.addPermanentWidget(QLabel())
@@ -234,13 +239,17 @@ class MainWindow(QMainWindow):
         # 计划电源管理: 全部完成后自动关机
         self.chk_auto_shutdown = QCheckBox(t("cb_auto_shutdown"))
         self.chk_auto_shutdown.setToolTip(t("cb_auto_shutdown_tip"))
-        self.chk_auto_shutdown.setStyleSheet("color: #a1a1aa; font-size: 12px; margin-right: 14px;")
+        self.chk_auto_shutdown.setStyleSheet("color: #94a3b8; font-size: 11.5px; margin-right: 12px;")
         self.chk_auto_shutdown.setChecked(config.get("auto_shutdown_on_finish", False))
         self.chk_auto_shutdown.toggled.connect(lambda v: config.set("auto_shutdown_on_finish", v))
         self.status_bar.addPermanentWidget(self.chk_auto_shutdown)
 
         self.lbl_global_speed = QLabel("0.00 KB/s")
-        self.lbl_global_speed.setStyleSheet("color: #3875f6; font-weight: 600; font-size: 13px; margin-right: 12px;")
+        self.lbl_global_speed.setStyleSheet(
+            "color: #38bdf8; font-weight: 700; font-size: 12px; margin-right: 10px; "
+            "background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.28); "
+            "border-radius: 9px; padding: 2px 10px;"
+        )
         self.status_bar.addPermanentWidget(self.lbl_global_speed)
 
     def _create_toolbar(self):
@@ -371,8 +380,10 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(spacer)
 
         self.search_edit = QLineEdit()
+        self.search_edit.setObjectName("toolbarSearchEdit")
+        self.search_edit.setClearButtonEnabled(True)
         self.search_edit.setPlaceholderText(t("search_placeholder"))
-        self.search_edit.setFixedWidth(160)
+        self.search_edit.setFixedWidth(175)
         self.search_edit.textChanged.connect(self._on_search_text_changed)
         self.toolbar.addWidget(self.search_edit)
 
@@ -1124,6 +1135,9 @@ class MainWindow(QMainWindow):
         act_verify.triggered.connect(self._action_open_browser_verification_for_selected)
 
         if len(ids) == 1:
+            act_series = menu.addAction(get_icon("zap", "#a855f7", 14), "探测并爬取同系列合集...")
+            act_series.triggered.connect(self._action_crawl_series_for_selected)
+
             act_rename = menu.addAction(get_icon("edit", "#38bdf8", 14), t("ctx_rename", default="重命名任务..."))
             act_rename.triggered.connect(self._action_rename_selected)
 
@@ -1330,6 +1344,18 @@ class MainWindow(QMainWindow):
 
     def _action_open_video_parser(self):
         dlg = VideoParserDialog(None if self.isHidden() else self)
+        dlg.exec_()
+        self.refresh_table()
+
+    def _action_crawl_series_for_selected(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            return
+        task = task_manager.get_task(ids[0])
+        if not task:
+            return
+        target_url = (task.get("pageUrl") or task.get("referer") or task.get("url") or "").strip()
+        dlg = VideoParserDialog(self, initial_url=target_url)
         dlg.exec_()
         self.refresh_table()
 

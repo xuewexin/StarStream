@@ -103,8 +103,205 @@
     }).catch(() => {});
   });
 
-  // 响应来自 popup 的深度重新嗅探指令
+  // 通用网页与主流平台同系列 / 合集列表智能 DOM 扫描器
+  function scanPageSeriesList() {
+    const href = window.location.href;
+    const host = window.location.hostname.toLowerCase();
+    const pageTitle = cleanVideoTitle(document.title);
+    const episodes = [];
+    const seen = new Set();
+    let seriesTitle = pageTitle;
+    let currentIndex = 0;
+
+    function addEp(title, epUrl, durText, isCurrent) {
+      if (!epUrl) return;
+      let absUrl = '';
+      try {
+        absUrl = new URL(epUrl, href).href;
+      } catch (e) {
+        return;
+      }
+      if (seen.has(absUrl)) return;
+      seen.add(absUrl);
+      const cleanTitle = (title || '').replace(/\s+/g, ' ').trim();
+      if (!cleanTitle) return;
+
+      let durSec = 0;
+      if (durText) {
+        const parts = durText.trim().split(':').map(n => parseInt(n, 10));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          durSec = parts[0] * 60 + parts[1];
+        } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+          durSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+      }
+
+      if (isCurrent || absUrl === href) {
+        currentIndex = episodes.length;
+      }
+      episodes.push({
+        index: episodes.length + 1,
+        title: cleanTitle,
+        page_url: absUrl,
+        duration: durSec
+      });
+    }
+
+    // 1. Bilibili DOM 结构探测 (新版 video-pod、多P分集、UP主合集、番剧)
+    if (host.includes('bilibili.com')) {
+      const podHeader = document.querySelector('.video-pod__header .title, .base-video-sections-v1 .first-line-title, .multi-page .head-con h3');
+      if (podHeader && podHeader.textContent) {
+        seriesTitle = podHeader.textContent.trim();
+      }
+
+      // 新版 video-pod 分P / 合集卡片
+      const podItems = document.querySelectorAll('.video-pod__list .pod-item, .video-pod__list .video-pod__item');
+      if (podItems.length > 1) {
+        const bvMatch = href.match(/(BV[a-zA-Z0-9]+)/);
+        const curBv = bvMatch ? bvMatch[1] : '';
+        podItems.forEach((item, idx) => {
+          const titleEl = item.querySelector('.title-txt, .title, a');
+          const durEl = item.querySelector('.stat-item.duration, .duration');
+          const linkEl = item.tagName === 'A' ? item : item.querySelector('a');
+          const dataKey = item.getAttribute('data-key') || '';
+          let epUrl = linkEl ? linkEl.getAttribute('href') : '';
+          if (!epUrl && dataKey && dataKey.startsWith('BV')) {
+            epUrl = `https://www.bilibili.com/video/${dataKey}`;
+          } else if (!epUrl && curBv) {
+            epUrl = `https://www.bilibili.com/video/${curBv}?p=${idx + 1}`;
+          }
+          const isCur = item.classList.contains('active') || !!item.querySelector('.active');
+          addEp(titleEl ? titleEl.textContent : `P${idx + 1}`, epUrl, durEl ? durEl.textContent : '', isCur);
+        });
+      }
+
+      // 经典多P列表 (.multi-page .list-box li)
+      if (episodes.length < 2) {
+        const pItems = document.querySelectorAll('.multi-page .list-box li, .cur-list .list-box li');
+        if (pItems.length > 1) {
+          pItems.forEach((li, idx) => {
+            const a = li.querySelector('a');
+            const partEl = li.querySelector('.part') || a;
+            const durEl = li.querySelector('.duration');
+            const epHref = a ? a.getAttribute('href') : `?p=${idx + 1}`;
+            const isCur = li.classList.contains('on') || li.classList.contains('watched');
+            addEp(partEl ? partEl.textContent : `P${idx + 1}`, epHref, durEl ? durEl.textContent : '', isCur);
+          });
+        }
+      }
+
+      // 旧版合集列表 (.video-episode-card)
+      if (episodes.length < 2) {
+        const epCards = document.querySelectorAll('.base-video-sections-v1 .video-episode-card');
+        if (epCards.length > 1) {
+          epCards.forEach((card) => {
+            const titleEl = card.querySelector('.video-episode-card__info-title');
+            const durEl = card.querySelector('.video-episode-card__info-duration');
+            const a = card.querySelector('a');
+            const isCur = !!card.querySelector('.video-episode-card__info-playing');
+            if (a) addEp(titleEl ? titleEl.textContent : a.textContent, a.getAttribute('href'), durEl ? durEl.textContent : '', isCur);
+          });
+        }
+      }
+
+      // 番剧选集
+      if (episodes.length < 2) {
+        const bgItems = document.querySelectorAll('[class*="eplist"] a, [class*="ep-list"] a');
+        if (bgItems.length > 1) {
+          bgItems.forEach((a) => {
+            const h = a.getAttribute('href') || '';
+            if (h.includes('/bangumi/play/')) {
+              addEp(a.getAttribute('title') || a.textContent, h, '', a.className.includes('active'));
+            }
+          });
+        }
+      }
+    }
+
+    // 2. YouTube 播放列表 DOM 探测
+    if (episodes.length < 2 && host.includes('youtube.com')) {
+      const ytItems = document.querySelectorAll('ytd-playlist-panel-video-renderer');
+      if (ytItems.length > 1) {
+        const ytTitle = document.querySelector('ytd-playlist-panel-renderer .title');
+        if (ytTitle && ytTitle.textContent) seriesTitle = ytTitle.textContent.trim();
+        ytItems.forEach((el) => {
+          const a = el.querySelector('a#wc-endpoint');
+          const tEl = el.querySelector('#video-title');
+          const dEl = el.querySelector('span.ytd-thumbnail-overlay-time-status-renderer');
+          if (a) addEp(tEl ? tEl.textContent : a.textContent, a.getAttribute('href'), dEl ? dEl.textContent : '', el.hasAttribute('selected'));
+        });
+      }
+    }
+
+    // 3. 通用网页（影视剧/课程/播客/专辑）剧集链路智能启发式探测
+    if (episodes.length < 2) {
+      const baseParsed = new URL(href);
+      const basePath = baseParsed.pathname.replace(/\/$/, '');
+      const pathPrefix = basePath.replace(/\d+(?=(?:\.[a-z]+)?$)/i, '');
+      const epRegex = /(第\s*\d+\s*[集话期章讲节课部回]|EP?\s*\d+|P\d+|^\d{1,3}$|^(?:集|话|期|课)\s*\d+)/i;
+      const noiseRegex = /(次觀看|次观看|views|已完結|已完结|全\s*\d+\s*集)/i;
+
+      const matchedPattern = [];
+      const matchedLabel = [];
+      document.querySelectorAll('a[href]').forEach((a) => {
+        const rawHref = a.getAttribute('href') || '';
+        if (!rawHref || rawHref.startsWith('javascript:') || rawHref.startsWith('#') || rawHref.startsWith('mailto:')) return;
+        let u;
+        try { u = new URL(rawHref, href); } catch (e) { return; }
+        if (u.hostname !== baseParsed.hostname) return;
+
+        const txt = (a.getAttribute('title') || a.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!txt || txt.length > 50 || noiseRegex.test(txt)) return;
+
+        const uPath = u.pathname.replace(/\/$/, '');
+        const samePattern = pathPrefix && pathPrefix.length > 3 && uPath.startsWith(pathPrefix) && uPath !== pathPrefix;
+        if (samePattern) {
+          matchedPattern.push({ title: txt, url: u.href, cur: u.href === href });
+        } else if (epRegex.test(txt)) {
+          matchedLabel.push({ title: txt, url: u.href, cur: u.href === href });
+        }
+      });
+
+      const pool = matchedPattern.length >= 2 ? matchedPattern : matchedLabel;
+      if (pool.length >= 2) {
+        const actionPrefixRe = /^(?:從|从|立即|开始|開始|观看|觀看|正在).*?(?:開始|开始|播放|观看|觀看)$|^(?:上一集|下一集|播放|正在播放)$/;
+        const dedupMap = new Map();
+        pool.slice(0, 150).forEach((it) => {
+          if (dedupMap.has(it.url)) {
+            const prev = dedupMap.get(it.url);
+            if (actionPrefixRe.test(prev.title) && !actionPrefixRe.test(it.title)) {
+              prev.title = it.title;
+            }
+          } else {
+            dedupMap.set(it.url, { ...it });
+          }
+        });
+        dedupMap.forEach((it) => addEp(it.title, it.url, '', it.cur));
+      }
+    }
+
+    return {
+      has_series: episodes.length > 1,
+      series_title: seriesTitle || pageTitle,
+      total: episodes.length,
+      current_index: currentIndex,
+      page_url: href,
+      episodes: episodes
+    };
+  }
+
+  // 响应来自 popup 的深度重新嗅探与同系列扫描指令
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.action === 'SCAN_SERIES_LIST') {
+      try {
+        const result = scanPageSeriesList();
+        sendResponse({ success: true, series: result });
+      } catch (e) {
+        sendResponse({ success: false, error: String(e) });
+      }
+      return true;
+    }
+
     if (message && message.action === 'RESNIFF_ACTIVE_TAB') {
       try {
         window.postMessage({ action: 'CATCATCH_DO_RESNIFF' }, '*');

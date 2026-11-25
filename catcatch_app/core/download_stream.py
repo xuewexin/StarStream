@@ -1023,18 +1023,16 @@ class StreamDownloadTask:
 
         def smart_fetch(target_url, timeout=15):
             """抗 Cloudflare 智能多栈请求器"""
-            # 1. 优先采用标准 urllib.request (具备系统原生 TLS 栈，成功绕过 Cloudflare 403)
+            # 1. 优先采用标准 urllib.request (具备系统原生 TLS 栈；直连时显式传入 ProxyHandler({}) 避免读取坏的系统代理)
             try:
                 req = urllib.request.Request(target_url, headers=headers)
                 if proxy and proxy.lower() not in ("none", "direct"):
                     opener = urllib.request.build_opener(urllib.request.ProxyHandler({'http': proxy, 'https': proxy}))
-                    with opener.open(req, timeout=timeout) as resp:
-                        if resp.status == 200:
-                            return resp.read()
                 else:
-                    with urllib.request.urlopen(req, timeout=timeout) as resp:
-                        if resp.status == 200:
-                            return resp.read()
+                    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                with opener.open(req, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        return resp.read()
             except Exception:
                 pass
 
@@ -1065,6 +1063,30 @@ class StreamDownloadTask:
                 pass
             return None
 
+        def unwrap_media_bytes(raw_bytes: bytes) -> bytes:
+            """自动剥离 PNG-wrapped roUd 容器或 PNG 伪装头部 (恢复真实 M3U8 / TS 流)"""
+            if not raw_bytes or len(raw_bytes) < 16:
+                return raw_bytes
+            if raw_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+                import struct
+                import zlib
+                pos = 8
+                while pos + 8 <= len(raw_bytes):
+                    ln, ctype = struct.unpack(">II", raw_bytes[pos:pos + 8])
+                    x = pos + 8
+                    if x + ln > len(raw_bytes):
+                        break
+                    if ctype == 1919898980:  # 'roUd'
+                        flags = raw_bytes[x]
+                        payload = raw_bytes[x + 1:x + ln]
+                        return zlib.decompress(payload) if (flags & 1) else payload
+                    pos = x + ln + 4
+                # 若非 roUd 标准块而是简单前部 PNG 伪装头，定位 IEND 后数据或 0x47 TS 同步头
+                iend = raw_bytes.find(b"IEND")
+                if iend != -1 and iend + 8 < len(raw_bytes):
+                    return raw_bytes[iend + 8:]
+            return raw_bytes
+
         try:
             if self.on_log:
                 self.on_log(f"内置流媒体引擎正在解析 M3U8 清单: {url}")
@@ -1072,6 +1094,7 @@ class StreamDownloadTask:
             m3u8_bytes = smart_fetch(url, timeout=15)
             if not m3u8_bytes:
                 raise Exception("无法拉取 M3U8 播放清单 (防盗链或网络连接超时)")
+            m3u8_bytes = unwrap_media_bytes(m3u8_bytes)
 
             lines = m3u8_bytes.decode("utf-8", errors="ignore").strip().splitlines()
             base_url = self.task_data.get("baseUrl") or url
@@ -1136,6 +1159,7 @@ class StreamDownloadTask:
                         return
                     content = smart_fetch(ts_url, timeout=15)
                     if content and len(content) > 0:
+                        content = unwrap_media_bytes(content)
                         with open(ts_filename, "wb") as f:
                             f.write(content)
                         with lock:

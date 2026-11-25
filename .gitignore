@@ -64,3 +64,7 @@ build/
 .workbuddy/
 Thumbs.db
 Desktop.ini
+
+# 安卓端工程与构建产物（暂不上传）
+android_app/
+*.apk

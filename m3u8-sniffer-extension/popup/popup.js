@@ -238,6 +238,7 @@
     try {
       checkClientStatus(); // 异步探测客户端，更新在线状态标记
       checkAbnormalAccessReports(); // 监测是否存在待人工认证的异常风控
+      probeActiveTabSeriesQuietly(); // 静默探测当前页是否存在同系列合集
     } catch (e) {}
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -563,6 +564,250 @@
       settingsPanel.classList.add('hidden');
     });
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+
+    // 同系列 / 合集爬取模态事件绑定
+    const seriesModal = document.getElementById('seriesModal');
+    const btnSeriesCrawl = document.getElementById('btnSeriesCrawl');
+    if (btnSeriesCrawl && seriesModal) {
+      btnSeriesCrawl.addEventListener('click', () => openSeriesModal());
+      document.getElementById('closeSeriesBtn').addEventListener('click', () => seriesModal.classList.add('hidden'));
+      seriesModal.addEventListener('click', (e) => {
+        if (e.target === seriesModal) seriesModal.classList.add('hidden');
+      });
+      document.getElementById('btnSeriesAll').addEventListener('click', () => setSeriesAllChecked(true));
+      document.getElementById('btnSeriesNone').addEventListener('click', () => setSeriesAllChecked(false));
+      document.getElementById('btnSeriesAfter').addEventListener('click', () => selectSeriesFromCurrent());
+      document.getElementById('btnSeriesRange').addEventListener('click', () => applySeriesRange());
+      document.getElementById('btnSeriesRescan').addEventListener('click', () => scanAndRenderSeries(true));
+      document.getElementById('btnSeriesDownload').addEventListener('click', () => submitSeriesDownload());
+    }
+  }
+
+  let currentDetectedSeries = null;
+
+  async function probeActiveTabSeriesQuietly() {
+    try {
+      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const activeTab = tabs && tabs[0];
+      if (!activeTab || !activeTab.id || !activeTab.url || !activeTab.url.startsWith('http')) return;
+      chrome.tabs.sendMessage(activeTab.id, { action: 'SCAN_SERIES_LIST' }, (res) => {
+        if (chrome.runtime.lastError) return;
+        const badge = document.getElementById('seriesCountBadge');
+        if (res && res.success && res.series && res.series.has_series && badge) {
+          currentDetectedSeries = res.series;
+          badge.textContent = res.series.total;
+          badge.classList.remove('hidden');
+        }
+      });
+    } catch (e) {}
+  }
+
+  async function openSeriesModal() {
+    const modal = document.getElementById('seriesModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    await scanAndRenderSeries(false);
+  }
+
+  async function scanAndRenderSeries(forceRescan) {
+    const titleEl = document.getElementById('seriesTitleDisplay');
+    const metaEl = document.getElementById('seriesMetaDisplay');
+    const listBox = document.getElementById('seriesListContainer');
+    const dlBtn = document.getElementById('btnSeriesDownload');
+
+    titleEl.textContent = '正在扫描当前页面同系列合集...';
+    metaEl.textContent = '正在结合页面结构与后端接口深入解析剧集/音频专辑清单';
+    listBox.innerHTML = '<div class="series-loading">🔍 正在识别同系列合集分集...</div>';
+    dlBtn.disabled = true;
+
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const activeTab = tabs && tabs[0];
+    if (!activeTab || !activeTab.url || !activeTab.url.startsWith('http')) {
+      titleEl.textContent = '当前标签页不支持探测';
+      listBox.innerHTML = '<div class="series-empty">请在视频、音频专辑或课程播放网页中打开此功能。</div>';
+      return;
+    }
+
+    const pageUrl = activeTab.url;
+    let cookieStr = '';
+    if (chrome.cookies) {
+      try {
+        const dom = new URL(pageUrl).hostname;
+        const cks = await chrome.cookies.getAll({ domain: dom });
+        if (cks && cks.length) cookieStr = cks.map(c => `${c.name}=${c.value}`).join('; ');
+      } catch (e) {}
+    }
+
+    // 1. 并发尝试页面 DOM 扫描与桌面端后端解析引擎 (/api/series/parse)
+    const domPromise = new Promise((resolve) => {
+      chrome.tabs.sendMessage(activeTab.id, { action: 'SCAN_SERIES_LIST' }, (res) => {
+        if (chrome.runtime.lastError || !res || !res.success) resolve(null);
+        else resolve(res.series);
+      });
+    });
+
+    const apiPromise = (async () => {
+      try {
+        const controller = new AbortController();
+        const tmr = setTimeout(() => controller.abort(), 7500);
+        const resp = await fetch(`http://127.0.0.1:${clientPort}/api/series/parse`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: pageUrl, cookie: cookieStr, userAgent: navigator.userAgent }),
+          signal: controller.signal
+        });
+        clearTimeout(tmr);
+        if (resp && resp.ok) {
+          const data = await resp.json();
+          if (data && data.success && data.series) return data.series;
+        }
+      } catch (e) {}
+      return null;
+    })();
+
+    const [domSeries, apiSeries] = await Promise.all([domPromise, apiPromise]);
+
+    // 后端结构化 API（含 B站 cid/bvid/音频sid 等直达字段）优先，DOM 作为通用网站强力补全
+    let chosen = null;
+    if (apiSeries && apiSeries.episodes && apiSeries.episodes.length > 1) {
+      chosen = apiSeries;
+    } else if (domSeries && domSeries.episodes && domSeries.episodes.length > 1) {
+      chosen = domSeries;
+    }
+
+    currentDetectedSeries = chosen;
+    const badge = document.getElementById('seriesCountBadge');
+
+    if (!chosen || !chosen.episodes || chosen.episodes.length < 2) {
+      titleEl.textContent = '未在当前页面发现多集 / 合集列表';
+      metaEl.textContent = activeTab.title || pageUrl;
+      listBox.innerHTML = '<div class="series-empty">未检测到连续剧集或专辑合集。<br>如当前页面仅包含单个视频，可直接使用主列表【下载 (推送)】功能。</div>';
+      if (badge) badge.classList.add('hidden');
+      updateSeriesDownloadBtnCount();
+      return;
+    }
+
+    if (badge) {
+      badge.textContent = chosen.total || chosen.episodes.length;
+      badge.classList.remove('hidden');
+    }
+
+    titleEl.textContent = chosen.series_title || activeTab.title || '同系列合集';
+    metaEl.textContent = `已识别共 ${chosen.episodes.length} 集/首 · 可勾选指定集数一键全套爬取`;
+
+    listBox.innerHTML = '';
+    const curIdx = chosen.current_index || 0;
+    chosen.episodes.forEach((ep, idx) => {
+      const row = document.createElement('label');
+      row.className = `series-ep-item ${idx === curIdx ? 'is-current' : ''}`;
+      const dur = Number(ep.duration) || 0;
+      const durTxt = dur > 0 ? `${String(Math.floor(dur / 60)).padStart(2, '0')}:${String(dur % 60).padStart(2, '0')}` : '';
+      const curTag = idx === curIdx ? '<span style="color:#38bdf8;font-size:10px;font-weight:700;margin-left:4px;">当前</span>' : '';
+      row.innerHTML = `
+        <input type="checkbox" class="series-ep-cb" data-idx="${idx}" checked>
+        <span style="color:#64748b;font-size:11px;min-width:22px;">${String(ep.index || idx + 1).padStart(2, '0')}</span>
+        <span class="series-ep-title" title="${escapeHtml(ep.title)}">${escapeHtml(ep.title)}${curTag}</span>
+        ${durTxt ? `<span class="series-ep-dur">${durTxt}</span>` : ''}
+      `;
+      row.querySelector('.series-ep-cb').addEventListener('change', updateSeriesDownloadBtnCount);
+      listBox.appendChild(row);
+    });
+    updateSeriesDownloadBtnCount();
+  }
+
+  function setSeriesAllChecked(checked) {
+    document.querySelectorAll('#seriesListContainer .series-ep-cb').forEach((cb) => {
+      cb.checked = checked;
+    });
+    updateSeriesDownloadBtnCount();
+  }
+
+  function selectSeriesFromCurrent() {
+    const curIdx = (currentDetectedSeries && currentDetectedSeries.current_index) || 0;
+    document.querySelectorAll('#seriesListContainer .series-ep-cb').forEach((cb, i) => {
+      cb.checked = i >= curIdx;
+    });
+    updateSeriesDownloadBtnCount();
+  }
+
+  function applySeriesRange() {
+    const val = (document.getElementById('seriesRangeInput').value || '').trim();
+    const m = val.match(/^(\d+)\s*[-~到]\s*(\d+)$/);
+    if (!m) {
+      showToast('请输入区间格式，如 1-10');
+      return;
+    }
+    const start = Math.max(1, parseInt(m[1], 10)) - 1;
+    const end = parseInt(m[2], 10) - 1;
+    document.querySelectorAll('#seriesListContainer .series-ep-cb').forEach((cb, i) => {
+      cb.checked = i >= start && i <= end;
+    });
+    updateSeriesDownloadBtnCount();
+  }
+
+  function updateSeriesDownloadBtnCount() {
+    const dlBtn = document.getElementById('btnSeriesDownload');
+    if (!dlBtn) return;
+    const checkedCount = document.querySelectorAll('#seriesListContainer .series-ep-cb:checked').length;
+    dlBtn.textContent = `一键爬取选中 (${checkedCount} 集)`;
+    dlBtn.disabled = checkedCount === 0;
+  }
+
+  async function submitSeriesDownload() {
+    if (!currentDetectedSeries || !currentDetectedSeries.episodes) return;
+    const selected = [];
+    document.querySelectorAll('#seriesListContainer .series-ep-cb:checked').forEach((cb) => {
+      const idx = parseInt(cb.getAttribute('data-idx'), 10);
+      if (currentDetectedSeries.episodes[idx]) {
+        selected.push(currentDetectedSeries.episodes[idx]);
+      }
+    });
+    if (!selected.length) return;
+
+    const dlBtn = document.getElementById('btnSeriesDownload');
+    dlBtn.disabled = true;
+    dlBtn.textContent = `正在提交 ${selected.length} 集到桌面客户端...`;
+
+    let cookieStr = '';
+    const refUrl = currentDetectedSeries.page_url || currentActiveTabUrl || '';
+    if (chrome.cookies && refUrl) {
+      try {
+        const dom = new URL(refUrl).hostname;
+        const cks = await chrome.cookies.getAll({ domain: dom });
+        if (cks && cks.length) cookieStr = cks.map(c => `${c.name}=${c.value}`).join('; ');
+      } catch (e) {}
+    }
+
+    try {
+      const resp = await fetch(`http://127.0.0.1:${clientPort}/api/series/download`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seriesTitle: currentDetectedSeries.series_title || '合集系列',
+          episodes: selected,
+          createSubdir: document.getElementById('chkSeriesSubdir').checked,
+          addIndexPrefix: document.getElementById('chkSeriesPrefix').checked,
+          cookie: cookieStr,
+          userAgent: navigator.userAgent,
+          headers: {
+            Referer: refUrl,
+            'User-Agent': navigator.userAgent,
+            Cookie: cookieStr
+          }
+        })
+      });
+      if (resp && resp.ok) {
+        const resData = await resp.json();
+        showToast(`✅ ${resData.message || `已提交 ${selected.length} 集连爬任务！`}`);
+        document.getElementById('seriesModal').classList.add('hidden');
+      } else {
+        showToast('提交失败：请确认星流桌面客户端已启动');
+      }
+    } catch (e) {
+      showToast('客户端离线，请先启动星流下载器客户端后重试！');
+    } finally {
+      updateSeriesDownloadBtnCount();
+    }
   }
 
   async function triggerResniff() {
@@ -1109,21 +1354,21 @@
       }
     }
 
-    let tagsHtml = `<span class="tag-badge tag-type" style="${item.mediaType === 'bili_dash' ? 'background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; font-weight: bold;' : ''}">${item.mediaType === 'bili_dash' ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
+    let tagsHtml = `<span class="tag-badge tag-type" style="${item.mediaType === 'bili_dash' ? 'background: linear-gradient(135deg, rgba(236,72,153,0.22), rgba(139,92,246,0.24)); border: 1px solid rgba(236,72,153,0.45); color: #f472b6; font-weight: 600;' : ''}">${item.mediaType === 'bili_dash' ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
     if (item.mediaType === 'bili_dash') {
       if (item.audioUrl) {
-        tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="已成功抓取并配对高品质独立音频轨">已配对音频</span>`;
+        tagsHtml += `<span class="tag-badge" style="background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.38);color:#34d399;" title="已成功抓取并配对高品质独立音频轨">已配对音频</span>`;
       } else {
-        tagsHtml += `<span class="tag-badge" style="background:#f59e0b;color:#fff;" title="正在监听音频轨，若未加载可点击上方重新嗅探">等待音频</span>`;
+        tagsHtml += `<span class="tag-badge" style="background:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.38);color:#fbbf24;" title="正在监听音频轨，若未加载可点击上方重新嗅探">等待音频</span>`;
       }
     }
     if (item.isMaster) {
-      tagsHtml += `<span class="tag-badge" style="background:#2563eb;color:#fff;font-weight:600;" title="主清单 (Master Playlist)，N_m3u8DL-RE 将自动选择最高画质 1080P">最高画质 1080P</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:rgba(37,99,235,0.18);border:1px solid rgba(59,130,246,0.4);color:#60a5fa;font-weight:600;" title="主清单 (Master Playlist)，N_m3u8DL-RE 将自动选择最高画质 1080P">最高画质 1080P</span>`;
     }
     if (item.isAd && !item.isMaster) {
-      tagsHtml += `<span class="tag-badge" style="background:#ef4444;color:#fff;" title="${item.adReason || t('tag_ad', '疑似切片')}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:rgba(239,68,68,0.14);border:1px solid rgba(239,68,68,0.35);color:#f87171;" title="${item.adReason || t('tag_ad', '疑似切片')}">${t('tag_ad')}${item.duration ? ' (' + item.duration + 's)' : ''}</span>`;
     } else if (item.isFeature || item.isMaster) {
-      tagsHtml += `<span class="tag-badge" style="background:#10b981;color:#fff;" title="${t('tip_feature_video', '当前页面正片视频')}">${t('tag_feature')}</span>`;
+      tagsHtml += `<span class="tag-badge" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#4ade80;" title="${t('tip_feature_video', '当前页面正片视频')}">${t('tag_feature')}</span>`;
     }
     const resLabel = formatResolutionLabel(getItemResolution(item));
     if (resLabel) {

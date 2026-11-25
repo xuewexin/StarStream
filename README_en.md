@@ -36,16 +36,16 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_v3.2.6_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.6_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip">
+    <img src="https://img.shields.io/badge/⭐%20Portable%20Suite-StarStream_v3.2.7_Portable.zip%20(Built--in%20FFmpeg%20%26%20N_m3u8DL)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Download Portable Package">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe">
     <img src="https://img.shields.io/badge/🚀%20Standalone%20EXE-StarStream.exe%20(Auto--scan%20Engines)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="Download StarStream.exe">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.6/StarStream_Browser_Extension_v3.2.6.zip">
-    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.6.zip%20(180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip">
+    <img src="https://img.shields.io/badge/🧩%20Sniffer%20Extension-Extension_v3.2.7.zip%20(180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Download Extension">
   </a>
   &nbsp;&nbsp;
   <a href="#-comparison--alternatives-why-choose-starstream">
@@ -74,7 +74,7 @@
 ---
 
 > [!TIP]
-> ### 🆕 What's new in v3.2.6 (2026-11-15)
+> ### 🆕 What's new in v3.2.7 (2026-11-15)
 >
 > - 🎬 **DASH Audio/Video 100% Remuxing Fixed** — Resolved missing `audio_url` in TaskManager; rebuilt FFmpeg stream mapping (`-map 0:v:0 -map 1:a:0`) with AAC transcoding fallback. Completely eradicated the bug where video preview had sound but downloaded MP4 had no audio!
 > - 🛡️ **Anti-Bot & Captcha Challenge Breakthrough** — Captures HTTP 412 / Geetest / Cloudflare challenges. Shows `Verification Required` label with 1-click browser challenge solver, and browser extension immediately syncs fresh credentials to resume downloads seamlessly.
