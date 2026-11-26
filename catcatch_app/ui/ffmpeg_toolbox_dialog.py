@@ -16,6 +16,10 @@ from catcatch_app.core.ffmpeg_engine import (
     is_ffmpeg_available, probe_media_info, transcode,
     mux_video_audio, extract_audio, trim_media, repair_media
 )
+from catcatch_app.core.video_enhancer import (
+    find_realesrgan_path, download_realesrgan_engine,
+    enhance_video_fast, enhance_video_ai
+)
 from catcatch_app.ui.icons import get_icon, get_app_icon
 from catcatch_app.ui.batch_convert_dialog import BatchConvertDialog
 
@@ -60,6 +64,7 @@ class FFmpegToolboxDialog(QDialog):
         self.tabs.addTab(self._create_extract_tab(preset_file), "提取音频")
         self.tabs.addTab(self._create_trim_tab(preset_file), "无损剪切")
         self.tabs.addTab(self._create_repair_tab(preset_file), "文件修复")
+        self.tabs.addTab(self._create_enhance_tab(preset_file), "画质增强 / AI超分")
         self.tabs.addTab(self._create_probe_tab(preset_file), "媒体探查")
         main_layout.addWidget(self.tabs)
 
@@ -428,6 +433,143 @@ class FFmpegToolboxDialog(QDialog):
         layout.addStretch()
 
         return widget
+
+    # 7. 画质高清增强 / 本地免费 AI 超分 Tab
+    def _create_enhance_tab(self, preset_file):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setSpacing(12)
+
+        r1 = QHBoxLayout()
+        r1.addWidget(QLabel("低清视频:"))
+        self.enh_in_edit = QLineEdit(preset_file)
+        btn_in = QPushButton("浏览...")
+        btn_in.setIcon(get_icon("folder", "#a1a1aa", 16))
+        btn_in.clicked.connect(lambda: (self._choose_file(self.enh_in_edit), self._auto_fill_out(self.enh_in_edit.text(), self.enh_out_edit, "_HD.mp4")))
+        r1.addWidget(self.enh_in_edit)
+        r1.addWidget(btn_in)
+        layout.addLayout(r1)
+
+        r2 = QHBoxLayout()
+        r2.addWidget(QLabel("输出路径:"))
+        self.enh_out_edit = QLineEdit()
+        if preset_file:
+            self._auto_fill_out(preset_file, self.enh_out_edit, "_HD.mp4")
+        btn_out = QPushButton("另存为...")
+        btn_out.setIcon(get_icon("folder", "#a1a1aa", 16))
+        btn_out.clicked.connect(lambda: self._save_file(self.enh_out_edit))
+        r2.addWidget(self.enh_out_edit)
+        r2.addWidget(btn_out)
+        layout.addLayout(r2)
+
+        r3 = QHBoxLayout()
+        r3.addWidget(QLabel("增强方案:"))
+        self.enh_mode_combo = QComboBox()
+        self.enh_mode_combo.addItem("极速清晰增强 (内置双边去噪 + Lanczos4超采 + 锐化，0额外体积)", "fast")
+        self.enh_mode_combo.addItem("本地 AI 超分 (Real-ESRGAN Vulkan，纯离线免费无限次)", "ai")
+        r3.addWidget(self.enh_mode_combo, 1)
+
+        r3.addWidget(QLabel("放大倍率:"))
+        self.enh_scale_combo = QComboBox()
+        self.enh_scale_combo.addItem("2x (480P→高清)", 2)
+        self.enh_scale_combo.addItem("4x (超清)", 4)
+        r3.addWidget(self.enh_scale_combo)
+        layout.addLayout(r3)
+
+        r4 = QHBoxLayout()
+        r4.addWidget(QLabel("AI 模型:"))
+        self.enh_model_combo = QComboBox()
+        self.enh_model_combo.addItem("realesr-animevideov3 (极速轻量，支持2x/4x)", "realesr-animevideov3")
+        self.enh_model_combo.addItem("realesrgan-x4plus (精细纹理，固定4x)", "realesrgan-x4plus")
+        r4.addWidget(self.enh_model_combo, 1)
+
+        self.ai_status_label = QLabel()
+        self.btn_dl_ai = QPushButton("免费下载 AI 引擎 (~40MB)")
+        self.btn_dl_ai.setIcon(get_icon("download", "#93c5fd", 16))
+        self.btn_dl_ai.clicked.connect(self._download_ai_engine)
+        r4.addWidget(self.ai_status_label)
+        r4.addWidget(self.btn_dl_ai)
+        layout.addLayout(r4)
+
+        tip = QLabel("说明：两种方案均为 100% 本地离线开源实现，无需 API Key、不收费、无使用次数限制。")
+        tip.setStyleSheet("color: #71717a; font-size: 11px;")
+        layout.addWidget(tip)
+
+        btn_row = QHBoxLayout()
+        self.enh_start_btn = QPushButton("开始画质增强")
+        self.enh_start_btn.setIcon(get_icon("play", "#ffffff", 16))
+        self.enh_start_btn.setProperty("class", "primary")
+        self.enh_start_btn.clicked.connect(self._start_enhance)
+        btn_row.addStretch()
+        btn_row.addWidget(self.enh_start_btn)
+        layout.addLayout(btn_row)
+        layout.addStretch()
+
+        self._refresh_ai_status()
+        return widget
+
+    def _refresh_ai_status(self):
+        exe = find_realesrgan_path()
+        if exe:
+            self.ai_status_label.setText("AI引擎: 已就绪")
+            self.ai_status_label.setStyleSheet("color: #4ade80; font-size: 11.5px;")
+            self.btn_dl_ai.setVisible(False)
+        else:
+            self.ai_status_label.setText("AI引擎: 未安装")
+            self.ai_status_label.setStyleSheet("color: #fbbf24; font-size: 11.5px;")
+            self.btn_dl_ai.setVisible(True)
+
+    def _download_ai_engine(self):
+        self.btn_dl_ai.setEnabled(False)
+        self.prog_bar.setValue(0)
+        self.log_text.append("[Real-ESRGAN] 开始从开源仓库免费拉取 Vulkan AI 超分引擎...")
+
+        def on_prog(pct, msg):
+            self.bridge.progress_sig.emit(pct, msg, "")
+
+        def on_done(ok, msg):
+            self.bridge.log_sig.emit(f"[Real-ESRGAN] {'引擎安装成功: ' + msg if ok else '下载失败: ' + msg}")
+            from PyQt5.QtCore import QTimer
+            QTimer.singleShot(0, self._refresh_ai_status)
+            QTimer.singleShot(0, lambda: self.btn_dl_ai.setEnabled(True))
+            if ok:
+                self.bridge.progress_sig.emit(100.0, "AI引擎就绪", "")
+
+        download_realesrgan_engine(on_progress=on_prog, on_finished=on_done)
+
+    def _start_enhance(self):
+        inp = self.enh_in_edit.text().strip()
+        out = self.enh_out_edit.text().strip()
+        if not inp or not os.path.exists(inp):
+            QMessageBox.warning(self, "提示", "请选择待增强的视频文件！")
+            return
+        if not out:
+            QMessageBox.warning(self, "提示", "请指定输出路径！")
+            return
+
+        mode = self.enh_mode_combo.currentData() or "fast"
+        scale = int(self.enh_scale_combo.currentData() or 2)
+        model = self.enh_model_combo.currentData() or "realesr-animevideov3"
+
+        if mode == "ai" and not find_realesrgan_path():
+            QMessageBox.information(self, "提示", "尚未安装 Real-ESRGAN 本地引擎，请先点击右侧「免费下载 AI 引擎」或切换为「极速清晰增强」。")
+            return
+
+        self._before_task(out)
+        if mode == "ai":
+            self.current_task = enhance_video_ai(
+                inp, out, scale=scale, model=model,
+                on_progress=lambda p, s, t: self.bridge.progress_sig.emit(p, s, t),
+                on_log=lambda l: self.bridge.log_sig.emit(l),
+                on_finished=lambda ok, m: self.bridge.finished_sig.emit(ok, m)
+            )
+        else:
+            self.current_task = enhance_video_fast(
+                inp, out, scale=scale, denoise=True, sharpen=True,
+                on_progress=lambda p, s, t: self.bridge.progress_sig.emit(p, s, t),
+                on_log=lambda l: self.bridge.log_sig.emit(l),
+                on_finished=lambda ok, m: self.bridge.finished_sig.emit(ok, m)
+            )
 
     # 6. 媒体探查 Tab
     def _create_probe_tab(self, preset_file):

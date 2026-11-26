@@ -64,6 +64,10 @@ DEFAULT_CONFIG = {
     "auto_convert_mp4": True,       # 自动转封装为标准 MP4 格式
     "attach_metadata": True,        # 下载的文件名自动标注 分辨率 与 时长 规格
     "stream_engine": "RE",          # "RE" or "V3" or "INTERNAL"
+    "auto_enhance_video": False,    # 下载完成后自动高清增强 (默认关闭，可手动开启)
+    "enhance_mode": "fast",         # "fast" (极速清晰增强) or "ai" (Real-ESRGAN 本地免费超分)
+    "enhance_scale": 2,             # 2 or 4
+    "realesrgan_path": "",
     
     # 界面设置
     "theme": "dark",

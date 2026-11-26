@@ -354,6 +354,45 @@ class TaskManager(QObject):
                     except Exception as e:
                         print(f"[TaskManager] 探测媒体属性异常: {e}")
 
+                # 可选后处理：若用户手动开启了"下载完成后自动高清画质增强" (默认关闭)
+                if (
+                    config.get("auto_enhance_video", False)
+                    and output_path
+                    and os.path.exists(output_path)
+                    and os.path.splitext(output_path)[1].lower() in (".mp4", ".mkv", ".mov", ".flv")
+                ):
+                    try:
+                        from .video_enhancer import enhance_video_fast, enhance_video_ai, find_realesrgan_path
+                        base_no_ext, ext = os.path.splitext(output_path)
+                        hd_out = f"{base_no_ext}_HD.mp4"
+                        mode = config.get("enhance_mode", "fast")
+                        scale = int(config.get("enhance_scale", 2) or 2)
+                        task["speed"] = "画质增强中"
+                        self.task_updated.emit(task_id, dict(task))
+
+                        def _on_enh_done(enh_ok, _enh_msg):
+                            if enh_ok and os.path.exists(hd_out):
+                                task["output_file"] = hd_out
+                                task["total_bytes"] = os.path.getsize(hd_out)
+                                task["downloaded_bytes"] = task["total_bytes"]
+                                try:
+                                    mi = probe_media_info(hd_out)
+                                    if mi.get("resolution") and mi.get("resolution") != "未知":
+                                        task["resolution"] = format_resolution(mi.get("resolution"))
+                                except Exception:
+                                    pass
+                            task["speed"] = "完成"
+                            self._schedule_save()
+                            self.task_completed.emit(task_id, task.get("output_file", output_path))
+
+                        if mode == "ai" and find_realesrgan_path():
+                            enhance_video_ai(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
+                        else:
+                            enhance_video_fast(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
+                        return
+                    except Exception as enh_ex:
+                        print(f"[TaskManager] 自动画质增强跳过: {enh_ex}")
+
                 self.task_completed.emit(task_id, output_path)
             else:
                 if "手动取消" in message or task.get("status") == "paused":

@@ -231,6 +231,24 @@ class SettingsDialog(QDialog):
         self.attach_metadata_cb = QCheckBox(t("st_attach_meta"))
         media_layout.addWidget(self.auto_convert_mp4_cb)
         media_layout.addWidget(self.attach_metadata_cb)
+
+        self.auto_enhance_cb = QCheckBox("下载完成后自动高清画质增强 (默认关闭，完全免费纯本地离线)")
+        media_layout.addWidget(self.auto_enhance_cb)
+
+        enh_row = QHBoxLayout()
+        enh_row.addWidget(QLabel("增强方案:"))
+        self.enhance_mode_combo = QComboBox()
+        self.enhance_mode_combo.addItem("极速清晰增强 (内置双边去噪+Lanczos超采+锐化，0额外体积)", "fast")
+        self.enhance_mode_combo.addItem("本地 AI 超分 (Real-ESRGAN 开源GPU引擎，离线无限次)", "ai")
+        enh_row.addWidget(self.enhance_mode_combo, 1)
+
+        enh_row.addWidget(QLabel("倍率:"))
+        self.enhance_scale_combo = QComboBox()
+        self.enhance_scale_combo.addItem("2x (480P→高清)", 2)
+        self.enhance_scale_combo.addItem("4x (超清)", 4)
+        enh_row.addWidget(self.enhance_scale_combo)
+        media_layout.addLayout(enh_row)
+        self.auto_enhance_cb.toggled.connect(lambda c: (self.enhance_mode_combo.setEnabled(c), self.enhance_scale_combo.setEnabled(c)))
         core_layout.addWidget(media_group)
 
         core_layout.addStretch()
@@ -516,6 +534,16 @@ class SettingsDialog(QDialog):
         self.notify_cb.setChecked(config.get("notify_on_complete", True))
         self.auto_convert_mp4_cb.setChecked(config.get("auto_convert_mp4", True))
         self.attach_metadata_cb.setChecked(config.get("attach_metadata", True))
+        enh_on = bool(config.get("auto_enhance_video", False))
+        self.auto_enhance_cb.setChecked(enh_on)
+        em_idx = self.enhance_mode_combo.findData(config.get("enhance_mode", "fast"))
+        if em_idx >= 0:
+            self.enhance_mode_combo.setCurrentIndex(em_idx)
+        es_idx = self.enhance_scale_combo.findData(int(config.get("enhance_scale", 2) or 2))
+        if es_idx >= 0:
+            self.enhance_scale_combo.setCurrentIndex(es_idx)
+        self.enhance_mode_combo.setEnabled(enh_on)
+        self.enhance_scale_combo.setEnabled(enh_on)
 
         cur_lang = get_current_language()
         l_idx = self.lang_combo.findData(cur_lang)
@@ -795,6 +823,9 @@ class SettingsDialog(QDialog):
             "notify_on_error": self.notify_cb.isChecked(),
             "auto_convert_mp4": self.auto_convert_mp4_cb.isChecked(),
             "attach_metadata": self.attach_metadata_cb.isChecked(),
+            "auto_enhance_video": self.auto_enhance_cb.isChecked(),
+            "enhance_mode": self.enhance_mode_combo.currentData() or "fast",
+            "enhance_scale": self.enhance_scale_combo.currentData() or 2,
             "server_port": self.port_spin.value(),
             "theme": self.theme_combo.currentData() or "dark",
             "custom_background_image": self.bg_edit.text().strip(),
