@@ -68,9 +68,76 @@ class SettingsActivity : AppCompatActivity() {
         val tvEngine = findViewById<TextView>(R.id.tv_setting_engine)
         val swAdBlock = findViewById<Switch>(R.id.sw_ad_block)
 
-        val swSniffVideo = findViewById<Switch>(R.id.sw_sniff_video)
-        val swSniffAudio = findViewById<Switch>(R.id.sw_sniff_audio)
-        val swSniffDocs = findViewById<Switch>(R.id.sw_sniff_docs)
+        val etAddExt = findViewById<EditText>(R.id.et_add_ext)
+        val btnAddExt = findViewById<Button>(R.id.btn_add_ext)
+        val btnResetExts = findViewById<View>(R.id.btn_reset_exts)
+        val extChipsGrid = findViewById<LinearLayout>(R.id.ext_chips_grid)
+
+        fun renderExtensionChips() {
+            extChipsGrid.removeAllViews()
+            val exts = AppConfig.getSniffExtensions()
+            if (exts.isEmpty()) {
+                extChipsGrid.addView(TextView(this).apply {
+                    text = "当前列表为空，请添加至少一个扩展名"
+                    setTextColor(getColor(R.color.text_muted))
+                    textSize = 12f
+                })
+                return
+            }
+            val perRow = 5
+            exts.chunked(perRow).forEach { chunk ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { bottomMargin = 10 }
+                }
+                chunk.forEach { ext ->
+                    val chip = TextView(this).apply {
+                        text = "${ext.uppercase()}  ×"
+                        textSize = 11.5f
+                        setTextColor(getColor(R.color.text_primary))
+                        setBackgroundResource(R.drawable.bg_input)
+                        setPadding(22, 10, 22, 10)
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply { marginEnd = 10 }
+                        setOnClickListener {
+                            AppConfig.removeSniffExtension(ext)
+                            renderExtensionChips()
+                            Toast.makeText(this@SettingsActivity, "已移除 .$ext", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    row.addView(chip)
+                }
+                extChipsGrid.addView(row)
+            }
+        }
+        renderExtensionChips()
+
+        btnAddExt.setOnClickListener {
+            val raw = etAddExt.text.toString().trim()
+            if (raw.isEmpty()) {
+                Toast.makeText(this, "请输入扩展名，例如 mp4 或 rmvb, dmg", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val added = AppConfig.addSniffExtensions(raw)
+            if (added > 0) {
+                etAddExt.setText("")
+                renderExtensionChips()
+                Toast.makeText(this, "已添加 $added 个爬取文件类型", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "扩展名已在列表中或格式无效（仅支持字母数字）", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnResetExts.setOnClickListener {
+            AppConfig.resetSniffExtensions()
+            renderExtensionChips()
+            Toast.makeText(this, "已恢复默认爬取扩展名列表", Toast.LENGTH_SHORT).show()
+        }
 
         val swAutoMp4 = findViewById<Switch>(R.id.sw_auto_mp4)
         val swGallery = findViewById<Switch>(R.id.sw_save_gallery)
@@ -130,10 +197,6 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         swAdBlock.isChecked = AppConfig.adBlockEnabled
-        swSniffVideo.isChecked = AppConfig.sniffVideo
-        swSniffAudio.isChecked = AppConfig.sniffAudio
-        swSniffDocs.isChecked = AppConfig.sniffDocs
-
         swAutoMp4.isChecked = AppConfig.autoConvertMp4
         swGallery.isChecked = AppConfig.saveToGallery
 
@@ -165,9 +228,6 @@ class SettingsActivity : AppCompatActivity() {
             AppConfig.uaProfile = selectedUa
             AppConfig.searchEngine = selectedEngine
             AppConfig.adBlockEnabled = swAdBlock.isChecked
-            AppConfig.sniffVideo = swSniffVideo.isChecked
-            AppConfig.sniffAudio = swSniffAudio.isChecked
-            AppConfig.sniffDocs = swSniffDocs.isChecked
             AppConfig.autoConvertMp4 = swAutoMp4.isChecked
             AppConfig.saveToGallery = swGallery.isChecked
             AppConfig.maxConcurrentTasks = sbConcurrent.progress + 1

@@ -97,6 +97,18 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
+    <Button
+        android:id="@+id/btn_open_browser_fallback"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_pill_series"
+        android:text="去内置浏览器打开并自动嗅探"
+        android:textColor="#FFFFFF"
+        android:textSize="12.5sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <!-- 单集提取结果卡片 -->
     <LinearLayout
         android:id="@+id/card_single_result"

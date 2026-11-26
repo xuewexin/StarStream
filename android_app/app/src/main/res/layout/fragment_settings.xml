@@ -105,7 +105,7 @@
                 android:textColor="@color/text_primary" />
         </LinearLayout>
 
-        <!-- 多类型文件嗅探开关 -->
+        <!-- IDM 风格自定义爬取文件类型管理 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -115,7 +115,7 @@
             android:padding="14dp">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
@@ -129,37 +129,69 @@
                     app:tint="@color/accent_cyan" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="多类型文件爬取与嗅探过滤"
+                    android:layout_weight="1"
+                    android:text="自定义爬取文件类型 (点击标签可删除)"
                     android:textColor="@color/accent_cyan"
                     android:textSize="13sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btn_reset_exts"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:text="恢复默认"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
             </LinearLayout>
 
-            <Switch
-                android:id="@+id/sw_sniff_video"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:text="爬取视频与流媒体 (M3U8 / MPD / MP4 / MKV / FLV)"
-                android:textColor="@color/text_primary" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <Switch
-                android:id="@+id/sw_sniff_audio"
+                <EditText
+                    android:id="@+id/et_add_ext"
+                    android:layout_width="0dp"
+                    android:layout_height="38dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input"
+                    android:hint="添加扩展名 (如 rmvb, dmg, exe, torrent)"
+                    android:paddingHorizontal="12dp"
+                    android:singleLine="true"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btn_add_ext"
+                    android:layout_width="68dp"
+                    android:layout_height="38dp"
+                    android:background="@drawable/bg_btn_primary"
+                    android:text="添加"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <HorizontalScrollView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="爬取音频文件 (MP3 / M4A / AAC / FLAC / WAV)"
-                android:textColor="@color/text_primary" />
+                android:layout_marginTop="10dp"
+                android:scrollbars="none">
 
-            <Switch
-                android:id="@+id/sw_sniff_docs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="爬取文档与压缩包 (PDF / ZIP / 7Z / APK / Office)"
-                android:textColor="@color/text_primary" />
+                <LinearLayout
+                    android:id="@+id/ext_chips_grid"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </HorizontalScrollView>
         </LinearLayout>
 
         <!-- 媒体处理与存储 -->
@@ -174,7 +206,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="媒体处理与存储 (原生 MediaExtractor + MediaMuxer)"
+                android:text="媒体处理与存储 (内置 FFmpeg 无损混流封装)"
                 android:textColor="@color/accent_cyan"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -358,7 +390,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
             android:gravity="center"
-            android:text="星流媒体嗅探与下载器 (StarStream Pro) Android v3.2.7\n作者: xuewexin · github.com/xuewexin/StarStream\n内置多内核浏览器 · 多类型文件嗅探 · 同系列连爬"
+            android:text="星流媒体嗅探与下载器 (StarStream Pro) Android v3.2.8\n作者: xuewexin · github.com/xuewexin/StarStream\n内置 FFmpeg 无损混流 · 动态令牌提速 · 自定义嗅探扩展名"
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
     </LinearLayout>

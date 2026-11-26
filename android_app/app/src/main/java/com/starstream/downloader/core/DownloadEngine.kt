@@ -1,9 +1,11 @@
 package com.starstream.downloader.core
 
 import android.content.Context
+import android.webkit.CookieManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.ByteArrayOutputStream
@@ -25,13 +27,22 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 object HttpClientProvider {
+    private val pool = ConnectionPool(16, 2, TimeUnit.MINUTES)
+
     private val directClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .connectionPool(pool)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
             .build()
+    }
+
+    fun resetConnections() {
+        try {
+            pool.evictAll()
+        } catch (_: Throwable) {}
     }
 
     fun getClient(): OkHttpClient {
@@ -45,11 +56,129 @@ object HttpClientProvider {
 }
 
 /**
- * 原生流媒体与多线程直链下载核心引擎
- * 修复：
- * 1. 支持 Master M3U8 中 #EXT-X-MEDIA:TYPE=AUDIO 分离音轨抓取与混流
- * 2. B站 DASH 嗅探若漏掉音轨，自动通过 pageUrl 二次补齐 AAC 音轨
- * 3. 单文件支持按 AppConfig.threadCount 多线程 Range 分块并发下载
+ * 移植自 PC 端 download_stream.py:refresh_task_credentials
+ * 同步 WebView Cookie、源站 Set-Cookie、防盗链头、重解析页面新鲜 CDN Token 与重定向地址
+ */
+object CredentialRefresher {
+
+    private fun mergeCookies(vararg sources: String?): String {
+        val map = linkedMapOf<String, String>()
+        for (s in sources) {
+            if (s.isNullOrBlank()) continue
+            s.split(";").forEach { part ->
+                val idx = part.indexOf('=')
+                if (idx > 0) {
+                    val k = part.substring(0, idx).trim()
+                    val v = part.substring(idx + 1).trim()
+                    if (k.isNotEmpty() && v.isNotEmpty()) map[k] = v
+                }
+            }
+        }
+        return map.entries.joinToString("; ") { "${it.key}=${it.value}" }
+    }
+
+    fun refreshTaskCredentials(task: DownloadTask, rotateUa: Boolean = true): Boolean {
+        var refreshed = false
+        val newHeaders = HashMap(task.headers)
+        if (rotateUa) {
+            newHeaders["User-Agent"] = AppConfig.rotateIdentity()
+        } else if (newHeaders["User-Agent"].isNullOrBlank()) {
+            newHeaders["User-Agent"] = AppConfig.getUserAgentString()
+        }
+
+        val ref = task.pageUrl.ifBlank { newHeaders["Referer"] ?: "" }
+        val targetLower = task.url.lowercase()
+        when {
+            targetLower.contains("bilivideo") || targetLower.contains("hdslb.com") || ref.contains("bilibili.com") -> {
+                newHeaders["Referer"] = if (ref.startsWith("http")) ref else "https://www.bilibili.com/"
+                newHeaders["Origin"] = "https://www.bilibili.com"
+            }
+            targetLower.contains("douyin") || targetLower.contains("snssdk.com") -> {
+                newHeaders["Referer"] = "https://www.douyin.com/"
+            }
+            targetLower.contains("kwaicdn") || targetLower.contains("kwai.net") -> {
+                newHeaders["Referer"] = "https://www.kuaishou.com/"
+            }
+            targetLower.contains("xhscdn") -> {
+                newHeaders["Referer"] = "https://www.xiaohongshu.com/"
+            }
+            ref.startsWith("http") -> {
+                newHeaders["Referer"] = ref
+                try {
+                    val u = URL(ref)
+                    newHeaders["Origin"] = "${u.protocol}://${u.host}"
+                } catch (_: Exception) {}
+            }
+        }
+
+        // 1. 从内置 WebView CookieManager 同步最新会话 Cookie
+        try {
+            val cm = CookieManager.getInstance()
+            val cPage = if (ref.startsWith("http")) cm.getCookie(ref) else ""
+            val cUrl = if (task.url.startsWith("http")) cm.getCookie(task.url) else ""
+            val merged = mergeCookies(newHeaders["Cookie"], cPage, cUrl)
+            if (merged.isNotBlank() && merged != newHeaders["Cookie"]) {
+                newHeaders["Cookie"] = merged
+                refreshed = true
+            }
+        } catch (_: Throwable) {}
+
+        // 2. 若有源页面 URL，重请求源页面拉取最新签名流地址（例如 B站临时签名过期/限流）或新 Set-Cookie
+        if (task.pageUrl.startsWith("http")) {
+            try {
+                val parsed = VideoParser.parseVideoUrl(task.pageUrl, newHeaders)
+                if (parsed.success && parsed.url.isNotBlank()) {
+                    val wantAudioOnly = task.mediaType == "audio" && parsed.mediaType != "audio"
+                    if (!wantAudioOnly) {
+                        if (parsed.url != task.url) {
+                            task.url = parsed.url
+                            refreshed = true
+                        }
+                        if (parsed.audioUrl.isNotBlank()) {
+                            if (parsed.audioUrl != task.audioUrl) refreshed = true
+                            task.audioUrl = parsed.audioUrl
+                            if (task.mediaType != "m3u8") task.mediaType = "bili_dash"
+                        }
+                    }
+                    parsed.headers.forEach { (k, v) -> if (v.isNotBlank()) newHeaders[k] = v }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 3. 轻量跟踪资源 URL 重定向刷新临时 CDN Token / Set-Cookie
+        if (task.url.startsWith("http")) {
+            try {
+                val reqB = Request.Builder().url(task.url).get()
+                newHeaders.forEach { (k, v) -> if (v.isNotBlank()) reqB.header(k, v) }
+                reqB.header("Range", "bytes=0-0")
+                HttpClientProvider.getClient().newCall(reqB.build()).execute().use { resp ->
+                    val resolved = resp.request.url.toString()
+                    if (resolved.startsWith("http") && resolved != task.url && !resolved.contains("error")) {
+                        task.url = resolved
+                        refreshed = true
+                    }
+                    val setCookies = resp.headers("Set-Cookie")
+                        .mapNotNull { it.substringBefore(";").takeIf { kv -> kv.contains("=") } }
+                        .joinToString("; ")
+                    if (setCookies.isNotBlank()) {
+                        newHeaders["Cookie"] = mergeCookies(newHeaders["Cookie"], setCookies)
+                        refreshed = true
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        task.headers = newHeaders
+        HttpClientProvider.resetConnections()
+        return refreshed
+    }
+}
+
+/**
+ * 原生 FFmpeg + 多线程高速下载引擎
+ * - 集成 FFmpegKit 真混流封装，彻底解决 B站/M3U8 音画丢失与合并失败
+ * - 移植 PC 端主动打破限速 (Active Throttle Breaking)：实时监测 1s 瞬时速率与峰值回落，自动刷新令牌与重建链路
+ * - 分片级/分块级断点续传，暂停/刷新令牌/重连不丢失已完成进度
  */
 class DownloadRunner(
     private val context: Context,
@@ -57,11 +186,16 @@ class DownloadRunner(
     private val onProgress: () -> Unit
 ) {
     private val cancelled = AtomicBoolean(false)
+    private val tokenBoostRequested = AtomicBoolean(false)
     private var job: Job? = null
 
     fun cancel() {
         cancelled.set(true)
         job?.cancel()
+    }
+
+    fun requestTokenBoost() {
+        tokenBoostRequested.set(true)
     }
 
     fun start(scope: CoroutineScope, onComplete: (Boolean, String) -> Unit) {
@@ -71,20 +205,22 @@ class DownloadRunner(
                 task.errorMsg = ""
                 onProgress()
 
-                // 自动补齐未配对的 B 站音轨，防止下载成静音视频
                 val lowerUrl = task.url.lowercase().split("?")[0]
-                val isBiliVideoOnly = (task.mediaType == "bili_dash" || lowerUrl.contains("bilivideo") || lowerUrl.contains("hdslb.com")) &&
-                    !lowerUrl.contains("302") && task.audioUrl.isBlank() && task.pageUrl.contains("bilibili.com")
-                if (isBiliVideoOnly) {
-                    task.speedText = "正在补齐 B站音轨..."
+                val isBiliLink = task.mediaType == "bili_dash" || lowerUrl.contains("bilivideo") || lowerUrl.contains("hdslb.com")
+                val hasRangeFrag = task.url.contains("range=", ignoreCase = true) || task.audioUrl.contains("range=", ignoreCase = true)
+                val needsBiliRecovery = isBiliLink && (task.audioUrl.isBlank() || hasRangeFrag) &&
+                    !lowerUrl.contains("302") && task.pageUrl.contains("bilibili.com")
+
+                if (needsBiliRecovery) {
+                    task.speedText = "正在补齐 B站完整高清音视频轨..."
                     onProgress()
-                    try {
-                        val recovered = VideoParser.parseVideoUrl(task.pageUrl, task.headers)
-                        if (recovered.success && recovered.audioUrl.isNotBlank()) {
-                            task.audioUrl = recovered.audioUrl
-                            if (recovered.url.isNotBlank()) task.url = recovered.url
-                        }
-                    } catch (_: Exception) {}
+                    CredentialRefresher.refreshTaskCredentials(task, rotateUa = false)
+                }
+
+                // 补全 B站 等防盗链必需请求头
+                if (isBiliLink || task.pageUrl.contains("bilibili.com")) {
+                    if (task.headers["Referer"].isNullOrBlank()) task.headers["Referer"] = "https://www.bilibili.com/"
+                    if (task.headers["Origin"].isNullOrBlank()) task.headers["Origin"] = "https://www.bilibili.com"
                 }
 
                 val safeName = task.title.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim().ifEmpty { "video_${System.currentTimeMillis()}" }
@@ -106,10 +242,14 @@ class DownloadRunner(
                     return@launch
                 }
 
+                var exported = ""
                 if (AppConfig.saveToGallery || AppConfig.customSaveUri.isNotBlank()) {
-                    AndroidMediaMuxer.exportToPublicDownloads(context, outFile, task.subDir)
+                    exported = AndroidMediaMuxer.exportToPublicDownloads(context, outFile, task.subDir)
                 }
                 task.outputPath = outFile.absolutePath
+                task.exportedUri = exported
+                task.totalBytes = outFile.length()
+                task.downloadedBytes = outFile.length()
                 task.progress = 100
                 task.speedText = "完成"
                 task.status = TaskStatus.COMPLETED
@@ -142,18 +282,25 @@ class DownloadRunner(
         return builder.build()
     }
 
-    private fun fetchBytes(url: String): ByteArray? {
-        val client = HttpClientProvider.getClient()
-        for (retry in 0..2) {
+    private fun fetchBytes(url: String, allowRefresh: Boolean = true): ByteArray? {
+        var didRefresh = false
+        for (retry in 0..3) {
             if (cancelled.get()) return null
+            val client = HttpClientProvider.getClient()
             try {
                 client.newCall(buildRequest(url)).execute().use { resp ->
                     if (resp.isSuccessful) {
-                        return resp.body?.bytes()
+                        val bytes = resp.body?.bytes()
+                        if (bytes != null && bytes.isNotEmpty()) return bytes
+                    } else if (resp.code in listOf(401, 403, 410, 412, 416) && allowRefresh && !didRefresh) {
+                        didRefresh = true
+                        task.speedText = "HTTP ${resp.code} 自动刷新令牌..."
+                        onProgress()
+                        CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
                     }
                 }
             } catch (_: Exception) {
-                if (retry < 2) Thread.sleep(400)
+                if (retry < 3) Thread.sleep(400)
             }
         }
         return null
@@ -194,6 +341,59 @@ class DownloadRunner(
         }
         inflater.end()
         return out.toByteArray()
+    }
+
+    /**
+     * 移植 PC 端主动打破限速监控器（Rolling 1s window + 限速/跌落检测）
+     */
+    private class ThrottleMonitor {
+        private var startMs = System.currentTimeMillis()
+        private var sampleMs = System.currentTimeMillis()
+        private var sampleBytes = 0L
+        private var smoothBps = 0.0
+        private var peakBps = 0.0
+        private var lowSpeedStartMs = 0L
+        private var lastRefreshMs = 0L
+        private var refreshCount = 0
+
+        fun updateAndCheckBoost(totalBytes: Long, remainingRatio: Double, manualFlag: AtomicBoolean): Pair<Double, Boolean> {
+            val now = System.currentTimeMillis()
+            val dtSec = (now - sampleMs) / 1000.0
+            if (dtSec >= 0.8) {
+                val inst = ((totalBytes - sampleBytes).coerceAtLeast(0L)) / dtSec
+                smoothBps = if (smoothBps <= 0.0) inst else 0.7 * inst + 0.3 * smoothBps
+                if (smoothBps > peakBps) peakBps = smoothBps
+                sampleBytes = totalBytes
+                sampleMs = now
+            }
+
+            if (manualFlag.compareAndSet(true, false)) {
+                lastRefreshMs = now
+                lowSpeedStartMs = 0L
+                refreshCount++
+                return smoothBps to true
+            }
+
+            val elapsedMs = now - startMs
+            if (refreshCount < 8 && elapsedMs >= 9000L && remainingRatio > 0.04 && (now - lastRefreshMs >= 20000L)) {
+                val inThrottleZone = smoothBps in (25 * 1024.0)..(620 * 1024.0)
+                val speedDropped = (peakBps > 1.2 * 1024 * 1024 && smoothBps < peakBps * 0.25) ||
+                    (elapsedMs >= 15000L && inThrottleZone)
+                if (inThrottleZone && speedDropped) {
+                    if (lowSpeedStartMs == 0L) {
+                        lowSpeedStartMs = now
+                    } else if (now - lowSpeedStartMs >= 6500L) {
+                        lastRefreshMs = now
+                        lowSpeedStartMs = 0L
+                        refreshCount++
+                        return smoothBps to true
+                    }
+                } else {
+                    lowSpeedStartMs = 0L
+                }
+            }
+            return smoothBps to false
+        }
     }
 
     private data class HlsPlaylistParsed(
@@ -256,29 +456,50 @@ class DownloadRunner(
         val totalCount = parsed.segments.size
         val doneCount = AtomicInteger(0)
         val totalDownloaded = AtomicLong(0)
-        val startTime = System.currentTimeMillis()
         val semaphore = Semaphore(AppConfig.threadCount)
+        val monitor = ThrottleMonitor()
+        val refreshLock = Any()
 
-        val initBytes = if (parsed.initUrl.isNotEmpty()) fetchBytes(parsed.initUrl) else null
+        val initFile = File(tmpDir, "${prefix}_init.bin")
+        val initBytes = if (parsed.initUrl.isNotEmpty()) {
+            if (initFile.exists() && initFile.length() > 0) initFile.readBytes()
+            else fetchBytes(parsed.initUrl)?.also { initFile.writeBytes(it) }
+        } else null
 
         val jobs = parsed.segments.mapIndexed { idx, segUrl ->
             async {
                 semaphore.withPermit {
                     if (cancelled.get()) return@withPermit
-                    var bytes = fetchBytes(segUrl) ?: throw Exception("分片 #$idx 拉取失败")
-                    bytes = unwrapMediaBytes(bytes)
-                    if (parsed.aesKey != null) {
-                        bytes = decryptAes128(bytes, parsed.aesKey, parsed.aesIv ?: defaultIv(idx))
-                    }
                     val segFile = File(tmpDir, "${prefix}_%05d.ts".format(idx))
-                    FileOutputStream(segFile).use { it.write(bytes) }
+                    val bytesLen: Long
+                    if (segFile.exists() && segFile.length() > 0) {
+                        bytesLen = segFile.length()
+                    } else {
+                        var bytes = fetchBytes(segUrl) ?: throw Exception("分片 #$idx 拉取失败")
+                        bytes = unwrapMediaBytes(bytes)
+                        if (parsed.aesKey != null) {
+                            bytes = decryptAes128(bytes, parsed.aesKey, parsed.aesIv ?: defaultIv(idx))
+                        }
+                        FileOutputStream(segFile).use { it.write(bytes) }
+                        bytesLen = bytes.size.toLong()
+                    }
 
                     val done = doneCount.incrementAndGet()
-                    val dlBytes = totalDownloaded.addAndGet(bytes.size.toLong())
-                    val elapsedSec = ((System.currentTimeMillis() - startTime) / 1000.0).coerceAtLeast(0.1)
+                    val dlBytes = totalDownloaded.addAndGet(bytesLen)
+                    val remRatio = (totalCount - done).toDouble() / totalCount.coerceAtLeast(1)
+                    val (bps, needBoost) = synchronized(monitor) {
+                        monitor.updateAndCheckBoost(dlBytes, remRatio, tokenBoostRequested)
+                    }
+                    if (needBoost && !cancelled.get()) {
+                        synchronized(refreshLock) {
+                            task.speedText = "智能刷新令牌提速中..."
+                            onProgress()
+                            CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                        }
+                    }
                     task.downloadedBytes = dlBytes
                     task.progress = (progressBase + (done * progressSpan.toDouble()) / totalCount).toInt().coerceIn(1, 95)
-                    task.speedText = formatSpeed((dlBytes / elapsedSec).toLong())
+                    task.speedText = if (!needBoost) formatSpeed(bps.toLong()) else "已刷新令牌提速"
                     onProgress()
                 }
             }
@@ -301,12 +522,11 @@ class DownloadRunner(
     }
 
     private suspend fun downloadM3u8(outDir: File, safeName: String): File = coroutineScope {
-        val rawM3u8 = fetchBytes(task.url) ?: throw Exception("无法拉取 M3U8 清单 (防盗链或网络异常)")
+        val rawM3u8 = fetchBytes(task.url) ?: throw Exception("无法拉取 M3U8 清单 (请下拉刷新令牌或检查网络)")
         var m3u8Text = String(unwrapMediaBytes(rawM3u8), Charsets.UTF_8)
         var baseUrl = task.url
         var audioPlaylistUrl = ""
 
-        // 1. 处理 Master Playlist：选择最高画质视频轨 + 检查是否含独立 #EXT-X-MEDIA 音频轨
         if (m3u8Text.contains("#EXT-X-STREAM-INF")) {
             val lines = m3u8Text.lines()
             val audioGroups = mutableMapOf<String, String>()
@@ -360,10 +580,12 @@ class DownloadRunner(
             }
         }
 
-        val tmpDir = File(context.cacheDir, "seg_${task.id}_${System.currentTimeMillis()}")
+        // 确定性分片缓存目录，确保暂停/刷新令牌/重连可断点续传不重下
+        val tmpDir = File(context.cacheDir, "seg_${task.id}")
         tmpDir.mkdirs()
         LocalStreamProxy.registerTaskCacheDir(task.id, tmpDir)
 
+        var completedOk = false
         try {
             val videoSpan = if (parsedAudio != null) 75 else 95
             val mergedVideo = downloadPlaylistSegments(parsedVideo, tmpDir, "vseg", 0, videoSpan)
@@ -372,68 +594,85 @@ class DownloadRunner(
             } else null
 
             task.status = TaskStatus.MUXING
-            task.speedText = "正在封装有声 MP4..."
+            task.progress = 96
+            task.speedText = "FFmpeg 无损混流封装中..."
             onProgress()
 
             val finalMp4 = File(outDir, "$safeName.mp4")
-            if (mergedAudio != null) {
-                if (AndroidMediaMuxer.muxVideoAndAudio(mergedVideo, mergedAudio, finalMp4)) {
-                    task.totalBytes = finalMp4.length()
-                    return@coroutineScope finalMp4
-                }
+            if (mergedAudio != null && AndroidMediaMuxer.muxVideoAndAudio(mergedVideo, mergedAudio, finalMp4)) {
+                completedOk = true
+                return@coroutineScope finalMp4
             }
             if (AppConfig.autoConvertMp4 && AndroidMediaMuxer.remuxTsToMp4(mergedVideo, finalMp4)) {
-                task.totalBytes = finalMp4.length()
+                completedOk = true
                 return@coroutineScope finalMp4
-            } else {
-                val fallbackTs = File(outDir, "$safeName.ts")
-                mergedVideo.copyTo(fallbackTs, overwrite = true)
-                task.totalBytes = fallbackTs.length()
-                return@coroutineScope fallbackTs
             }
+            val fallbackExt = mergedVideo.extension.ifBlank { "ts" }
+            val fallbackFile = File(outDir, "$safeName.$fallbackExt")
+            mergedVideo.copyTo(fallbackFile, overwrite = true)
+            completedOk = true
+            return@coroutineScope fallbackFile
         } finally {
             LocalStreamProxy.unregisterTaskCacheDir(task.id)
-            tmpDir.deleteRecursively()
+            if (completedOk) tmpDir.deleteRecursively()
         }
     }
 
     private suspend fun downloadDashDualTrack(outDir: File, safeName: String): File = coroutineScope {
-        val tmpDir = File(context.cacheDir, "dash_${task.id}_${System.currentTimeMillis()}")
+        val tmpDir = File(context.cacheDir, "dash_${task.id}")
         tmpDir.mkdirs()
+        var completedOk = false
         try {
             val videoTmp = File(tmpDir, "video.m4s")
             val audioTmp = File(tmpDir, "audio.m4s")
             val totalDl = AtomicLong(0)
-            val startTime = System.currentTimeMillis()
+            val monitor = ThrottleMonitor()
 
-            val vJob = async { streamToFile(task.url, videoTmp, totalDl, startTime) }
-            val aJob = async { streamToFile(task.audioUrl, audioTmp, totalDl, startTime) }
-            awaitAll(vJob, aJob)
+            task.speedText = "正在高速并发下载视频轨..."
+            onProgress()
+            downloadTrackResumable({ task.url }, videoTmp, totalDl, monitor, 0, 68)
 
             if (cancelled.get()) throw CancellationException()
 
+            task.speedText = "正在下载高品质独立音频轨..."
+            onProgress()
+            downloadTrackResumable({ task.audioUrl }, audioTmp, totalDl, monitor, 68, 94)
+
+            if (cancelled.get()) throw CancellationException()
+
+            if (AndroidMediaMuxer.isHtmlOrInvalidFile(videoTmp) || AndroidMediaMuxer.isHtmlOrInvalidFile(audioTmp)) {
+                // 凭证失效导致返回错误页时，强制刷新源站直链并重下校验
+                task.speedText = "检测到音视频流失效，刷新令牌重新拉取..."
+                onProgress()
+                CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                videoTmp.delete()
+                audioTmp.delete()
+                downloadTrackResumable({ task.url }, videoTmp, totalDl, monitor, 0, 68)
+                downloadTrackResumable({ task.audioUrl }, audioTmp, totalDl, monitor, 68, 94)
+            }
+
             task.status = TaskStatus.MUXING
-            task.speedText = "音画无损合并中..."
+            task.speedText = "FFmpeg 音画无损混流中..."
             task.progress = 96
             onProgress()
 
             val outMp4 = File(outDir, "$safeName.mp4")
             val ok = AndroidMediaMuxer.muxVideoAndAudio(videoTmp, audioTmp, outMp4)
             if (!ok || !outMp4.exists() || outMp4.length() < 1024) {
-                throw Exception("音画双轨合成 MP4 失败")
+                throw Exception("FFmpeg 音画双轨合成 MP4 失败（请下拉刷新令牌后重试）")
             }
-            task.totalBytes = outMp4.length()
+            completedOk = true
             outMp4
         } finally {
             LocalStreamProxy.unregisterTaskCacheDir(task.id)
-            tmpDir.deleteRecursively()
+            if (completedOk) tmpDir.deleteRecursively()
         }
     }
 
     private suspend fun downloadSingleFile(outDir: File, safeName: String): File = coroutineScope {
         val cleanPath = task.url.substringBefore("?").substringBefore("#").lowercase()
         val urlExt = cleanPath.substringAfterLast('.', "")
-        val knownExts = setOf("mp4", "mkv", "webm", "flv", "mov", "avi", "mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "pdf", "zip", "rar", "7z", "apk", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "epub", "txt", "iso")
+        val knownExts = (AppConfig.getSniffExtensions() + listOf("mp4", "mkv", "webm", "flv", "mov", "avi", "mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "pdf", "zip", "rar", "7z", "apk")).toSet()
         val ext = when {
             urlExt in knownExts -> urlExt
             task.mediaType == "audio" -> "m4a"
@@ -443,109 +682,264 @@ class DownloadRunner(
         val outFile = File(outDir, "$safeName.$ext")
         task.outputPath = outFile.absolutePath
         val totalDl = AtomicLong(0)
-        val startTime = System.currentTimeMillis()
+        val monitor = ThrottleMonitor()
 
-        // 当用户设置多线程 > 1 且大直链支持 Range 时，启用 HTTP Range 分块多线程并发下载
+        downloadTrackResumable({ task.url }, outFile, totalDl, monitor, 0, 98)
+
+        if (ext in listOf("flv", "ts", "mkv", "webm") && AppConfig.autoConvertMp4 && task.mediaType != "file") {
+            val mp4Out = File(outDir, "$safeName.mp4")
+            if (mp4Out.absolutePath != outFile.absolutePath) {
+                task.status = TaskStatus.MUXING
+                task.speedText = "正在封装标准 MP4..."
+                onProgress()
+                if (AndroidMediaMuxer.remuxTsToMp4(outFile, mp4Out)) {
+                    outFile.delete()
+                    return@coroutineScope mp4Out
+                }
+            }
+        }
+        outFile
+    }
+
+    /**
+     * 移植 PC 端多线程 Range 分块 + 单流断点续传 + 自动刷新令牌加速
+     */
+    private suspend fun downloadTrackResumable(
+        urlSupplier: () -> String,
+        destFile: File,
+        sharedDl: AtomicLong,
+        monitor: ThrottleMonitor,
+        progStart: Int,
+        progSpanStartToEnd: Int
+    ) = coroutineScope {
         val threads = AppConfig.threadCount.coerceIn(1, 16)
-        var usedMultiThread = false
-        if (threads > 1) {
+        var targetUrl = urlSupplier()
+        var totalLen = -1L
+        var acceptRanges = false
+
+        // 先探测资源长度与 Range 支持，若遇 401/403/412 自动刷新令牌后再试
+        for (probeTry in 0..1) {
+            var retryProbe = false
             try {
                 val client = HttpClientProvider.getClient()
-                val headReq = buildRequest(task.url).newBuilder().head().build()
-                var totalLen = -1L
-                var acceptRanges = false
-                client.newCall(headReq).execute().use { r ->
-                    if (r.isSuccessful) {
-                        totalLen = r.header("Content-Length")?.toLongOrNull() ?: -1L
-                        acceptRanges = (r.header("Accept-Ranges") ?: "").contains("bytes", ignoreCase = true)
+                val probeReq = buildRequest(targetUrl).newBuilder().header("Range", "bytes=0-0").build()
+                client.newCall(probeReq).execute().use { r ->
+                    if (r.code == 206 || r.code == 200) {
+                        acceptRanges = r.code == 206 || (r.header("Accept-Ranges") ?: "").contains("bytes", ignoreCase = true)
+                        val cr = r.header("Content-Range") ?: ""
+                        if (cr.contains("/")) {
+                            totalLen = cr.substringAfterLast("/").trim().toLongOrNull() ?: -1L
+                        }
+                        if (totalLen <= 0L && r.code == 200) {
+                            totalLen = r.header("Content-Length")?.toLongOrNull() ?: -1L
+                        }
+                    } else if (r.code in listOf(401, 403, 410, 412) && probeTry == 0) {
+                        CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                        targetUrl = urlSupplier()
+                        retryProbe = true
                     }
                 }
-                if (acceptRanges && totalLen >= 2 * 1024 * 1024) {
-                    usedMultiThread = true
-                    task.totalBytes = totalLen
-                    RandomAccessFile(outFile, "rw").use { it.setLength(totalLen) }
-                    val chunkSize = (totalLen / threads).coerceAtLeast(512 * 1024)
-                    val ranges = mutableListOf<Pair<Long, Long>>()
-                    var start = 0L
-                    while (start < totalLen) {
-                        val end = minOf(start + chunkSize - 1, totalLen - 1)
-                        ranges.add(start to end)
-                        start = end + 1
-                    }
-                    val sem = Semaphore(threads)
-                    val jobs = ranges.map { (s, e) ->
-                        async {
-                            sem.withPermit {
-                                val rangeReq = buildRequest(task.url).newBuilder()
-                                    .header("Range", "bytes=$s-$e")
+            } catch (_: Exception) {
+                break
+            }
+            if (!retryProbe) break
+        }
+
+        if (acceptRanges && totalLen >= 2 * 1024 * 1024 && threads > 1) {
+            task.totalBytes = maxOf(task.totalBytes, totalLen)
+            val partDir = File(destFile.parentFile, ".parts_${destFile.name}")
+            partDir.mkdirs()
+
+            val chunkSize = (totalLen / threads).coerceAtLeast(256 * 1024)
+            val ranges = mutableListOf<Pair<Long, Long>>()
+            var s = 0L
+            while (s < totalLen) {
+                val e = minOf(s + chunkSize - 1, totalLen - 1)
+                ranges.add(s to e)
+                s = e + 1
+            }
+
+            // 统计已存在的分块续传字节
+            var preDone = 0L
+            ranges.forEachIndexed { idx, (rs, re) ->
+                val pf = File(partDir, "p_$idx")
+                if (pf.exists()) {
+                    val expected = re - rs + 1
+                    val plen = pf.length().coerceIn(0L, expected)
+                    if (pf.length() != plen) pf.delete() else preDone += plen
+                }
+            }
+            if (preDone > 0) sharedDl.addAndGet(preDone)
+
+            val sem = Semaphore(threads)
+            val refreshLock = Any()
+            val jobs = ranges.mapIndexed { idx, (rs, re) ->
+                async {
+                    sem.withPermit {
+                        val partFile = File(partDir, "p_$idx")
+                        var curStart = rs + (if (partFile.exists()) partFile.length() else 0L)
+                        if (curStart > re) return@withPermit
+
+                        var attempt = 0
+                        while (attempt < 5) {
+                            if (cancelled.get()) throw CancellationException()
+                            var boostedReconnect = false
+                            try {
+                                val reqUrl = urlSupplier()
+                                val req = buildRequest(reqUrl).newBuilder()
+                                    .header("Range", "bytes=$curStart-$re")
                                     .build()
-                                client.newCall(rangeReq).execute().use { resp ->
-                                    if (!resp.isSuccessful) throw Exception("Range HTTP ${resp.code}")
-                                    val body = resp.body ?: throw Exception("空分块")
-                                    body.byteStream().use { inp ->
-                                        RandomAccessFile(outFile, "rw").use { raf ->
-                                            raf.seek(s)
-                                            val buf = ByteArray(16 * 1024)
-                                            while (true) {
-                                                if (cancelled.get()) throw CancellationException()
-                                                val n = inp.read(buf)
-                                                if (n <= 0) break
-                                                raf.write(buf, 0, n)
-                                                val cur = totalDl.addAndGet(n.toLong())
-                                                task.downloadedBytes = cur
-                                                val elapsed = ((System.currentTimeMillis() - startTime) / 1000.0).coerceAtLeast(0.1)
-                                                task.speedText = "${formatSpeed((cur / elapsed).toLong())} (${threads}线程)"
-                                                task.progress = ((cur * 98.0) / totalLen).toInt().coerceIn(1, 98)
-                                                onProgress()
+                                HttpClientProvider.getClient().newCall(req).execute().use { resp ->
+                                    if (resp.code in listOf(401, 403, 410, 412)) {
+                                        synchronized(refreshLock) {
+                                            task.speedText = "HTTP ${resp.code} 刷新令牌中..."
+                                            onProgress()
+                                            CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                                        }
+                                        delay(500)
+                                        attempt++
+                                        boostedReconnect = true
+                                    } else {
+                                        if (!resp.isSuccessful) throw Exception("Range HTTP ${resp.code}")
+                                        val body = resp.body ?: throw Exception("空分块")
+                                        val append = curStart > rs
+                                        FileOutputStream(partFile, append).use { fos ->
+                                            body.byteStream().use { inp ->
+                                                val buf = ByteArray(32 * 1024)
+                                                while (true) {
+                                                    if (cancelled.get()) throw CancellationException()
+                                                    val n = inp.read(buf)
+                                                    if (n <= 0) break
+                                                    fos.write(buf, 0, n)
+                                                    curStart += n
+                                                    val cur = sharedDl.addAndGet(n.toLong())
+                                                    val remRatio = ((totalLen - cur).coerceAtLeast(0L)).toDouble() / totalLen.coerceAtLeast(1L)
+                                                    val (bps, needBoost) = synchronized(monitor) {
+                                                        monitor.updateAndCheckBoost(cur, remRatio, tokenBoostRequested)
+                                                    }
+                                                    task.downloadedBytes = cur
+                                                    val span = (progSpanStartToEnd - progStart).coerceAtLeast(1)
+                                                    task.progress = (progStart + (cur * span.toDouble() / totalLen.coerceAtLeast(1L))).toInt().coerceIn(progStart, progSpanStartToEnd)
+                                                    if (needBoost) {
+                                                        synchronized(refreshLock) {
+                                                            task.speedText = "智能刷新令牌提速中..."
+                                                            onProgress()
+                                                            CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                                                        }
+                                                        boostedReconnect = true
+                                                        break
+                                                    }
+                                                    task.speedText = "${formatSpeed(bps.toLong())} (${threads}线程)"
+                                                    onProgress()
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                if (curStart > re) return@withPermit
+                                if (!boostedReconnect) attempt++
+                            } catch (ce: CancellationException) {
+                                throw ce
+                            } catch (e: Exception) {
+                                attempt++
+                                if (attempt >= 5) throw e
+                                delay(500)
                             }
                         }
                     }
-                    jobs.awaitAll()
                 }
-            } catch (_: Exception) {
-                usedMultiThread = false
-                totalDl.set(0)
-                task.totalBytes = 0
             }
-        }
+            jobs.awaitAll()
+            if (cancelled.get()) throw CancellationException()
 
-        if (!usedMultiThread) {
-            streamToFile(task.url, outFile, totalDl, startTime)
-        }
-        task.totalBytes = outFile.length()
-        outFile
-    }
-
-    private fun streamToFile(url: String, destFile: File, sharedBytes: AtomicLong, startTime: Long) {
-        val client = HttpClientProvider.getClient()
-        client.newCall(buildRequest(url)).execute().use { resp ->
-            if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
-            val body = resp.body ?: throw Exception("空响应体")
-            val len = body.contentLength()
-            if (len > 0) task.totalBytes += len
-            body.byteStream().use { inp ->
-                FileOutputStream(destFile).use { out ->
-                    val buf = ByteArray(16 * 1024)
-                    while (true) {
-                        if (cancelled.get()) throw CancellationException()
-                        val n = inp.read(buf)
-                        if (n <= 0) break
-                        out.write(buf, 0, n)
-                        val cur = sharedBytes.addAndGet(n.toLong())
-                        task.downloadedBytes = cur
-                        val elapsed = ((System.currentTimeMillis() - startTime) / 1000.0).coerceAtLeast(0.1)
-                        task.speedText = formatSpeed((cur / elapsed).toLong())
-                        if (task.totalBytes > 0) {
-                            task.progress = ((cur * 95.0) / task.totalBytes).toInt().coerceIn(1, 95)
+            FileOutputStream(destFile, false).use { outFos ->
+                val buf = ByteArray(64 * 1024)
+                for (idx in ranges.indices) {
+                    val pf = File(partDir, "p_$idx")
+                    if (!pf.exists()) throw Exception("缺失分块 #$idx")
+                    pf.inputStream().use { inp ->
+                        while (true) {
+                            val n = inp.read(buf)
+                            if (n <= 0) break
+                            outFos.write(buf, 0, n)
                         }
-                        onProgress()
                     }
                 }
             }
+            partDir.deleteRecursively()
+            return@coroutineScope
+        }
+
+        // 单流支持断点续传 + 自动刷新令牌提速
+        var downloadedForFile = if (destFile.exists()) destFile.length() else 0L
+        if (downloadedForFile > 0) sharedDl.addAndGet(downloadedForFile)
+
+        var attempt = 0
+        while (attempt < 5) {
+            if (cancelled.get()) throw CancellationException()
+            val reqUrl = urlSupplier()
+            val reqB = buildRequest(reqUrl).newBuilder()
+            if (downloadedForFile > 0) reqB.header("Range", "bytes=$downloadedForFile-")
+
+            var needReconnect = false
+            var countAsRetry = false
+            HttpClientProvider.getClient().newCall(reqB.build()).execute().use { resp ->
+                if (resp.code in listOf(401, 403, 410, 412)) {
+                    task.speedText = "HTTP ${resp.code} 自动刷新令牌..."
+                    onProgress()
+                    CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                    needReconnect = true
+                    countAsRetry = true
+                } else if (resp.code == 416) {
+                    return@coroutineScope
+                } else {
+                    if (!resp.isSuccessful) throw Exception("HTTP ${resp.code}")
+
+                    val append = resp.code == 206 && downloadedForFile > 0
+                    if (!append && downloadedForFile > 0) {
+                        sharedDl.addAndGet(-downloadedForFile)
+                        downloadedForFile = 0L
+                    }
+                    val body = resp.body ?: throw Exception("空响应体")
+                    val cLen = body.contentLength()
+                    val estTotal = if (cLen > 0) downloadedForFile + cLen else totalLen
+                    if (estTotal > 0) task.totalBytes = maxOf(task.totalBytes, estTotal)
+
+                    FileOutputStream(destFile, append).use { out ->
+                        body.byteStream().use { inp ->
+                            val buf = ByteArray(32 * 1024)
+                            while (true) {
+                                if (cancelled.get()) throw CancellationException()
+                                val n = inp.read(buf)
+                                if (n <= 0) break
+                                out.write(buf, 0, n)
+                                downloadedForFile += n
+                                val cur = sharedDl.addAndGet(n.toLong())
+                                val denom = estTotal.coerceAtLeast(1L)
+                                val remRatio = if (estTotal > 0) ((estTotal - downloadedForFile).coerceAtLeast(0L)).toDouble() / denom else 0.5
+                                val (bps, needBoost) = monitor.updateAndCheckBoost(cur, remRatio, tokenBoostRequested)
+                                task.downloadedBytes = cur
+                                if (estTotal > 0) {
+                                    val span = (progSpanStartToEnd - progStart).coerceAtLeast(1)
+                                    task.progress = (progStart + (downloadedForFile * span.toDouble() / denom)).toInt().coerceIn(progStart, progSpanStartToEnd)
+                                }
+                                if (needBoost && downloadedForFile < estTotal) {
+                                    task.speedText = "智能刷新令牌提速中..."
+                                    onProgress()
+                                    CredentialRefresher.refreshTaskCredentials(task, rotateUa = true)
+                                    needReconnect = true
+                                    break
+                                }
+                                task.speedText = formatSpeed(bps.toLong())
+                                onProgress()
+                            }
+                        }
+                    }
+                }
+            }
+            if (!needReconnect) break
+            if (countAsRetry) attempt++
+            delay(350)
         }
     }
 

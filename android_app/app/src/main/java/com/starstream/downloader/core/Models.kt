@@ -24,6 +24,7 @@ data class DownloadTask(
     var totalBytes: Long = 0L,
     var speedText: String = "",
     var outputPath: String = "",
+    var exportedUri: String = "",
     var errorMsg: String = "",
     var logSummary: String = ""
 )
@@ -170,6 +171,63 @@ object AppConfig {
     var sniffDocs: Boolean
         get() = prefs.getBoolean("sniff_docs", true)
         set(v) = prefs.edit().putBoolean("sniff_docs", v).apply()
+
+    private val defaultSniffExtensions = listOf(
+        "mp4", "m3u8", "mpd", "flv", "mkv", "webm", "mov", "avi", "m4s",
+        "mp3", "m4a", "aac", "flac", "wav", "ogg", "opus",
+        "pdf", "zip", "rar", "7z", "apk", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "epub", "iso"
+    )
+
+    fun getSniffExtensions(): MutableList<String> {
+        val raw = prefs.getString("sniff_extensions_json", null)
+        if (raw.isNullOrBlank()) {
+            return defaultSniffExtensions.toMutableList()
+        }
+        val list = mutableListOf<String>()
+        try {
+            val arr = org.json.JSONArray(raw)
+            for (i in 0 until arr.length()) {
+                val ext = arr.optString(i).trim().lowercase().trimStart('.')
+                if (ext.isNotEmpty() && !list.contains(ext)) list.add(ext)
+            }
+        } catch (_: Exception) {}
+        return list
+    }
+
+    fun saveSniffExtensions(exts: List<String>) {
+        val clean = exts.map { it.trim().lowercase().trimStart('.') }.filter { it.isNotEmpty() }.distinct()
+        val arr = org.json.JSONArray()
+        clean.forEach { arr.put(it) }
+        prefs.edit().putString("sniff_extensions_json", arr.toString()).apply()
+    }
+
+    fun addSniffExtensions(rawInput: String): Int {
+        val current = getSniffExtensions()
+        val tokens = rawInput.split(Regex("[,，\\s;；|]+"))
+            .map { it.trim().lowercase().trimStart('.') }
+            .filter { it.matches(Regex("[a-z0-9]{1,12}")) }
+        var added = 0
+        for (t in tokens) {
+            if (!current.contains(t)) {
+                current.add(t)
+                added++
+            }
+        }
+        if (added > 0) saveSniffExtensions(current)
+        return added
+    }
+
+    fun removeSniffExtension(ext: String) {
+        val clean = ext.trim().lowercase().trimStart('.')
+        val current = getSniffExtensions()
+        if (current.removeAll { it == clean }) {
+            saveSniffExtensions(current)
+        }
+    }
+
+    fun resetSniffExtensions() {
+        saveSniffExtensions(defaultSniffExtensions)
+    }
 
     fun getUserAgentString(): String {
         val patch = 110 + (uaBuildSeed % 89)

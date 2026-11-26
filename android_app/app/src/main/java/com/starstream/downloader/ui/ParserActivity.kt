@@ -2,8 +2,10 @@ package com.starstream.downloader.ui
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.webkit.CookieManager
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -19,6 +21,7 @@ class ParserActivity : AppCompatActivity() {
 
     private lateinit var etInput: EditText
     private lateinit var tvStatus: TextView
+    private lateinit var btnBrowserFallback: Button
     private lateinit var cardSingle: View
     private lateinit var tvResTitle: TextView
     private lateinit var tvResMeta: TextView
@@ -28,6 +31,7 @@ class ParserActivity : AppCompatActivity() {
     private lateinit var btnDownloadSeries: Button
 
     private var currentResult: ParseResult? = null
+    private var lastParsedUrl: String = ""
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +49,7 @@ class ParserActivity : AppCompatActivity() {
 
         etInput = findViewById(R.id.et_parse_input)
         tvStatus = findViewById(R.id.tv_parse_status)
+        btnBrowserFallback = findViewById(R.id.btn_open_browser_fallback)
         cardSingle = findViewById(R.id.card_single_result)
         tvResTitle = findViewById(R.id.tv_res_title)
         tvResMeta = findViewById(R.id.tv_res_meta)
@@ -63,6 +68,14 @@ class ParserActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_parse).setOnClickListener { startParse() }
 
+        btnBrowserFallback.setOnClickListener {
+            val u = lastParsedUrl.ifBlank { etInput.text.toString().trim() }
+            if (u.startsWith("http")) {
+                startActivity(Intent(this, BrowserActivity::class.java).putExtra("open_url", u))
+                finish()
+            }
+        }
+
         findViewById<Button>(R.id.btn_download_single).setOnClickListener {
             val r = currentResult ?: return@setOnClickListener
             val task = DownloadTask(
@@ -70,6 +83,7 @@ class ParserActivity : AppCompatActivity() {
                 title = r.title.ifBlank { "video" },
                 url = r.url,
                 audioUrl = r.audioUrl,
+                pageUrl = lastParsedUrl,
                 mediaType = r.mediaType,
                 resolution = r.resolution,
                 durationSec = r.durationSec,
@@ -122,19 +136,39 @@ class ParserActivity : AppCompatActivity() {
             Toast.makeText(this, "请先粘贴分享链接或视频地址", Toast.LENGTH_SHORT).show()
             return
         }
+        val mUrl = Regex("https?://[^\\s<>\"'\\]\\）】]+").find(raw)
+        val extracted = mUrl?.value ?: raw
+        lastParsedUrl = if (extracted.startsWith("http")) extracted else ""
+
         tvStatus.visibility = View.VISIBLE
-        tvStatus.text = "正在深度逆向解析网页、音视频双流与同系列选集..."
+        tvStatus.text = "正在同步会话 Cookie 并深度解析网页、音视频双流与同系列选集..."
+        btnBrowserFallback.visibility = View.GONE
         cardSingle.visibility = View.GONE
         cardSeries.visibility = View.GONE
 
+        val extraHeaders = mutableMapOf<String, String>()
+        if (lastParsedUrl.startsWith("http")) {
+            try {
+                val c = CookieManager.getInstance().getCookie(lastParsedUrl) ?: ""
+                if (c.isNotBlank()) extraHeaders["Cookie"] = c
+            } catch (_: Throwable) {}
+            extraHeaders["User-Agent"] = AppConfig.getUserAgentString()
+        }
+
         scope.launch {
-            val res = withContext(Dispatchers.IO) { VideoParser.parseVideoUrl(raw) }
+            val res = withContext(Dispatchers.IO) { VideoParser.parseVideoUrl(raw, extraHeaders) }
             currentResult = res
-            if (!res.success) {
-                tvStatus.text = "解析失败: ${res.error}"
+            if (!res.success && res.series == null) {
+                tvStatus.text = "解析提示: ${res.error}"
+                if (lastParsedUrl.startsWith("http")) {
+                    btnBrowserFallback.visibility = View.VISIBLE
+                }
                 return@launch
             }
-            tvStatus.text = "解析成功"
+            tvStatus.text = if (res.success) "解析成功" else "已识别合集列表（可配合内置浏览器嗅探）"
+            if (!res.success && lastParsedUrl.startsWith("http")) {
+                btnBrowserFallback.visibility = View.VISIBLE
+            }
             if (res.series != null && res.series.episodes.size > 1) {
                 cardSeries.visibility = View.VISIBLE
                 tvSeriesTitle.text = "${res.series.seriesTitle} (共 ${res.series.total} 集)"
@@ -144,7 +178,7 @@ class ParserActivity : AppCompatActivity() {
             if (res.url.isNotBlank()) {
                 cardSingle.visibility = View.VISIBLE
                 tvResTitle.text = res.title.ifBlank { "提取视频" }
-                val audioTag = if (res.audioUrl.isNotBlank()) " · 音画双流自动混流" else ""
+                val audioTag = if (res.audioUrl.isNotBlank()) " · FFmpeg 音画双流混流" else ""
                 tvResMeta.text = "${res.mediaType.uppercase()} · ${res.resolution.ifBlank { "高清" }}$audioTag"
             }
         }

@@ -132,7 +132,8 @@ class DownloadTaskAdapter(
     private var items: List<DownloadTask>,
     private val onAction: (DownloadTask) -> Unit,
     private val onPreview: (DownloadTask) -> Unit,
-    private val onDelete: (DownloadTask) -> Unit
+    private val onDelete: (DownloadTask) -> Unit,
+    private val onMore: (DownloadTask) -> Unit
 ) : RecyclerView.Adapter<DownloadTaskAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
@@ -143,6 +144,7 @@ class DownloadTaskAdapter(
         val btnPreview: Button = v.findViewById(R.id.btn_task_preview)
         val btnAction: Button = v.findViewById(R.id.btn_task_action)
         val btnDel: Button = v.findViewById(R.id.btn_task_del)
+        val btnMore: android.widget.ImageButton = v.findViewById(R.id.btn_task_more)
     }
 
     fun updateData(newList: List<DownloadTask>) {
@@ -165,7 +167,7 @@ class DownloadTaskAdapter(
         val (statusStr, btnText) = when (t.status) {
             TaskStatus.WAITING -> "等待中" to "暂停"
             TaskStatus.DOWNLOADING -> "下载中 ${t.progress}%" to "暂停"
-            TaskStatus.MUXING -> "混流封装 MP4" to "处理中"
+            TaskStatus.MUXING -> "FFmpeg混流" to "处理中"
             TaskStatus.COMPLETED -> "已完成" to "打开"
             TaskStatus.PAUSED -> "已暂停" to "继续"
             TaskStatus.ERROR -> "失败" to "重试"
@@ -188,5 +190,10 @@ class DownloadTaskAdapter(
 
         holder.btnAction.setOnClickListener { onAction(t) }
         holder.btnDel.setOnClickListener { onDelete(t) }
+        holder.btnMore.setOnClickListener { onMore(t) }
+        holder.itemView.setOnLongClickListener {
+            onMore(t)
+            true
+        }
     }
 }

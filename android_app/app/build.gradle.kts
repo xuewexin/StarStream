@@ -11,8 +11,12 @@ android {
         applicationId = "com.starstream.downloader"
         minSdk = 24
         targetSdk = 35
-        versionCode = 327
-        versionName = "3.2.7"
+        versionCode = 328
+        versionName = "3.2.8"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -50,4 +54,5 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.mrljdx:ffmpeg-kit-full:6.0")
 }

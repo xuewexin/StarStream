@@ -81,9 +81,7 @@ class BrowserActivity : AppCompatActivity() {
 
     @Volatile private var cachedUserAgent: String = ""
     @Volatile private var cachedAdBlock: Boolean = true
-    @Volatile private var cachedSniffVideo: Boolean = true
-    @Volatile private var cachedSniffAudio: Boolean = true
-    @Volatile private var cachedSniffDocs: Boolean = true
+    @Volatile private var cachedSniffExts: Set<String> = emptySet()
 
     private val probeClient by lazy {
         OkHttpClient.Builder()
@@ -118,9 +116,7 @@ class BrowserActivity : AppCompatActivity() {
     private fun syncConfigFlags() {
         cachedUserAgent = AppConfig.getUserAgentString()
         cachedAdBlock = AppConfig.adBlockEnabled
-        cachedSniffVideo = AppConfig.sniffVideo
-        cachedSniffAudio = AppConfig.sniffAudio
-        cachedSniffDocs = AppConfig.sniffDocs
+        cachedSniffExts = AppConfig.getSniffExtensions().map { it.lowercase() }.toSet()
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -329,6 +325,10 @@ class BrowserActivity : AppCompatActivity() {
         })
 
         switchToTab(activeTabIndex)
+        val openUrlExtra = intent?.getStringExtra("open_url") ?: ""
+        if (openUrlExtra.startsWith("http")) {
+            navigateTo(openUrlExtra)
+        }
     }
 
     override fun onResume() {
@@ -537,7 +537,7 @@ class BrowserActivity : AppCompatActivity() {
                         AppConfig.recordHistory(tab.currentTitle, safeUrl)
                         persistTabsState()
                     }
-                    view?.evaluateJavascript(SnifferScripts.INJECT_SNIFFER_JS, null)
+                    view?.evaluateJavascript(SnifferScripts.buildInjectSnifferJs(AppConfig.getSniffExtensions()), null)
                 }
             }
 
@@ -866,7 +866,7 @@ class BrowserActivity : AppCompatActivity() {
             ),
             IconMenuItem(R.drawable.ic_star_filled, "打开收藏夹抽屉", "快速访问或管理收藏网页"),
             IconMenuItem(R.drawable.ic_add, "新建浏览器标签页", "隔离浏览会话与媒体嗅探列表"),
-            IconMenuItem(R.drawable.ic_settings, "多任务/多线程与存储设置", "并发数、线程数、自定义储存文件夹")
+            IconMenuItem(R.drawable.ic_settings, "自定义嗅探类型 / 下载存储设置", "增删爬取文件扩展名、并发数、线程数、路径")
         )
         showIconMenuDialog(this, "星流浏览器菜单", items) { which ->
             when (which) {
@@ -1088,41 +1088,43 @@ class BrowserActivity : AppCompatActivity() {
     private fun classifyCandidate(url: String, hintType: String): Pair<String, String>? {
         val clean = url.substringBefore("#").lowercase()
         val path = clean.substringBefore("?")
-        if (Regex("\\.(jpg|jpeg|png|webp|avif|gif|svg|ico|css|js|json|woff2?|ttf|eot|vtt|srt|ass|ts)(\\?|#|$)", RegexOption.IGNORE_CASE).containsMatchIn(path)) {
+        val ext = path.substringAfterLast(".", "").takeIf { it.length in 1..10 } ?: ""
+        val customExts = cachedSniffExts
+
+        val alwaysNoise = setOf("jpg", "jpeg", "png", "webp", "avif", "gif", "svg", "ico", "css", "js", "json", "woff", "woff2", "ttf", "eot", "vtt", "srt", "ass")
+        if (ext in alwaysNoise && ext !in customExts) {
             return null
         }
+        if (ext == "ts" && "ts" !in customExts) return null
         if (path.endsWith("init.mp4") || path.endsWith("init.m4s")) return null
         if (clean.contains("/bfs/") || clean.contains("bvc_preview") || clean.contains("sprite") || clean.contains("avatar") || clean.contains("thumb")) {
             return null
         }
 
-        val ext = path.substringAfterLast(".", "").takeIf { it.length in 2..5 } ?: ""
+        val audioExts = setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "opus")
+        val streamExts = setOf("m3u8", "mpd")
+        val videoExts = setOf("mp4", "flv", "webm", "mkv", "mov", "avi", "m4s", "ts", "rmvb", "m4v")
 
-        if (cachedSniffAudio && (
-                hintType == "audio" ||
-                    ext in setOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "opus") ||
-                    Regex("302\\d{2}\\.m4s").containsMatchIn(clean)
-            )
-        ) {
+        if (hintType == "audio" || (ext in audioExts && ext in customExts) || Regex("302\\d{2}\\.m4s").containsMatchIn(clean)) {
             return "audio" to (ext.ifBlank { "m4a" })
         }
-        if (cachedSniffDocs && ext in setOf("pdf", "zip", "rar", "7z", "apk", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "epub", "txt", "iso")) {
-            return "file" to ext
+        if ((ext in streamExts && ext in customExts) || clean.contains("/api/hls/")) {
+            return "m3u8" to (ext.ifBlank { "m3u8" })
         }
-        if (cachedSniffVideo) {
-            if (ext in setOf("m3u8", "mpd") || clean.contains("/api/hls/")) {
-                return "m3u8" to (ext.ifBlank { "m3u8" })
-            }
-            if (Regex("(bilivideo\\.(com|cn)|hdslb\\.com|/upgcxcode/)", RegexOption.IGNORE_CASE).containsMatchIn(clean) &&
-                Regex("\\.(m4s|mp4|flv|m3u8)(\\?|#|$)|playurl", RegexOption.IGNORE_CASE).containsMatchIn(clean)
-            ) {
-                return "bili_dash" to (ext.ifBlank { "mp4" })
-            }
-            if (Regex("(douyinvod\\.com|iesdouyin\\.com|kwaicdn\\.com|xhscdn\\.com)", RegexOption.IGNORE_CASE).containsMatchIn(clean)) {
-                return "video" to (ext.ifBlank { "mp4" })
-            }
-            if (ext in setOf("mp4", "flv", "webm", "mkv", "mov", "avi")) {
-                return "video" to ext
+        if (Regex("(bilivideo\\.(com|cn)|hdslb\\.com|/upgcxcode/)", RegexOption.IGNORE_CASE).containsMatchIn(clean) &&
+            Regex("\\.(m4s|mp4|flv|m3u8)(\\?|#|$)|playurl", RegexOption.IGNORE_CASE).containsMatchIn(clean)
+        ) {
+            return "bili_dash" to (ext.ifBlank { "mp4" })
+        }
+        if (Regex("(douyinvod\\.com|iesdouyin\\.com|kwaicdn\\.com|xhscdn\\.com)", RegexOption.IGNORE_CASE).containsMatchIn(clean)) {
+            return "video" to (ext.ifBlank { "mp4" })
+        }
+        if (ext.isNotEmpty() && ext in customExts) {
+            return when {
+                ext in audioExts -> "audio" to ext
+                ext in streamExts -> "m3u8" to ext
+                ext in videoExts -> "video" to ext
+                else -> "file" to ext
             }
         }
         return null
@@ -1168,7 +1170,12 @@ class BrowserActivity : AppCompatActivity() {
         val isAudio = mType == "audio"
 
         val headers = mutableMapOf<String, String>()
-        if (pageUrl.startsWith("http")) headers["Referer"] = pageUrl
+        if (isBili) {
+            headers["Referer"] = if (pageUrl.startsWith("http")) pageUrl else "https://www.bilibili.com/"
+            headers["Origin"] = "https://www.bilibili.com"
+        } else if (pageUrl.startsWith("http")) {
+            headers["Referer"] = pageUrl
+        }
         val cookie = try { CookieManager.getInstance().getCookie(pageUrl.ifEmpty { url }) ?: "" } catch (_: Throwable) { "" }
         if (cookie.isNotBlank()) headers["Cookie"] = cookie
         headers["User-Agent"] = cachedUserAgent

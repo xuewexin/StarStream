@@ -11,25 +11,206 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFprobeKit
+import com.arthenica.ffmpegkit.ReturnCode
 import java.io.File
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
 /**
- * 安卓原生硬件级媒体处理引擎 (MediaExtractor + MediaMuxer)
- * 修复要点：
- * 1. TS -> MP4 按音视频轨分别维持单调递增 PTS，避免分片边界 PTS 回跳丢音轨
- * 2. 若输入 TS 含音频但输出未能兼容封装音轨，返回 false 回退保留原 TS 保证有声音
- * 3. 支持导出到用户自定义的 SAF 文件夹，或系统公共 Movies/Music/Downloads
+ * 移植自 PC 端 ffmpeg_engine.py + download_file.py 的移动端 FFmpeg 无损音画混流与封装引擎
+ * 优先调用真 FFmpegKit（-map 0:v:0 -map 1:a:0 -c copy +aac 降级 + aac_adtstoasc），
+ * 并在合并后校验输出文件是否同时包含画面与声音，彻底消除安卓无画面/无声音或 B站 DASH 混流失败。
  */
 object AndroidMediaMuxer {
 
+    fun isHtmlOrInvalidFile(file: File): Boolean {
+        if (!file.exists() || file.length() < 128) return true
+        return try {
+            val head = ByteArray(256)
+            val n = FileInputStream(file).use { it.read(head) }
+            val prefix = String(head, 0, n.coerceAtLeast(0), Charsets.UTF_8).trimStart().lowercase()
+            prefix.startsWith("<!doctype") || prefix.startsWith("<html") ||
+                prefix.startsWith("{\"code\":") || prefix.startsWith("{\"message\":")
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun probeStreamPresence(file: File): Pair<Boolean, Boolean> {
+        if (!file.exists() || file.length() == 0L) return false to false
+        try {
+            val infoSession = FFprobeKit.getMediaInformation(file.absolutePath)
+            val streams = infoSession?.mediaInformation?.streams
+            if (!streams.isNullOrEmpty()) {
+                var hasV = false
+                var hasA = false
+                for (s in streams) {
+                    val t = s.type?.lowercase() ?: ""
+                    if (t == "video") hasV = true
+                    if (t == "audio") hasA = true
+                }
+                if (hasV || hasA) return hasV to hasA
+            }
+        } catch (_: Throwable) {}
+
+        val extractor = MediaExtractor()
+        return try {
+            extractor.setDataSource(file.absolutePath)
+            var hasV = false
+            var hasA = false
+            for (i in 0 until extractor.trackCount) {
+                val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: ""
+                if (mime.startsWith("video/")) hasV = true
+                if (mime.startsWith("audio/")) hasA = true
+            }
+            hasV to hasA
+        } catch (_: Throwable) {
+            false to false
+        } finally {
+            try { extractor.release() } catch (_: Exception) {}
+        }
+    }
+
+    private fun runFfmpeg(args: Array<String>): Boolean {
+        return try {
+            val session = FFmpegKit.executeWithArguments(args)
+            ReturnCode.isSuccess(session.returnCode)
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * 移植 PC 端 download_file.py:_download_dual_stream 混流策略：
+     * 1) 无损直出: -i video -i audio -map 0:v:0 -map 1:a:0 -c:v copy -c:a copy -movflags +faststart
+     * 2) 音频转 AAC 兼容混流: -c:v copy -c:a aac -b:a 192k (兼容 Opus/Vorbis/FLAC/E-AC-3 等)
+     * 3) 兜底原生 MediaExtractor+MediaMuxer
+     */
     fun muxVideoAndAudio(videoFile: File, audioFile: File, outputMp4: File): Boolean {
-        if (!videoFile.exists() || !audioFile.exists()) return false
+        if (isHtmlOrInvalidFile(videoFile) || isHtmlOrInvalidFile(audioFile)) return false
+
+        val vIn = probeStreamPresence(videoFile)
+        val aIn = probeStreamPresence(audioFile)
+        val expectVideo = vIn.first || !vIn.second
+        val expectAudio = aIn.second || audioFile.length() > 1024
+
+        // 策略 1: PC 端同款无损 stream copy 混流
+        if (outputMp4.exists()) outputMp4.delete()
+        val copyCmd = arrayOf(
+            "-y",
+            "-fflags", "+genpts",
+            "-i", videoFile.absolutePath,
+            "-i", audioFile.absolutePath,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-c:a", "copy",
+            "-movflags", "+faststart",
+            outputMp4.absolutePath
+        )
+        if (runFfmpeg(copyCmd) && outputMp4.exists() && outputMp4.length() > 1024) {
+            val outStreams = probeStreamPresence(outputMp4)
+            if ((!expectVideo || outStreams.first) && (!expectAudio || outStreams.second)) {
+                return true
+            }
+        }
+
+        // 策略 2: PC 端同款降级 AAC 高清转码混流
+        if (outputMp4.exists()) outputMp4.delete()
+        val aacCmd = arrayOf(
+            "-y",
+            "-fflags", "+genpts",
+            "-i", videoFile.absolutePath,
+            "-i", audioFile.absolutePath,
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-movflags", "+faststart",
+            outputMp4.absolutePath
+        )
+        if (runFfmpeg(aacCmd) && outputMp4.exists() && outputMp4.length() > 1024) {
+            val outStreams = probeStreamPresence(outputMp4)
+            if ((!expectVideo || outStreams.first) && (!expectAudio || outStreams.second)) {
+                return true
+            }
+        }
+
+        // 策略 3: 安卓原生硬件级 MediaMuxer 兜底
+        return muxVideoAndAudioNative(videoFile, audioFile, outputMp4)
+    }
+
+    /**
+     * 移植 PC 端 check_auto_convert_mp4:
+     * 使用 FFmpeg 将 HLS TS / fMP4 / FLV 等容器无损重封装为带 +faststart 的标准 MP4，
+     * 并严格校验输出音画流完整性。
+     */
+    fun remuxTsToMp4(inputFile: File, outputMp4: File): Boolean {
+        if (isHtmlOrInvalidFile(inputFile)) return false
+        val inStreams = probeStreamPresence(inputFile)
+
+        // 尝试 1: TS ADTS->ASC +genpts 无损重封装
+        if (outputMp4.exists()) outputMp4.delete()
+        val tsBsfCmd = arrayOf(
+            "-y",
+            "-fflags", "+genpts+discardcorrupt",
+            "-i", inputFile.absolutePath,
+            "-c", "copy",
+            "-bsf:a", "aac_adtstoasc",
+            "-movflags", "+faststart",
+            outputMp4.absolutePath
+        )
+        if (runFfmpeg(tsBsfCmd) && verifyOutputStreams(outputMp4, inStreams)) return true
+
+        // 尝试 2: 通用无损封装 (针对 fMP4 / FLV / 已有 ASC 头的流)
+        if (outputMp4.exists()) outputMp4.delete()
+        val plainCmd = arrayOf(
+            "-y",
+            "-fflags", "+genpts",
+            "-i", inputFile.absolutePath,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            outputMp4.absolutePath
+        )
+        if (runFfmpeg(plainCmd) && verifyOutputStreams(outputMp4, inStreams)) return true
+
+        // 尝试 3: 视频无损 copy + 非标音频转 AAC
+        if (inStreams.second) {
+            if (outputMp4.exists()) outputMp4.delete()
+            val aacFallback = arrayOf(
+                "-y",
+                "-fflags", "+genpts",
+                "-i", inputFile.absolutePath,
+                "-c:v", "copy",
+                "-c:a", "aac",
+                "-b:a", "192k",
+                "-movflags", "+faststart",
+                outputMp4.absolutePath
+            )
+            if (runFfmpeg(aacFallback) && verifyOutputStreams(outputMp4, inStreams)) return true
+        }
+
+        // 尝试 4: 原生 MediaMuxer 兜底
+        return remuxTsToMp4Native(inputFile, outputMp4)
+    }
+
+    private fun verifyOutputStreams(outFile: File, inStreams: Pair<Boolean, Boolean>): Boolean {
+        if (!outFile.exists() || outFile.length() < 1024) return false
+        val outStreams = probeStreamPresence(outFile)
+        if (inStreams.first && !outStreams.first) return false
+        if (inStreams.second && !outStreams.second) return false
+        return outStreams.first || outStreams.second
+    }
+
+    private fun muxVideoAndAudioNative(videoFile: File, audioFile: File, outputMp4: File): Boolean {
         var muxer: MediaMuxer? = null
         val vExtractor = MediaExtractor()
         val aExtractor = MediaExtractor()
         return try {
+            if (outputMp4.exists()) outputMp4.delete()
             vExtractor.setDataSource(videoFile.absolutePath)
             aExtractor.setDataSource(audioFile.absolutePath)
 
@@ -39,23 +220,18 @@ object AndroidMediaMuxer {
 
             muxer = MediaMuxer(outputMp4.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             vExtractor.selectTrack(vTrackIdx)
-            val vFormat = vExtractor.getTrackFormat(vTrackIdx)
-            val muxVideoTrack = muxer.addTrack(vFormat)
+            val muxVideoTrack = muxer.addTrack(vExtractor.getTrackFormat(vTrackIdx))
 
             var muxAudioTrack = -1
             if (aTrackIdx >= 0) {
                 aExtractor.selectTrack(aTrackIdx)
-                val aFormat = aExtractor.getTrackFormat(aTrackIdx)
                 try {
-                    muxAudioTrack = muxer.addTrack(aFormat)
+                    muxAudioTrack = muxer.addTrack(aExtractor.getTrackFormat(aTrackIdx))
                 } catch (_: Exception) {
                     muxAudioTrack = -1
                 }
             }
-            if (muxAudioTrack < 0 && audioFile.length() > 1024) {
-                // 避免输出纯无声视频，返回 false 让上层保留可用反馈或报错
-                return false
-            }
+            if (muxAudioTrack < 0 && audioFile.length() > 1024) return false
 
             muxer.start()
             copyTrackSamples(vExtractor, muxer, muxVideoTrack)
@@ -63,8 +239,7 @@ object AndroidMediaMuxer {
                 copyTrackSamples(aExtractor, muxer, muxAudioTrack)
             }
             outputMp4.exists() && outputMp4.length() > 1024
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
             false
         } finally {
             try { vExtractor.release() } catch (_: Exception) {}
@@ -74,11 +249,11 @@ object AndroidMediaMuxer {
         }
     }
 
-    fun remuxTsToMp4(tsFile: File, outputMp4: File): Boolean {
-        if (!tsFile.exists() || tsFile.length() == 0L) return false
+    private fun remuxTsToMp4Native(tsFile: File, outputMp4: File): Boolean {
         var muxer: MediaMuxer? = null
         val extractor = MediaExtractor()
         return try {
+            if (outputMp4.exists()) outputMp4.delete()
             extractor.setDataSource(tsFile.absolutePath)
             val trackCount = extractor.trackCount
             if (trackCount <= 0) return false
@@ -101,12 +276,10 @@ object AndroidMediaMuxer {
                 }
             }
             if (trackMap.isEmpty()) return false
-            // 若原流有声音但 MediaMuxer 无法封装其音频编码，宁愿保留原 .ts 也不产出静音 MP4
             if (hadInputAudio && !keptAudioTrack) return false
 
             muxer.start()
-            val bufferSize = 1024 * 1024
-            val buffer = ByteBuffer.allocate(bufferSize)
+            val buffer = ByteBuffer.allocate(1024 * 1024)
             val bufferInfo = MediaCodec.BufferInfo()
             val lastPtsByTrack = mutableMapOf<Int, Long>()
 
@@ -138,8 +311,7 @@ object AndroidMediaMuxer {
                 extractor.advance()
             }
             outputMp4.exists() && outputMp4.length() > 1024
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (_: Exception) {
             false
         } finally {
             try { extractor.release() } catch (_: Exception) {}
@@ -172,13 +344,15 @@ object AndroidMediaMuxer {
             info.size = size
             info.presentationTimeUs = pts
             info.flags = extractor.sampleFlags
-            muxer.writeSampleData(dstTrack, buffer, info)
+            try {
+                muxer.writeSampleData(dstTrack, buffer, info)
+            } catch (_: Exception) {}
             extractor.advance()
         }
     }
 
     fun exportToPublicDownloads(context: Context, sourceFile: File, subFolder: String): String {
-        if (!sourceFile.exists()) return sourceFile.absolutePath
+        if (!sourceFile.exists()) return ""
         val ext = sourceFile.extension.lowercase()
         val isAudio = ext in listOf("mp3", "m4a", "aac", "flac", "wav", "ogg", "opus")
         val isVideo = ext in listOf("mp4", "ts", "mkv", "webm", "flv", "mov", "avi")
@@ -196,7 +370,6 @@ object AndroidMediaMuxer {
             else -> if (isAudio) "audio/*" else if (isVideo) "video/*" else "application/octet-stream"
         }
 
-        // 1. 优先导出到用户自定义的 SAF 存储目录
         val customUriStr = AppConfig.customSaveUri
         if (customUriStr.isNotBlank()) {
             try {
@@ -220,7 +393,6 @@ object AndroidMediaMuxer {
             } catch (_: Exception) {}
         }
 
-        // 2. 回退到系统标准 MediaStore 目录
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val baseDir = when {
@@ -240,14 +412,14 @@ object AndroidMediaMuxer {
                     isVideo -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
                     else -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
                 }
-                val uri = context.contentResolver.insert(collection, values) ?: return sourceFile.absolutePath
+                val uri = context.contentResolver.insert(collection, values) ?: return ""
                 context.contentResolver.openOutputStream(uri)?.use { out ->
                     FileInputStream(sourceFile).use { inp -> inp.copyTo(out) }
                 }
                 values.clear()
                 values.put(MediaStore.MediaColumns.IS_PENDING, 0)
                 context.contentResolver.update(uri, values, null, null)
-                "$relPath/${sourceFile.name}"
+                uri.toString()
             } else {
                 val root = Environment.getExternalStoragePublicDirectory(
                     if (isAudio) Environment.DIRECTORY_MUSIC else Environment.DIRECTORY_MOVIES
@@ -259,7 +431,48 @@ object AndroidMediaMuxer {
                 destFile.absolutePath
             }
         } catch (_: Exception) {
-            sourceFile.absolutePath
+            ""
         }
+    }
+
+    fun deleteExportedFile(context: Context, exportedUriOrPath: String) {
+        if (exportedUriOrPath.isBlank()) return
+        try {
+            if (exportedUriOrPath.startsWith("content://")) {
+                val uri = Uri.parse(exportedUriOrPath)
+                val doc = DocumentFile.fromSingleUri(context, uri)
+                if (doc != null && doc.exists() && doc.delete()) return
+                context.contentResolver.delete(uri, null, null)
+            } else {
+                File(exportedUriOrPath).delete()
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun renameExportedFile(context: Context, exportedUriOrPath: String, newFileNameWithExt: String): String {
+        if (exportedUriOrPath.isBlank()) return ""
+        try {
+            if (exportedUriOrPath.startsWith("content://")) {
+                val uri = Uri.parse(exportedUriOrPath)
+                val doc = DocumentFile.fromSingleUri(context, uri)
+                if (doc != null && doc.renameTo(newFileNameWithExt)) {
+                    return doc.uri.toString()
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val cv = ContentValues().apply {
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, newFileNameWithExt)
+                    }
+                    context.contentResolver.update(uri, cv, null, null)
+                    return exportedUriOrPath
+                }
+            } else {
+                val oldF = File(exportedUriOrPath)
+                if (oldF.exists()) {
+                    val newF = File(oldF.parentFile, newFileNameWithExt)
+                    if (oldF.renameTo(newF)) return newF.absolutePath
+                }
+            }
+        } catch (_: Exception) {}
+        return exportedUriOrPath
     }
 }

@@ -37,20 +37,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip">
-    <img src="https://img.shields.io/badge/桌面全套便携包-StarStream_v3.2.7_Portable.zip-2563eb?style=for-the-badge" alt="下载便携全套包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
+    <img src="https://img.shields.io/badge/桌面全套便携包-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="下载便携全套包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
     <img src="https://img.shields.io/badge/独立主程序-StarStream.exe-059669?style=for-the-badge" alt="下载独立单文件版">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip">
-    <img src="https://img.shields.io/badge/浏览器嗅探扩展-Extension_v3.2.7.zip-7c3aed?style=for-the-badge" alt="下载浏览器扩展">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
+    <img src="https://img.shields.io/badge/浏览器嗅探扩展-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="下载浏览器扩展">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream-Android-v3.2.7.apk">
-    <img src="https://img.shields.io/badge/Android%20手机端-StarStream--Android--v3.2.7.apk-0284c7?style=for-the-badge" alt="下载安卓客户端">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
+    <img src="https://img.shields.io/badge/Android%20手机端-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="下载安卓客户端">
   </a>
 </p>
 
@@ -155,10 +155,10 @@ Android 原生客户端源码位于 [android_app/](android_app/)，编译产物�
 
 | 发行版本 | 内置组件 | 适用场景 | 获取链接 |
 |---|---|---|---|
-| **桌面全套便携包** | `StarStream.exe` + `N_m3u8DL-RE` + `FFmpeg` + 文档 | **推荐未配置环境用户**，解压即用，全部底层核心预置完成 | [StarStream_v3.2.7_Portable.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
-| **独立单文件桌面版** | 单文件独立程序（自动全盘探测本地引擎） | 本地已存在 `FFmpeg` 的用户；请置于单独空文件夹内运行 | [StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
-| **浏览器嗅探扩展包** | Manifest V3 纯扩展源码目录 | 搭配桌面客户端使用，开启网页悬浮嗅探与批量推送 | [StarStream_Browser_Extension_v3.2.7.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
-| **Android 手机端** | 原生 Kotlin 安装包（含内置浏览器与硬件混流） | 手机端独立网页嗅探、边下边看、同系列连爬与文件下载 | [StarStream-Android-v3.2.7.apk](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream-Android-v3.2.7.apk) |
+| **桌面全套便携包** | `StarStream.exe` + `N_m3u8DL-RE` + `FFmpeg` + 文档 | **推荐未配置环境用户**，解压即用，全部底层核心预置完成 | [StarStream_v3.2.8_Portable.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip) |
+| **独立单文件桌面版** | 单文件独立程序（自动全盘探测本地引擎） | 本地已存在 `FFmpeg` 的用户；请置于单独空文件夹内运行 | [StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe) |
+| **浏览器嗅探扩展包** | Manifest V3 纯扩展源码目录 | 搭配桌面客户端使用，开启网页悬浮嗅探与批量推送 | [StarStream_Browser_Extension_v3.2.8.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip) |
+| **Android 手机端** | 原生 Kotlin 安装包（含内置浏览器与硬件混流） | 手机端独立网页嗅探、边下边看、同系列连爬与文件下载 | [StarStream-Android-v3.2.8.apk](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk) |
 
 ---
 
@@ -176,7 +176,7 @@ Android 原生客户端源码位于 [android_app/](android_app/)，编译产物�
 
 ## 🧩 浏览器扩展加载指南
 
-1. 下载并解压 [StarStream_Browser_Extension_v3.2.7.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip)（或直接使用仓库内 [m3u8-sniffer-extension/](m3u8-sniffer-extension/) 目录）。
+1. 下载并解压 [StarStream_Browser_Extension_v3.2.8.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip)（或直接使用仓库内 [m3u8-sniffer-extension/](m3u8-sniffer-extension/) 目录）。
 2. 在常用现代浏览器的地址栏打开 **扩展程序管理页**，开启右上角 **「开发者模式」**。
 3. 点击 **「加载已解压的扩展程序」**，选择 `m3u8-sniffer-extension` 目录后固定到工具栏即可联动桌面客户端使用。
 

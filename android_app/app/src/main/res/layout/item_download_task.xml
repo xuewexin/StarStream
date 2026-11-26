@@ -85,7 +85,7 @@
 
         <Button
             android:id="@+id/btn_task_del"
-            android:layout_width="54dp"
+            android:layout_width="48dp"
             android:layout_height="28dp"
             android:layout_marginStart="6dp"
             android:background="@drawable/bg_input"
@@ -93,5 +93,15 @@
             android:text="删除"
             android:textColor="@color/accent_red"
             android:textSize="11sp" />
+
+        <ImageButton
+            android:id="@+id/btn_task_more"
+            android:layout_width="30dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_input"
+            android:contentDescription="更多操作"
+            android:padding="4dp"
+            android:src="@drawable/ic_more_vert" />
     </LinearLayout>
 </LinearLayout>

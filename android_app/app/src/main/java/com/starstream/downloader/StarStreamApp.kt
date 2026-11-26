@@ -8,6 +8,8 @@ import java.io.StringWriter
 class StarStreamApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        com.starstream.downloader.core.AppConfig.init(this)
+        com.starstream.downloader.core.TaskManager.init(this)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             try {

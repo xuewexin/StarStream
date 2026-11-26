@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
     private var filterMode = 0 // 0=全部, 1=队列中, 2=已完成
 
     companion object {
-        private const val CURRENT_VERSION = "3.2.7"
+        private const val CURRENT_VERSION = "3.2.8"
         private const val REPO_URL = "https://github.com/xuewexin/StarStream"
         private const val ISSUES_URL = "https://github.com/xuewexin/StarStream/issues"
     }
@@ -81,6 +81,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         AppConfig.init(this)
+        TaskManager.init(this)
         setContentView(R.layout.activity_main)
 
         val coordinator = findViewById<View>(R.id.main_coordinator)
@@ -108,16 +109,27 @@ class MainActivity : AppCompatActivity() {
         swipeDownloads.setProgressBackgroundColorSchemeResource(R.color.bg_card)
         swipeDownloads.setOnRefreshListener {
             refreshList()
-            swipeDownloads.postDelayed({
-                if (!isFinishing) swipeDownloads.isRefreshing = false
-            }, 350)
+            mainScope.launch {
+                val refreshedCnt = TaskManager.refreshAllTaskTokens(this@MainActivity)
+                if (!isFinishing) {
+                    refreshList()
+                    swipeDownloads.isRefreshing = false
+                    val msg = if (refreshedCnt > 0) {
+                        "已刷新下载列表，并更新 $refreshedCnt 个任务的加速令牌"
+                    } else {
+                        "下载列表已是最新状态"
+                    }
+                    Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         adapter = DownloadTaskAdapter(
             emptyList(),
             onAction = { task -> handleTaskAction(task) },
             onPreview = { task -> startWatchWhileDownloading(task) },
-            onDelete = { task -> TaskManager.deleteTask(task.id, deleteFile = true, context = this) }
+            onDelete = { task -> promptDeleteTaskDialog(task) },
+            onMore = { task -> showTaskMoreMenu(task) }
         )
         rvDownloads.layoutManager = LinearLayoutManager(this)
         rvDownloads.adapter = adapter
@@ -411,11 +423,17 @@ class MainActivity : AppCompatActivity() {
     private fun handleTaskAction(t: DownloadTask) {
         when (t.status) {
             TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING -> TaskManager.pauseTask(t.id, this)
-            TaskStatus.PAUSED, TaskStatus.ERROR -> TaskManager.startTask(this, t.id)
+            TaskStatus.PAUSED -> TaskManager.startTask(this, t.id)
+            TaskStatus.ERROR -> TaskManager.retryTask(this, t.id)
             TaskStatus.COMPLETED -> {
                 val f = File(t.outputPath)
                 if (!f.exists()) {
-                    Toast.makeText(this, "文件不存在或已被移动", Toast.LENGTH_SHORT).show()
+                    AlertDialog.Builder(this)
+                        .setTitle("文件不存在")
+                        .setMessage("本地文件可能已被移动或清理，是否重新尝试下载？")
+                        .setPositiveButton("重新下载") { _, _ -> TaskManager.retryTask(this, t.id) }
+                        .setNegativeButton("取消", null)
+                        .show()
                     return
                 }
                 try {
@@ -437,6 +455,83 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     Toast.makeText(this, "已保存: ${t.outputPath}", Toast.LENGTH_LONG).show()
                 }
+            }
+        }
+    }
+
+    private fun promptDeleteTaskDialog(task: DownloadTask) {
+        val hasLocal = task.outputPath.isNotBlank() || task.exportedUri.isNotBlank()
+        val msg = if (hasLocal) {
+            "请选择对「${task.title}」的删除方式：\n· 仅删除记录：保留本地已下载文件\n· 连带删除文件：同时清除本地文件与临时分片"
+        } else {
+            "确定从下载列表中移除「${task.title}」吗？"
+        }
+        val builder = AlertDialog.Builder(this)
+            .setTitle("删除下载任务")
+            .setMessage(msg)
+            .setNeutralButton("取消", null)
+            .setPositiveButton("仅删除记录") { _, _ ->
+                TaskManager.deleteTask(task.id, deleteFile = false, context = this)
+                Toast.makeText(this, "已仅删除任务记录", Toast.LENGTH_SHORT).show()
+            }
+        if (hasLocal) {
+            builder.setNegativeButton("连带删除本地文件") { _, _ ->
+                TaskManager.deleteTask(task.id, deleteFile = true, context = this)
+                Toast.makeText(this, "已删除任务记录与本地文件", Toast.LENGTH_SHORT).show()
+            }
+        }
+        builder.show()
+    }
+
+    private fun promptRenameTaskDialog(task: DownloadTask) {
+        val input = EditText(this).apply {
+            setText(task.title)
+            setSelection(text.length)
+            hint = "输入新的任务与文件名称..."
+            setPadding(44, 30, 44, 30)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("重命名任务 / 本地文件")
+            .setView(input)
+            .setPositiveButton("确定修改") { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isEmpty()) {
+                    Toast.makeText(this, "名称不能为空", Toast.LENGTH_SHORT).show()
+                } else if (TaskManager.renameTask(this, task.id, newName)) {
+                    Toast.makeText(this, "已重命名为：$newName", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun showTaskMoreMenu(task: DownloadTask) {
+        val items = mutableListOf(
+            IconMenuItem(R.drawable.ic_info, "重命名任务与文件", "同步修改列表标题与已下载文件名"),
+            IconMenuItem(R.drawable.ic_refresh, "刷新令牌并加速下载", "同步最新 Cookie/签名地址并重置限速链路"),
+            IconMenuItem(R.drawable.ic_download, "重新尝试下载", "清理残留缓存并重新拉取音视频流"),
+            IconMenuItem(R.drawable.ic_close, "删除任务", "可选仅删除记录或连带删除本地文件")
+        )
+        if (task.mediaType != "file" && task.url.startsWith("http")) {
+            items.add(2, IconMenuItem(R.drawable.ic_video, "边下边看 / 在线预览", "使用内置缓冲代理立即播放"))
+        }
+        showIconMenuDialog(this, task.title, items) { idx ->
+            val hasPreview = task.mediaType != "file" && task.url.startsWith("http")
+            when {
+                idx == 0 -> promptRenameTaskDialog(task)
+                idx == 1 -> {
+                    Toast.makeText(this, "正在刷新下载令牌并尝试提速...", Toast.LENGTH_SHORT).show()
+                    TaskManager.boostTaskToken(this, task.id) { ok ->
+                        val msg = if (ok) "令牌刷新成功，已应用极速重连" else "已刷新请求指纹并重连"
+                        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                hasPreview && idx == 2 -> startWatchWhileDownloading(task)
+                (hasPreview && idx == 3) || (!hasPreview && idx == 2) -> {
+                    TaskManager.retryTask(this, task.id)
+                    Toast.makeText(this, "已开始重新下载：${task.title}", Toast.LENGTH_SHORT).show()
+                }
+                else -> promptDeleteTaskDialog(task)
             }
         }
     }
