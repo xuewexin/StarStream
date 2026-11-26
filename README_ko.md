@@ -15,298 +15,74 @@
 </p>
 
 <p align="center">
+  <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
+</p>
+
+<p align="center">
   <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
-# 🌟 StarStream Pro - 미디어 다운로더
+# StarStream Pro - 통합 미디어 다운로더
 
-**올인원 웹 오디오/비디오 스마트 스니퍼 확장 프로그램 + 산업용 고성능 멀티스레드 다운로더 + N_m3u8DL-RE & FFmpeg 코어 내장**
+**웹 미디어 스니퍼 확장 (MV3) · 고속 멀티스레드 데스크톱 클라이언트 · 네이티브 Android 앱**
 
-[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
-[![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
-[![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
-[![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](#)
+[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=2563eb&label=Release)](https://github.com/xuewexin/StarStream/releases)
+[![Stars](https://img.shields.io/github/stars/xuewexin/StarStream?style=flat-square&color=f5c518&label=Stars)](https://github.com/xuewexin/StarStream/stargazers)
+[![Desktop](https://img.shields.io/badge/Desktop-64bit%20Client-0284c7.svg?style=flat-square)](#)
+[![Android](https://img.shields.io/badge/Android-7.0%2B%20APK-10b981.svg?style=flat-square)](#)
+[![License](https://img.shields.io/badge/License-MIT-0ea5e9.svg?style=flat-square)](LICENSE)
 
 <br>
 
 <p align="center">
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20포터블%20패키지-StarStream_v3.2.7_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20내장)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable 패키지 다운로드">
+    <img src="https://img.shields.io/badge/포터블%20패키지-StarStream_v3.2.7_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe">
-    <img src="https://img.shields.io/badge/🚀%20단일%20실행파일-StarStream.exe%20(엔진%20자동%20스캔)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe 직접 다운로드">
+    <img src="https://img.shields.io/badge/단독%20실행%20파일-StarStream.exe-059669?style=for-the-badge" alt="EXE">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip">
-    <img src="https://img.shields.io/badge/🧩%20브라우저%20스니퍼%20확장-Extension_v3.2.7.zip%20(180KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="확장 프로그램 다운로드">
+    <img src="https://img.shields.io/badge/브라우저%20확장-Extension_v3.2.7.zip-7c3aed?style=for-the-badge" alt="Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="#-유사-오픈소스-프로젝트-비교-및-대체-가이드-alternatives--comparison">
-    <img src="https://img.shields.io/badge/🔥%20대체-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="오픈소스 비교">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream-Android-v3.2.7.apk">
+    <img src="https://img.shields.io/badge/Android%20앱-StarStream--Android--v3.2.7.apk-0284c7?style=for-the-badge" alt="APK">
   </a>
-</p>
-
-> [!IMPORTANT]
-> ### 💡 최적의 콤비 가이드: 데스크톱 클라이언트와 브라우저 확장의 협력 필수!
-> - **🧩 브라우저 스니퍼 확장 (프론트엔드 레이더)**: 웹 서핑 및 동영상 재생 시 M3U8, DASH (MPD), MP4 등의 실제 미디어 스트림을 자동 감지하여 플레이어 우측 상단에 다운로드 캡슐을 표시합니다;
-> - **💻 데스크톱 클라이언트 (백엔드 엔진)**: 확장에서 전송된 다운로드 작업을 받아 내장된 **N_m3u8DL-RE** 고성능 엔진 및 **FFmpeg** 코어를 자동 호출하여 최고 24.7MB/s의 고속 멀티스레드 다운로드와 무손실 합성을 수행합니다;
-> - **완벽한 연동 (IDM 소프트웨어와 IDM 브라우저 확장의 관계와 동일)**: 두 프로그램이 모두 준비되어야 합니다! 첫 사용 시 아래 [브라우저 확장 프로그램 설치 가이드](#-브라우저-확장-프로그램-설치-가이드)를 확인하여 Chrome 또는 Edge에 확장 프로그램을 추가해 주세요.
-
-<p align="center">
-  <a href="#-스크린샷--시연">시연 화면</a> •
-  <a href="#-버전-및-다운로드">다운로드</a> •
-  <a href="#-핵심-기능">핵심 기능</a> •
-  <a href="#-브라우저-확장-프로그램-설치-가이드">설치 가이드</a> •
-  <a href="#-프록시-네트워크-설정">프록시 설정</a> •
-  <a href="#-자주-묻는-질문-faq">FAQ</a> •
-  <a href="#-면책-조항">면책 조항</a>
 </p>
 
 </div>
 
 ---
 
-
-> [!TIP]
-> ### 🆕 최신 버전 v3.2.7 · 2026-11-26
->
-> - 🎬 **DASH 오디오/비디오 100% 리먹싱 수정** — `TaskManager`의 `audio_url` 누락 결함을 완벽 수정. FFmpeg 명시적 스트림 매핑 (`-map 0:v:0 -map 1:a:0`) 및 AAC 자동 트랜스코딩 폴백을 도입하여 미리보기에서는 소리가 나지만 다운로드 파일에 소리가 없는 문제를 완전히 해결!
-> - 🛡️ **보안 리스크 제어 및 CAPTCHA 돌파 메커니즘** — HTTP 412 / Geetest / Cloudflare 챌린지 감지. 원클릭 브라우저 인증을 호출하고 새 자격 증명을 클라이언트에 즉시 동기화하여 중단 없는 다운로드 재개.
-> - 🌐 **실제 브라우저 지문 동적 정렬** — 고정 UA/Cookie 설정을 제거하고 실제 스니핑 브라우저(Edge / Chrome)의 User-Agent 및 Client Hints와 동적으로 동기화.
-> - 🖱️ **최소화 시 유령 클릭 피드백 근절** — 창을 트레이나 플로팅 위젯으로 숨겼을 때 마우스 클릭이 관통되던 버그 완벽 수정.
->
-> 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
-
----
-
-## 📸 스크린샷 & 시연
-
-### 1. 데스크톱 대시보드 (모던 다크 슬레이트 산업용 UI)
-> 벡터 아이콘 기반의 직관적인 디자인. 로컬 RPC 포트 `18910` 준비 상태, `FFmpeg` 엔진, `N_m3u8DL (RE)` 및 네트워크 프록시 연결 상태를 한눈에 모니터링할 수 있습니다.
+## 📸 실제 구동 화면
 
 <p align="center">
-  <img src="docs/images/app_main_window.png" width="92%" alt="데스크톱 대시보드 스크린샷">
+  <img src="docs/images/showcase_1_pc_main.png" width="94%" alt="StarStream 메인 콘솔">
 </p>
 
----
-
-### 2. 새 다운로드 작업 및 URL 역방향 분석 (개별 프록시 및 스레드 설정)
-> 웹 비디오 URL을 원클릭으로 붙여넣어 자동 파싱. 작업별로 스레드 수(4~32), 개별 저장 경로 및 프록시 네트워크 설정을 자유롭게 지정할 수 있습니다.
-
-<p align="center">
-  <img src="docs/images/app_new_task.png" width="82%" alt="새 작업 대화상자">
-</p>
-
----
-
-### 3. FFmpeg 전문 멀티미디어 툴박스 (포맷 변환 및 오디오/비디오 후처리)
-> 별도 설치 없이 바로 사용하는 미디어 도구: 단일/일괄 포맷 변환(MP4/MKV/TS/MOV), 비디오/오디오 머징, 무손실 오디오 추출 및 동영상 무손실 커팅 기능 제공.
-
-<p align="center">
-  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg 툴박스">
-</p>
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/web_capsule_youtube.png" width="95%" alt="웹 캡슐"><br><sub>웹 비디오 플로팅 캡처</sub></td>
+    <td width="50%" align="center"><img src="docs/images/app_ffmpeg_toolbox.png" width="95%" alt="FFmpeg 툴박스"><br><sub>내장 FFmpeg 멀티미디어 툴박스</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/app_new_task.png" width="95%" alt="새 작업"><br><sub>새 작업 및 프록시 설정</sub></td>
+    <td width="50%" align="center"><img src="docs/images/showcase_5_pc_settings.png" width="95%" alt="환경 설정"><br><sub>스레드 및 화질 향상 설정</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/app_floating_panel.png" width="92%" alt="모니터 패널"><br><sub>데스크톱 실시간 모니터</sub></td>
+    <td width="50%" align="center"><img src="docs/images/app_floating_widget.png" width="46%" alt="플로팅 위젯"><br><sub>플로팅 속도 모니터링 위젯</sub></td>
+  </tr>
+</table>
 
 ---
 
-### 4. 해외 스트리밍 무감지 스니핑 (YouTube 예시)
-> 해외 동영상 재생 시 플레이어 우측 상단에 플로팅 캡슐이 나타납니다. 실제 해상도와 길이를 확인하고 브라우저와 동일한 프록시 터널을 통해 데스크톱으로 즉시 전송합니다.
+## 📱 Android 모바일 주요 기능
 
-<p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube 비디오 스니퍼 캡슐">
-</p>
+- **내장 멀티 커널 브라우저 & 신원 새로고침**, 당겨서 새로고침, 접이식 북마크 폴더 및 방문 기록/열린 탭 영구 보존.
+- **다운로드 중 실시간 재생 & 외부 플레이어 온라인 미리보기**.
+- **동시 다운로드 작업 수, 멀티스레드 수 및 사용자 지정 저장 폴더(SAF) 설정**.
 
----
-
-### 5. 웹 비디오 스마트 감지 및 원클릭 전송 (브라우저 프록시 자동 동기화)
-> 웹 비디오 재생 시 플로팅 카드가 자동으로 나타납니다. 브라우저 프록시와 동기화되어 고속 다운로드를 위해 데스크톱 클라이언트로 즉시 작업을 전송합니다.
-
-<p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="웹 스니퍼 플로팅 카드">
-</p>
-
----
-
-### 6. 작업 모니터링 및 퀵 툴 센터
-> 플로팅 볼을 클릭하여 제어판 확장: 진행 중인 다운로드 상태와 전체 다운로드 속도를 확인하고 포맷 변환기, FFmpeg 툴박스, 비디오 추출기를 즉시 호출.
-
-<p align="center">
-  <img src="docs/images/app_floating_panel.png" width="68%" alt="작업 모니터링 및 툴 센터">
-</p>
-
----
-
-### 7. 데스크톱 미니 플로팅 위젯 (실시간 작업 상태 모니터링)
-> 세련된 디자인의 미니 행성형 플로팅 볼. 데스크톱 어디든 자유롭게 이동 및 테두리 흡착이 가능하며, 대기 중인 작업과 전송 속도를 실시간으로 확인할 수 있습니다.
-
-<p align="center">
-  <img src="docs/images/app_floating_widget.png" width="28%" alt="데스크톱 플로팅 위젯">
-</p>
-
-
-## 📦 버전 및 다운로드
-
-다음 배포 채널을 통해 최신 버전의 StarStream을 간편하게 다운로드할 수 있습니다:
-
-| 배포 형태 | 포함 구성 요소 | 권장 사용자 | 다운로드 링크 |
-|---|---|---|---|
-| **⭐ 추천: StarStream_v3.2.7_Portable.zip 포터블 패키지** | **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 브라우저 확장 소스 내장 | **FFmpeg / N_m3u8DL이 없는 사용자에게 강력 권장**, 압축 해제 즉시 사용 가능 | [👉 Portable 패키지 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
-| **🚀 단일 실행 파일: StarStream.exe (82.5MB)** | 독립형 단일 실행 바이너리 | **이미 FFmpeg / N_m3u8DL을 보유한 사용자용**, 자동 스캔 내장; **반드시 깨끗한 전용 폴더에 넣고 실행하세요** | [👉 StarStream.exe 직접 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
-| **🧩 브라우저 스니퍼 확장 프로그램 (v3.2.7)** | 순수 확장 프로그램 소스 (180KB), MV3 스니핑, 프록시 자동 정렬 | 웹 비디오 감지, 탭 분리, 재생시간/화질별 내림차순 정렬 | [👉 Extension.zip (180KB) 다운로드](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
-| **GitHub Releases 공식 릴리스 페이지** | 전체 릴리스 내역, 업데이트 로그, 파일 확인 | 전체 버전 기록 확인 | [👉 Releases 페이지 방문](https://github.com/xuewexin/StarStream/releases) |
-
-> 💡 **다운로드 및 설치 안내 (중요 공지)**:
-> 1. **FFmpeg 및 N_m3u8DL이 설치되어 있지 않은 사용자**:
->    👉 **포터블 패키지(`StarStream_v3.2.7_Portable.zip`) 다운로드를 강력히 권장합니다**! 필수 엔진인 `ffmpeg.exe` 및 `N_m3u8DL-RE.exe`가 모두 내장되어 있어 압축 해제 후 즉시 사용 가능합니다.
-> 2. **이미 FFmpeg 또는 N_m3u8DL을 보유한 사용자**:
->    👉 **단일 실행 파일(`StarStream.exe`)을 바로 다운로드하여 사용하실 수 있습니다**! 첫 실행 시 시스템 환경 변수(`PATH`) 및 주요 경로를 자동으로 스캔하여 기존 엔진을 자동 연결합니다.
-> 3. **⚠️ 실행 시 주의사항**:
->    단일 실행 파일 `StarStream.exe`를 다운로드한 경우, **반드시 새롭고 비어있는 전용 폴더(예: `D:\StarStream\`)에 넣고 실행해 주십시오**! 실행 시 동일 경로에 설정 파일, 데이터베이스, 로그 및 임시 작업 폴더가 자동 생성되므로, 전용 폴더에 두시면 관리가 훨씬 편리합니다.
-
----
-
-## ⚔️ 유사 오픈소스 프로젝트 비교 및 대체 가이드 (Alternatives & Comparison)
-
-StarStream과 Cat-Catch(猫抓), SimpleG, N_m3u8DL-RE, yt-dlp, Video DownloadHelper의 주요 특징 비교:
-
-| 기능 비교 | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG (클래식 GUI) | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **구동 방식** | **데스크톱 앱 + 브라우저 확장 연동** | 브라우저 확장 프로그램 단독 | 단독 Windows 프로그램 | CLI 터미널 프로그램 | 확장 프로그램 + 유료 도우미 앱 |
-| **핵심 엔진** | **N_m3u8DL-RE + FFmpeg 기본 내장** | 브라우저 Blob / Fetch 다운로드 | 구형 N_m3u8DL-CLI v3.0.2 | yt-dlp Python 엔진 | 확장 다운로드 / 로컬 호스트 |
-| **멀티스레드 다운로드** | **✅ 지원 (4 ~ 32 스레드, 24MB/s+ 속도)** | ❌ 단일 스레드 (대용량 파일 시 느림) | ⚠️ 기본 멀티스레드 | 수동 옵션 플래그 필요 | 유료 결제 시 잠금 해제 |
-| **영상/음성 자동 병합** | **✅ 자동 믹싱 및 표준 MP4 무손실 변환** | ❌ 분리된 트랙 병합 불가 | ⚠️ 기본 FFmpeg 병합 | 수동 FFmpeg 명령어 병합 | 무료 버전 시 워터마크/시간 제한 |
-| **브라우저 프록시 동기화** | **✅ 브라우저 IP 자동 동기화 (403 차단 방지)** | 브라우저 프록시만 따름 | ❌ 브라우저 프록시 감지 불가 | 수동 `--proxy` 입력 필요 | ❌ 자동 동기화 미지원 |
-| **플레이어 오버레이 UI** | **✅ 동영상 플레이어 내 스마트 다운로드 캡슐** | ❌ 툴바 아이콘 클릭 필수 | ❌ URL 수동 복사/붙여넣기 | ❌ 텍스트 터미널 전용 | 툴바 아이콘 클릭 필수 |
-| **라이선스** | **✅ 100% 영구 무료 및 오픈소스 (MIT)** | 무료 및 오픈소스 | 무료 및 오픈소스 | 무료 및 오픈소스 | 유료 상용 결제 유도 |
-
----
-
-## ⚡ 핵심 기능
-
-| 기능 모듈 | 설명 |
-|---|---|
-| **만능 리소스 스니핑** | M3U8 (HLS), MPD (DASH), MP4, FLV, WebM, TS, MP3, AAC 등 모든 스트림 및 다이렉트 링크 지원. `HTMLMediaElement.play`, `Blob`, `MediaSource`, `URL.createObjectURL`, `fetch/XHR` 심층 인터셉트. |
-| **스마트 플로팅 캡슐** | 비디오 플레이어에 네이티브로 삽입되는 캡슐. 4K/1080P/720P 해상도, 재생 시간, 오디오 분리 스트림을 자동 식별하여 클라이언트로 즉시 전송. |
-| **팝업 내장 플레이어** | 확장 프로그램 팝업 내에 가벼운 `hls.min.js` 재생 엔진이 탑재되어 다운로드 전 스트림을 미리보기 가능. |
-| **듀얼 다운로드 엔진** | **스트리밍 엔진**: 최신 [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE)를 호출하여 오디오/비디오 자동 믹싱 및 고속 분할 다운로드.<br>**직접 링크 엔진**: Python 네이티브 멀티스레드 Range 분할 다운로드. |
-| **동영상별 개별 설정** | 확장 프로그램 카드별로 저장 폴더, 동시 스레드 수(4/8/16/32), 개별 프록시 설정 지원. |
-| **브라우저 프록시 자동 정렬** | 브라우저의 현재 프록시 출구를 감지하여 다운로더와 동기화함으로써 핫링크 방지로 인한 HTTP 403 Forbidden 오류 원천 차단. |
-| **독립형 CLI 지원** | 클라이언트 실행 없이 터미널에서 즉시 다운로드할 수 있도록 헤더(Referer, User-Agent)가 포함된 완전한 `N_m3u8DL-RE` 명령어를 원클릭 복사. |
-| **일괄 포맷 변환 센터** | 다중 파일 및 전체 디렉터리 일괄 변환 지원. 무손실 복사(`-c copy`), H.264/H.265 재인코딩, 고음질 오디오 추출 프리셋 제공. |
-| **완료 및 실패 알림** | 작업 완료 또는 실패 시 화면 우측 하단에 알림 팝업 표시. [즉시 재생], [폴더 열기], [진단 로그] 바로가기 제공. |
-| **표준 MP4 자동 변환** | 다운로드 완료 후 FFmpeg를 호출하여 표준 MP4로 무손실 리먹싱하고 `faststart` 메타데이터를 주입하여 즉시 재생 보장. |
-| **스마트 오류 진단** | `Logs/download_errors.log`에 에러를 기록하고 HTTP 403, 만료된 토큰, AES-128 복호화 오류 등을 자동 진단하여 해결 방법 제시. |
-| **디스크 캐시 정리** | 다운로드 중단으로 남은 `.tmp` 및 `.part` 조각 파일을 안전하게 스캔하여 삭제. |
-
----
-
-## 🎯 동영상별 개별 설정 및 우선순위 규칙 (Priority Rules)
-
-```mermaid
-flowchart TD
-    A["동영상 다운로드 시작"] --> B{"확장 프로그램에서 개별<br>설정이 지정되었는가?"}
-    B -- "예 (지정된 폴더/스레드/프록시)" --> C["🥇 개별 전용 설정 적용<br>(최우선순위)"]
-    B -- "아니오 (비어있음 / 기본값)" --> D{"데스크톱 클라이언트가 실행 중이며<br>전체 설정이 존재하는가?"}
-    D -- "예" --> E["🥈 클라이언트 전체 설정 적용<br>(StarStream 설정 패널)"]
-    D -- "아니오 (독립 CLI 다운로드)" --> F["🥉 엔진 기본 설정 적용<br>(Downloads 폴더 / 16스레드 / 직접 연결)"]
-    C --> G["다운로드 엔진 실행"]
-    E --> G
-    F --> G
-```
-
----
-
-## 🌐 브라우저 프록시 자동 정렬 기능
-
-### 다운로드 환경과 브라우저의 프록시를 일치시켜야 하는 이유
-* 많은 동영상 사이트는 세그먼트 접근 권한을 **웹 브라우저의 접속 IP**와 엄격히 연결합니다.
-* 브라우저는 프록시를 사용하고 다운로더는 직접 연결하거나 다른 프록시 IP를 사용할 경우, 서버 보안 정책에 의해 **HTTP 403 Forbidden** 접근 거부 에러가 발생합니다!
-* **해결 방법**: 확장 프로그램의 다운로드 프록시를 **「브라우저 프록시 자동 정렬」**(기본 권장)로 설정하면 브라우저와 동일한 출구 IP가 사용되어 403 에러를 완벽히 방지할 수 있습니다.
-
----
-
-## 🧩 브라우저 확장 프로그램 설치 가이드
-
-> ⚠️ Chromium 계열 브라우저(Chrome / Edge / Brave)는 보안 정책상 비스토어 `.crx` 드래그 앤 드롭 설치를 차단합니다. **「개발자 모드」를 통한 폴더 로드가 공식적이고 영구적으로 안정적인 설치 방식입니다.**
-
-### 1단계: 브라우저 확장 프로그램 관리 페이지 열기
-- **Microsoft Edge**: 주소창에 `edge://extensions` 입력 후 Enter
-- **Google Chrome**: 주소창에 `chrome://extensions` 입력 후 Enter
-
-### 2단계: 「개발자 모드」 활성화
-- 페이지 우측 상단의 **【개발자 모드】(Developer mode)** 스위치를 켭니다.
-- 켜진 후 좌측 상단에 **【압축해제된 확장 프로그램을 로드합니다】** 버튼이 나타납니다.
-
-### 3단계: 확장 프로그램 폴더 선택
-1. **【압축해제된 확장 프로그램을 로드합니다】** 클릭.
-2. 프로젝트 내부의 **`m3u8-sniffer-extension`** 폴더를 선택합니다.
-3. 「폴더 선택」을 누르면 설치가 완료됩니다!
-4. 브라우저 우측 상단 퍼즐 아이콘 🧩을 클릭하여 **「StarStream 미디어 스니퍼」**를 툴바에 고정하세요.
-
----
-
-## ❓ 자주 묻는 질문 (FAQ)
-
-<details>
-<summary><b>1. 패키지에 N_m3u8DL-RE 및 FFmpeg가 포함되어 있나요?</b></summary>
-<p>
-<b>네, 완전히 내장되어 있습니다.</b> 포터블 배포 패키지에는 최신 N_m3u8DL-RE와 FFmpeg 실행 파일이 포함되어 있어 별도 설정 없이 바로 실행할 수 있습니다.
-</p>
-</details>
-
-<details>
-<summary><b>2. 다운로드 완료 후 MP4로 자동 변환되나요?</b></summary>
-<p>
-네! 기본적으로 표준 MP4 변환이 활성화되어 있으며, 무손실 리먹싱과 함께 <code>faststart</code> 메타데이터가 적용되어 모든 플레이어에서 매끄럽게 재생됩니다.
-</p>
-</details>
-
-<details>
-<summary><b>3. 일부 비디오에서 HTTP 403 에러가 발생하는 이유는 무엇인가요?</b></summary>
-<p>
-재생 시의 IP와 다운로드 시의 IP가 일치하지 않아 발생합니다. 확장 프로그램에서 다운로드 프록시를 <b>「브라우저 프록시 자동 정렬」</b>로 설정하면 동일한 IP로 요청되어 403 문제를 해결할 수 있습니다.
-</p>
-</details>
-
----
-
-## ⚖️ 면책 조항
-
-1. **기술 연구 및 개인 학습**: 본 프로젝트는 브라우저 네트워크 인터셉트 및 스트리밍 프로토콜 분석 연구, 개인의 합법적 오프라인 백업을 위한 오픈소스 프로젝트입니다.
-2. **저작권 보호**: 사용자는 관련 국가 및 지역의 법률을 준수해야 하며 저작권자의 권리를 존중해야 합니다. 무단 상업적 이용 및 불법 유포를 금지합니다.
-3. **책임의 한계**: 본 도구는 프로토콜 분석 및 로컬 저장 기능만을 제공하며 미디어 리소스를 호스팅하거나 배포하지 않습니다. 사용에 따른 법적 책임은 사용자 본인에게 있습니다.
-
----
-
-## 📄 라이선스
-
-본 프로젝트는 [MIT License](LICENSE)에 따라 배포됩니다.<br>
-특별한 감사: [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) 및 [FFmpeg](https://ffmpeg.org/).
----
-
-## 📬 개발자 문의 및 기술 지원
-
-프로그램 사용 중 문제, 버그, 질문이 발생하거나 개선 사항 및 새로운 기능에 대한 제안이 있으시면 언제든지 이메일로 개발자에게 문의해 주세요:
-
-- **QQ 메일**: [2792893068@qq.com](mailto:2792893068@qq.com)
-- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
-
-메일을 확인하는 대로 신속하게 답변 및 조치해 드리겠습니다. 여러분의 성원과 피드백에 감사드립니다!
-
----
-
-### 🏷️ Search Topics & SEO Keywords
-`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
-
----
-
-## ⭐ Support & Star History
-
-If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
-
-<p align="center">
-  <a href="https://star-history.com/#xuewexin/StarStream&Date">
-    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
-  </a>
-</p>
+Author: `xuewexin` · [2792893068@qq.com](mailto:2792893068@qq.com) / [lepa23216@gmail.com](mailto:lepa23216@gmail.com) · MIT License

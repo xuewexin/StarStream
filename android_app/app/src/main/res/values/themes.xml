@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.StarStream" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent_blue</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/nav_indicator</item>
+        <item name="colorOnPrimaryContainer">@color/accent_cyan</item>
+        <item name="colorSecondary">@color/accent_cyan</item>
+        <item name="colorSurface">@color/bg_panel</item>
+        <item name="colorSurfaceContainer">@color/bg_card</item>
+        <item name="android:windowBackground">@color/bg_main</item>
+        <item name="android:statusBarColor">@color/bg_panel</item>
+        <item name="android:navigationBarColor">@color/bg_panel</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_muted</item>
+    </style>
+</resources>

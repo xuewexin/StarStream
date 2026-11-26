@@ -1,38 +1,21 @@
-# CatCatch 灵猫嗅探 Pro — 浏览器扩展 (Chrome / Edge MV3)
+# 星流媒体嗅探扩展 (StarStream Browser Extension · MV3)
 
-模仿猫抓 (CatCatch) 深度嗅探逻辑开发，具备深度音视频嗅探、DASH 音视频双流自动配对、安全风控/人机验证异常穿透报告、IDM 风格悬浮下载栏、内置 HLS.js 视频预览与本地桌面客户端联动。
+<p align="center">
+  <img src="../docs/images/starstream_logo.png" width="112" alt="StarStream Extension Logo">
+</p>
 
-## 功能亮点
+配合 **StarStream Pro 桌面下载客户端** 使用的现代 Manifest V3 网页资源嗅探扩展：支持自动抓取 M3U8 (HLS)、DASH (MPD / M4S 音画分离流)、MP4 等多媒体流，并将元数据与鉴权凭据一键投送至桌面客户端极速下载。
 
-1. **全媒体格式深度嗅探与音画合一配对**：
-   - 流媒体：M3U8 (HLS)、MPD / M4S (DASH 音视频双流)
-   - 视频：MP4、FLV、WebM、MKV、TS、AVI、MOV
-   - 音频：MP3、M4A、AAC、WAV、OGG、FLAC
-   - **B站 / DASH 智能配对**：自动捕获独立高清视频轨与独立高品质音频轨，在前端毫秒级智能配对生成「【音画合一】」条目，支持双轨同步预览并在推送到客户端后通过 FFmpeg 100% 混流封装为有声 MP4。
-2. **安全风控与人机验证穿透报告（打破浏览器人机验证）**：
-   - 自动检测 HTTP 412 (Precondition Failed)、`sec.bilibili.com`、极验滑动验证、Cloudflare Turnstile 拦截
-   - 插件弹窗顶部展示高危风控横幅，支持一键打开网页验证，在浏览器完成人机挑战后一键同步最新 Cookie/Token 回传客户端，立即复活断点续传。
-3. **真实浏览器指纹动态同步**：
-   - 破除固定写死配置，动态跟随当前嗅探浏览器的 User-Agent 与 Client Hints，实现与浏览器网络环境 100% 对齐。
-4. **双通道嗅探机制**：
-   - URL 扩展名匹配
-   - 响应头 `Content-Type` 嗅探（捕捉无文件后缀的动态视频流与文件大小）
-5. **网页注入深度 Hook**：
-   - 监听 `HTMLMediaElement.prototype.play` 与 `src`
-   - 拦截 `MediaSource` 与 `URL.createObjectURL`（定位 Blob 流）
-   - 拦截 `fetch` 与 `XMLHttpRequest`
-6. **IDM 风格网页悬浮下载按钮**：
-   - 播放视频时智能在播放器右上角浮现 `[⬇ 下载此视频 (CatCatch)]`，一键推送到桌面客户端下载。
-7. **弹窗媒体预览播放器**：
-   - 内置离线版 `hls.min.js`，弹窗内直接播放预览 M3U8 流媒体，支持音画双流同屏同步播放。
-8. **与本地灵猫桌面客户端无缝联动**：
-   - 通过本地轻量级 HTTP API (`http://127.0.0.1:18910`) 与客户端双向通信
-   - 支持批量推送下载、实时在线心跳感知
-   - 兼容 Chrome Native Messaging 机制
+## 核心功能
 
-## 快速加载
+1. **全媒体格式嗅探与音画配对**：支持 HLS、DASH、MP4、FLV、WebM、MP3、AAC、FLAC 等主流音视频格式，自动识别分离音视频流并在客户端无损合流为标准 MP4。
+2. **智能同系列 / 合集选集扫描**：自动探测页面内多集/合集目录，支持勾选批量推送，并按选集名称创建独立保存目录。
+3. **精准元数据探测**：实时识别响应头总文件大小、M3U8 分辨率、帧率、编码与分片耗时，按分辨率与时长智能排序置顶。
+4. **网页悬浮下载胶囊与内置预览**：检测到网页播放器后智能注入悬浮快捷下载按钮，弹窗内自带离线 `hls.min.js` 播放器实时核对音画。
+5. **代理通道与指纹环境同步**：自动获取当前浏览器环境配置并传递给桌面引擎，确保复杂防盗链场景稳定直出。
 
-1. 打开 Chrome 访问 `chrome://extensions/`（或 Edge 访问 `edge://extensions/`）
-2. 打开右上角「**开发者模式**」
-3. 点击「**加载已解压的扩展程序**」
-4. 选择本目录 `m3u8-sniffer-extension` 即可
+## 快速安装
+
+1. 在浏览器地址栏打开扩展管理页，开启右上角 **「开发者模式」**；
+2. 点击 **「加载已解压的扩展程序」**；
+3. 选择本 `m3u8-sniffer-extension` 目录后固定至工具栏即可配合客户端使用。

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/drawer_all"
+            android:icon="@drawable/ic_filter_all"
+            android:title="全部下载" />
+        <item
+            android:id="@+id/drawer_active"
+            android:icon="@drawable/ic_download"
+            android:title="正在下载 / 队列中" />
+        <item
+            android:id="@+id/drawer_done"
+            android:icon="@drawable/ic_folder"
+            android:title="已完成" />
+    </group>
+    <item android:title="星流核心功能">
+        <menu>
+            <item
+                android:id="@+id/drawer_browser"
+                android:icon="@drawable/ic_browser"
+                android:title="内置嗅探浏览器" />
+            <item
+                android:id="@+id/drawer_parser"
+                android:icon="@drawable/ic_bolt"
+                android:title="全网视频 / 同系列解析" />
+            <item
+                android:id="@+id/drawer_settings"
+                android:icon="@drawable/ic_settings"
+                android:title="下载与存储设置" />
+            <item
+                android:id="@+id/drawer_guide"
+                android:icon="@drawable/ic_guide"
+                android:title="新手引导教程" />
+        </menu>
+    </item>
+    <item android:title="关于与支持">
+        <menu>
+            <item
+                android:id="@+id/drawer_check_update"
+                android:icon="@drawable/ic_update"
+                android:title="检查软件更新" />
+            <item
+                android:id="@+id/drawer_about"
+                android:icon="@drawable/ic_info"
+                android:title="项目地址与联系作者" />
+            <item
+                android:id="@+id/drawer_share"
+                android:icon="@drawable/ic_share"
+                android:title="分享软件给好友" />
+        </menu>
+    </item>
+</menu>

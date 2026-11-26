@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_browser"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="嗅探浏览器" />
+    <item
+        android:id="@+id/nav_parser"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="全网提取" />
+    <item
+        android:id="@+id/nav_downloads"
+        android:icon="@android:drawable/stat_sys_download_done"
+        android:title="下载队列" />
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="设置" />
+</menu>

@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_main"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- 浏览器与内核设置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="浏览器"
+                    android:src="@drawable/ic_browser"
+                    app:tint="@color/accent_cyan" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="内置浏览器与搜索内核"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/row_pick_ua"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_input"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="默认浏览器内核 (UA)"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_setting_ua"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chrome 桌面"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/row_pick_engine"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="默认搜索引擎"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_setting_engine"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="百度"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
+
+            <Switch
+                android:id="@+id/sw_ad_block"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="启用网页广告与追踪脚本拦截"
+                android:textColor="@color/text_primary" />
+        </LinearLayout>
+
+        <!-- 多类型文件嗅探开关 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="嗅探"
+                    android:src="@drawable/ic_file"
+                    app:tint="@color/accent_cyan" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="多类型文件爬取与嗅探过滤"
+                    android:textColor="@color/accent_cyan"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <Switch
+                android:id="@+id/sw_sniff_video"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="爬取视频与流媒体 (M3U8 / MPD / MP4 / MKV / FLV)"
+                android:textColor="@color/text_primary" />
+
+            <Switch
+                android:id="@+id/sw_sniff_audio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="爬取音频文件 (MP3 / M4A / AAC / FLAC / WAV)"
+                android:textColor="@color/text_primary" />
+
+            <Switch
+                android:id="@+id/sw_sniff_docs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="爬取文档与压缩包 (PDF / ZIP / 7Z / APK / Office)"
+                android:textColor="@color/text_primary" />
+        </LinearLayout>
+
+        <!-- 媒体处理与存储 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="媒体处理与存储 (原生 MediaExtractor + MediaMuxer)"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/sw_auto_mp4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="自动无损封装合成标准 MP4"
+                android:textColor="@color/text_primary" />
+
+            <Switch
+                android:id="@+id/sw_save_gallery"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="导出至手机相册 Movies 或系统 Downloads 目录"
+                android:textColor="@color/text_primary" />
+
+            <LinearLayout
+                android:id="@+id/row_pick_storage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_input"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="自定义文件储存位置 (点击选择手机文件夹)"
+                        android:textColor="@color/text_primary"
+                        android:textSize="12.5sp" />
+
+                    <TextView
+                        android:id="@+id/tv_storage_path"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="默认 (相册 Movies / 系统 Downloads)"
+                        android:textColor="@color/accent_cyan"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/btn_reset_storage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="6dp"
+                    android:text="恢复默认"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tv_concurrent_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="同时下载任务数上限: 2"
+                android:textColor="@color/text_secondary"
+                android:textSize="12.5sp" />
+
+            <SeekBar
+                android:id="@+id/sb_concurrent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:max="5" />
+
+            <TextView
+                android:id="@+id/tv_threads_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="多线程下载并发线程数 (HLS/直链): 8"
+                android:textColor="@color/text_secondary"
+                android:textSize="12.5sp" />
+
+            <SeekBar
+                android:id="@+id/sb_threads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:max="22" />
+        </LinearLayout>
+
+        <!-- HTTP 网络代理配置 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="HTTP 网络代理配置 (支持连接局域网代理)"
+                android:textColor="@color/accent_cyan"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Switch
+                android:id="@+id/sw_use_proxy"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="启用自定义 HTTP 代理"
+                android:textColor="@color/text_primary" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/et_proxy_host"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="2"
+                    android:background="@drawable/bg_input"
+                    android:hint="代理 IP (如 127.0.0.1)"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="12.5sp" />
+
+                <EditText
+                    android:id="@+id/et_proxy_port"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_input"
+                    android:hint="端口 7890"
+                    android:inputType="number"
+                    android:paddingHorizontal="12dp"
+                    android:textColor="@color/text_primary"
+                    android:textColorHint="@color/text_muted"
+                    android:textSize="12.5sp" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/btn_save_settings"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_btn_primary"
+                android:text="保存全部设置"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btn_replay_guide"
+                android:layout_width="match_parent"
+                android:layout_height="38dp"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/bg_input"
+                android:text="重新查看新手引导教程"
+                android:textColor="@color/accent_cyan"
+                android:textSize="12.5sp" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="星流媒体嗅探与下载器 (StarStream Pro) Android v3.2.7\n作者: xuewexin · github.com/xuewexin/StarStream\n内置多内核浏览器 · 多类型文件嗅探 · 同系列连爬"
+            android:textColor="@color/text_muted"
+            android:textSize="11sp" />
+    </LinearLayout>
+</ScrollView>

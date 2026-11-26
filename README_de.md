@@ -1,7 +1,7 @@
 <div align="center">
 
 <p align="center">
-  <b>Language / Mehrsprachig:</b><br>
+  <b>Language / Sprachen :</b><br>
   <a href="README.md">简体中文</a> •
   <a href="README_zh-TW.md">繁體中文</a> •
   <a href="README_en.md">English</a> •
@@ -15,245 +15,74 @@
 </p>
 
 <p align="center">
+  <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
+</p>
+
+<p align="center">
   <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
-# 🌟 StarStream Pro - Medien-Downloader
+# StarStream Pro — Medien-Downloader
 
-**All-in-One Web-Video- & Audio-Sniffer-Erweiterung + Industrieller Multithread-Download-Client + Integrierte N_m3u8DL-RE & FFmpeg-Kerne**
+**Web-Sniffer-Erweiterung (MV3) · Multithread-Desktop-Client · Native Android-App**
 
-[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=blue&label=GitHub%20Release)](https://github.com/xuewexin/StarStream/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078d7.svg?style=flat-square&logo=windows)](#)
-[![Python](https://img.shields.io/badge/Python-3.8%20~%203.13-3776ab.svg?style=flat-square&logo=python)](#)
-[![UI Framework](https://img.shields.io/badge/UI-PyQt5%20%7C%20Dark%20Slate-6366f1.svg?style=flat-square)](#)
-[![License](https://img.shields.io/badge/License-MIT-emerald.svg?style=flat-square)](#)
+[![GitHub Release](https://img.shields.io/github/v/release/xuewexin/StarStream?style=flat-square&color=2563eb&label=Release)](https://github.com/xuewexin/StarStream/releases)
+[![Stars](https://img.shields.io/github/stars/xuewexin/StarStream?style=flat-square&color=f5c518&label=Stars)](https://github.com/xuewexin/StarStream/stargazers)
+[![Desktop](https://img.shields.io/badge/Desktop-64bit%20Client-0284c7.svg?style=flat-square)](#)
+[![Android](https://img.shields.io/badge/Android-7.0%2B%20APK-10b981.svg?style=flat-square)](#)
+[![License](https://img.shields.io/badge/License-MIT-0ea5e9.svg?style=flat-square)](LICENSE)
 
 <br>
 
 <p align="center">
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip">
-    <img src="https://img.shields.io/badge/⭐%20Portable%20Paket-StarStream_v3.2.7_Portable.zip%20(FFmpeg%20%26%20N_m3u8DL%20integriert)-2563eb?style=for-the-badge&logo=windows&logoColor=white" alt="Portable Paket herunterladen">
+    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.7_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe">
-    <img src="https://img.shields.io/badge/🚀%20Standalone%20EXE-StarStream.exe%20(Auto--Scan%20Tools)-059669?style=for-the-badge&logo=windows&logoColor=white" alt="StarStream.exe herunterladen">
+    <img src="https://img.shields.io/badge/Standalone-StarStream.exe-059669?style=for-the-badge" alt="EXE">
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip">
-    <img src="https://img.shields.io/badge/🧩%20Browser--Erweiterung-Extension_v3.2.7.zip%20(165%20KB)-7c3aed?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Erweiterung herunterladen">
+    <img src="https://img.shields.io/badge/Browser--Erweiterung-Extension_v3.2.7.zip-7c3aed?style=for-the-badge" alt="Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="#-vergleich--alternativen-warum-starstream">
-    <img src="https://img.shields.io/badge/🔥%20Alternative-CatCatch%20%7C%20SimpleG%20%7C%20yt--dlp-10b981?style=for-the-badge" alt="Vergleich & Alternativen">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream-Android-v3.2.7.apk">
+    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.7.apk-0284c7?style=for-the-badge" alt="APK">
   </a>
-</p>
-
-> [!IMPORTANT]
-> ### 💡 Goldenes Duo Handbuch: Desktop-Software und Browser-Erweiterung arbeiten zusammen!
-> - **🧩 Browser-Sniffer-Erweiterung (Frontend-Radar)**: Fängt beim Surfen und Abspielen von Videos automatisch echte M3U8-, DASH- (MPD) und MP4-Datenströme ab und blendet oben rechts im Player eine Download-Kapsel ein;
-> - **💻 Desktop-Client (Backend-Engine)**: Empfängt die übergebenen Videoaufgaben und steuert die integrierten Hochleistungsmotoren **N_m3u8DL-RE** und **FFmpeg** für Downloads mit bis zu 24,7 MB/s und verlustfreie Zusammenführung;
-> - **Perfektes Zusammenspiel (wie IDM und die IDM-Erweiterung)**: Beide Komponenten sind unverzichtbar! Bitte folgen Sie der [Anleitung zur Installation der Browser-Erweiterung](#-anleitung-zur-installation-der-browser-erweiterung).
-
-<p align="center">
-  <a href="#-screens--funktionen">Screenshots</a> •
-  <a href="#-versionen-und-downloads">Downloads</a> •
-  <a href="#-hauptfunktionen">Hauptfunktionen</a> •
-  <a href="#-anleitung-zur-installation-der-browser-erweiterung">Installation</a> •
-  <a href="#-proxy-einstellungen">Proxy</a> •
-  <a href="#-häufig-gestellte-fragen-faq">FAQ</a> •
-  <a href="#-haftungsausschluss">Haftungsausschluss</a>
 </p>
 
 </div>
 
 ---
 
-
-> [!TIP]
-> ### 🆕 Neueste Version v3.2.7 · 2026-11-26
->
-> - 🎬 **100% DASH Audio/Video-Remuxing behoben** — Vollständige Behebung des fehlenden `audio_url`-Feldes im TaskManager. Explizites FFmpeg-Stream-Mapping (`-map 0:v:0 -map 1:a:0`) mit AAC-Transcodierungs-Fallback : Behebt das Problem, dass die Vorschau Ton hat, der Download jedoch stumm ist!
-> - 🛡️ **Umgehung von Sicherheits- und CAPTCHA-Herausforderungen** — Erkennt HTTP 412 und Cloudflare-Challenges; 1-Klick-Browser-Verifizierung und sofortige Token-Synchronisierung zur nahtlosen Fortsetzung des Downloads.
-> - 🌐 **Dynamischer Fingerabdruck-Abgleich** — Gleicht User-Agent und Client Hints automatisch mit dem aktiven Sniffer-Browser (Edge / Chrome) ab.
-> - 🖱️ **Geisterklicks bei minimiertem Fenster beseitigt** — Vollständige Behebung unerwünschter Klickinteraktionen bei ausgeblendetem Hauptfenster.
->
-> 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
-
----
-
-## 📸 Screenshots & Funktionen
-
-### 1. Desktop-Dashboard (Modernes Dark-Slate-Industriedesign)
-> Präzise Vektorsymbole und lückenlose Statusüberwachung: Lokaler Port `18910` bereit, `FFmpeg` bereit, `N_m3u8DL (RE)` einsatzbereit, Echtzeitanzeige für Netzwerk-Proxys.
+## 📸 Live-Ansichten
 
 <p align="center">
-  <img src="docs/images/app_main_window.png" width="92%" alt="Desktop-Dashboard">
+  <img src="docs/images/showcase_1_pc_main.png" width="94%" alt="StarStream Desktop-Zentrale">
 </p>
 
----
-
-### 2. Neuer Download-Auftrag (Individuelle Proxy- und Thread-Konfiguration)
-> Intelligente URL-Erkennung per Klick. Konfigurieren Sie Threads (4 bis 32), Zielordner und Proxy-Verbindungsmodi für jeden Download separat.
-
-<p align="center">
-  <img src="docs/images/app_new_task.png" width="82%" alt="Neuer Download-Auftrag Dialog">
-</p>
-
----
-
-### 3. Professionelle FFmpeg-Multimedia-Toolbox (Konvertierung & Nachbearbeitung)
-> Integrierte Medien-Toolbox: Einzel- und Stapelkonvertierung (MP4/MKV/TS/MOV), Muxen von Audio und Video, verlustfreie Audio-Extraktion und schneller Videoschnitt.
-
-<p align="center">
-  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg-Toolbox">
-</p>
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/web_capsule_youtube.png" width="95%" alt="Web-Sniffer"><br><sub>Schwebende Web-Video-Erfassung</sub></td>
+    <td width="50%" align="center"><img src="docs/images/app_ffmpeg_toolbox.png" width="95%" alt="FFmpeg Toolbox"><br><sub>Integrierte FFmpeg-Multimedia-Toolbox</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/app_new_task.png" width="95%" alt="Neue Aufgabe"><br><sub>Aufgaben- und Proxy-Konfiguration</sub></td>
+    <td width="50%" align="center"><img src="docs/images/showcase_5_pc_settings.png" width="95%" alt="Einstellungen"><br><sub>Systemeinstellungen & Bildoptimierung</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/images/app_floating_panel.png" width="92%" alt="Monitor-Panel"><br><sub>Schwebendes Desktop-Panel</sub></td>
+    <td width="50%" align="center"><img src="docs/images/app_floating_widget.png" width="46%" alt="Desktop-Widget"><br><sub>Schwebendes Geschwindigkeits-Widget</sub></td>
+  </tr>
+</table>
 
 ---
 
-### 4. Nahtloses Video-Sniffing (Beispiel YouTube)
-> Ein eleganter schwebender Badge erscheint beim Abspielen von Webvideos. Auflösung und Dauer prüfen und den Download über denselben Proxy-Kanal an den Desktop übertragen.
+## 📱 Android-Funktionen
 
-<p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube-Sniffer-Kapsel">
-</p>
+- Minimalistischer Multi-Engine-Browser, **Identitäts-Refresh**, einklappbare Lesezeichen-Ordner und Verlaufs-/Tab-Persistenz.
+- Streaming-Wiedergabe bereits während des Downloads & Online-Vorschau über externe Video-Player.
+- Parallele Download-Tasks (1–6), Multithreading (2–24) und benutzerdefinierter Speicherordner (SAF).
 
----
-
-### 5. Web-Streaming-Sniffer & Direktübertragung (Automatische Proxy-Synchronisation)
-> Zeigt echte Videoauflösungen, Dauer und Format an. Synchronisiert sich automatisch mit dem Browser-Proxy für extrem schnelle Downloads auf dem Desktop.
-
-<p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Web-Sniffer Schwebende Karte">
-</p>
-
----
-
-### 6. Desktop-Aufgabenüberwachung & Schnellwerkzeuge
-> Klicken Sie auf die Schwebekugel, um das Dashboard zu öffnen: Live-Downloadstatus, Gesamtrate überwachen und Stapelkonvertierung, FFmpeg sowie Video-Extraktor starten.
-
-<p align="center">
-  <img src="docs/images/app_floating_panel.png" width="68%" alt="Aufgabenüberwachung & Werkzeuge">
-</p>
-
----
-
-### 7. Desktop-Schwebendes Minifenster (Echtzeit-Überwachung von Status & Rate)
-> Zukunftsweisendes Planeten-Widget mit freier Platzierung auf dem Desktop, Kantenandocken und Live-Anzeige der Download-Geschwindigkeit und bereiten Aufgaben.
-
-<p align="center">
-  <img src="docs/images/app_floating_widget.png" width="28%" alt="Schwebendes Desktop-Widget">
-</p>
-
-
-## 📦 Versionen und Downloads
-
-Sie können die neueste Version von StarStream über die folgenden Kanäle herunterladen:
-
-| Download-Art | Enthaltene Komponenten | Empfohlen für | Download-Link |
-|---|---|---|---|
-| **⭐ Empfohlen: StarStream_v3.2.7_Portable.zip** | Integrierte **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Erweiterung | **Dringend empfohlen ohne FFmpeg / N_m3u8DL**, sofort einsatzbereit | [👉 Portable-Paket herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
-| **🚀 Standalone-EXE: StarStream.exe (82.5MB)** | Eigenständige ausführbare Binärdatei | **Für Benutzer mit vorhandenem FFmpeg oder N_m3u8DL**, automatische Pfaderkennung; **in separatem Ordner starten** | [👉 StarStream.exe herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
-| **🧩 Browser-Erweiterung (v3.2.7)** | Quellpaket der Erweiterung (177 KB), MV3-Sniffer, Proxy-Ausrichtung | Webvideo-Sniffing, saubere Registerkarten, Sortierung | [👉 Extension.zip (177 KB) herunterladen](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
-| **Offizielle GitHub Releases Seite** | Alle Versionen, Änderungsprotokolle und Checksummen | Versionsverlauf | [👉 Releases ansehen](https://github.com/xuewexin/StarStream/releases) |
-
-> 💡 **Download- und Installationshinweise (Wichtiger Hinweis)**:
-> 1. **Für Benutzer ohne installiertes FFmpeg oder N_m3u8DL**:
->    👉 **Empfehlung: Laden Sie das Portable-Paket (`StarStream_v3.2.7_Portable.zip`) herunter**! Es enthält alle erforderlichen Tools (`ffmpeg.exe` und `N_m3u8DL-RE.exe`) vorkonfiguriert.
-> 2. **Für Benutzer, die FFmpeg oder N_m3u8DL bereits besitzen**:
->    👉 **Sie können direkt die eigenständige `StarStream.exe` herunterladen**! StarStream durchsucht beim Start automatisch Ihre Umgebungspfade (`PATH`) nach vorhandenen Tools.
-> 3. **⚠️ Wichtiger Nutzungshinweis**:
->    Bitte platzieren Sie die eigenständige `StarStream.exe` **vor dem Start in einem sauberen, separaten Ordner (z. B. `D:\StarStream\`)**! Das Programm erstellt Konfigurationsdateien, Datenbanken und Protokolle im selben Ordner.
-
----
-
-## ⚔️ Vergleich & Alternativen (Warum StarStream?)
-
-Vergleich zwischen StarStream, Cat-Catch, SimpleG, N_m3u8DL-RE, yt-dlp und Video DownloadHelper:
-
-| Funktion | 🌟 StarStream Pro | 🐱 Cat-Catch | 🛠️ SimpleG | ⚡ yt-dlp / CLI | 🦊 Video DownloadHelper |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Architektur** | **Client & Browser-Erweiterung kombiniert** | Nur Browser-Erweiterung | Klassische Desktop-App | Befehlszeilen-Tool (CLI) | Erweiterung + Bezahl-App |
-| **Download-Engine** | **Integriertes N_m3u8DL-RE & FFmpeg** | Browser Blob / Fetch | Veraltetes N_m3u8DL-CLI | yt-dlp Python-Engine | Erweiterung / Drittanbieter-Host |
-| **Multi-Threading** | **✅ Unterstützt (4 ~ 32 Threads, 24MB/s+)** | ❌ Single-Thread / Langsam | ⚠️ Einfaches Multi-Threading | Manuelle Befehlsparameter | Nur mit Premium-Lizenz |
-| **Proxy-Synchronisation** | **✅ Automatisch mit Browser-IP (Anti-403)** | Nur Browser-Proxy | ❌ Erkennt Browser-Proxy nicht | Manueller `--proxy` Parameter | ❌ Nicht unterstützt |
-| **Player-Overlay** | **✅ Download-Kapsel direkt im Videoplayer** | ❌ Klick auf Symbol nötig | ❌ Manuelles Kopieren der URL | ❌ Nur Terminaleingabe | Klick auf Symbol nötig |
-| **Lizenz** | **✅ 100% Kostenlos & Open Source (MIT)** | Open Source | Open Source | Open Source | Kostenpflichtige Einschränkungen |
-
----
-
-## ⚡ Hauptfunktionen
-
-| Modul | Beschreibung |
-|---|---|
-| **Universal-Sniffer** | Fängt M3U8 (HLS), MPD (DASH), MP4, FLV, WebM, TS, MP3, AAC und Direktlinks ab. Tiefen-Hooks in `HTMLMediaElement.play`, `Blob`, `MediaSource`, `fetch/XHR`. |
-| **Intelligente Kapsel** | Im Videoplayer eingeblendeter Aktions-Button, der Auflösungen (4K/1080P/720P), Laufzeiten und getrennte Audiostreams erkennt. |
-| **Integrierter Player** | Leichtgewichtiger `hls.min.js`-Player im Erweiterungs-Popup zur Vorschau von Streams vor dem Download. |
-| **Duales Download-System** | **Streaming**: [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) für Segment-Download und Multiplexing.<br>**Direktlink**: Python-Multithread-Range-Downloader. |
-| **Konfiguration pro Video** | Eigener Speicherordner, individuelle Thread-Anzahl (4/8/16/32) und spezifischer Proxy für jedes Video. |
-| **Automatische Proxy-Angleichung** | Gleicht die Ausgangs-IP des Downloaders mit dem Browser ab, um HTTP 403 Forbidden Fehler zuverlässig zu verhindern. |
-| **Stapel-Formatkonverter** | Konvertierungszentrum für mehrere Dateien: Verlustfreies Kopieren (`-c copy`), H.264/H.265-Re-Encoding und Audioextraktion. |
-| **Desktop-Benachrichtigungen** | Popups bei Abschluss oder Fehlern mit Schnellzugriff auf [Wiedergabe], [Ordner öffnen] und [Fehlerdiagnose]. |
-| **Automatische MP4-Konvertierung** | Ruft FFmpeg nach dem Download auf, um Streams in MP4 mit `faststart`-Metadaten umzuwandeln. |
-| **Fehlerdiagnose & Logs** | Analysiert Fehler (`Logs/download_errors.log`) mit konkreten Ratschlägen zu Token-Abläufen, AES-128 und DNS-Problemen. |
-| **Festplatten-Bereinigung** | Scannt und entfernt unvollständige `.tmp`- und `.part`-Fragmente sicher von der Festplatte. |
-
----
-
-## 🧩 Anleitung zur Installation der Browser-Erweiterung
-
-> ⚠️ Chromium-Browser blockieren die direkte Installation externer `.crx`-Dateien per Drag-and-Drop. **Das Laden über den Entwicklermodus ist der offizielle und dauerhafte Weg.**
-
-### Schritt 1: Erweiterungsseite des Browsers öffnen
-- **Microsoft Edge**: `edge://extensions` in die Adressleiste eingeben und Enter drücken.
-- **Google Chrome**: `chrome://extensions` in die Adressleiste eingeben und Enter drücken.
-
-### Schritt 2: „Entwicklermodus“ aktivieren
-- Schalten Sie oben rechts den Schalter **Entwicklermodus** (Developer mode) ein.
-- Klicken Sie anschließend auf die Schaltfläche **[Entpackte Erweiterung laden]**.
-
-### Schritt 3: Quellordner auswählen
-1. Klicken Sie auf **[Entpackte Erweiterung laden]**.
-2. Wählen Sie den Ordner **`m3u8-sniffer-extension`** aus.
-3. Klicken Sie auf „Ordner auswählen“. Die Erweiterung ist einsatzbereit!
-4. Heften Sie **StarStream Media Sniffer** an Ihre Browser-Symbolleiste.
-
----
-
-## ⚖️ Haftungsausschluss
-
-1. **Forschung und private Nutzung**: Dieses Projekt dient der technischen Analyse von Netzwerkprotokollen und rechtmäßigen privaten Offline-Sicherungen.
-2. **Urheberrecht**: Bitte beachten Sie geltende Urheberrechte. Eine unbefugte kommerzielle Nutzung oder Weiterverbreitung ist untersagt.
-3. **Haftungsbeschränkung**: Diese Software stellt lediglich Analyse- und Speichertechnologien bereit und hostet keine Medieninhalte.
-
----
-
-## 📄 Lizenz
-
-Lizenziert unter der [MIT License](LICENSE). Besonderer Dank an [N_m3u8DL-RE](https://github.com/nilaoda/N_m3u8DL-RE) und [FFmpeg](https://ffmpeg.org/).
----
-
-## 📬 Kontakt zum Autor & Technischer Support
-
-Wenn Sie während der Nutzung auf Probleme, Fehler oder Unklarheiten stoßen, oder Vorschläge zur Verbesserung und Funktionswünsche haben, können Sie sich jederzeit gerne per E-Mail an den Autor wenden:
-
-- **QQ-Mail**: [2792893068@qq.com](mailto:2792893068@qq.com)
-- **Gmail**: [lepa23216@gmail.com](mailto:lepa23216@gmail.com)
-
-Nach Erhalt der E-Mail werden wir uns schnellstmöglich um Ihr Anliegen kümmern! Vielen Dank für Ihre Unterstützung und Ihr Feedback!
-
----
-
-### 🏷️ Search Topics & SEO Keywords
-`m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
-
----
-
-## ⭐ Support & Star History
-
-If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
-
-<p align="center">
-  <a href="https://star-history.com/#xuewexin/StarStream&Date">
-    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
-  </a>
-</p>
+Autor: `xuewexin` · [2792893068@qq.com](mailto:2792893068@qq.com) / [lepa23216@gmail.com](mailto:lepa23216@gmail.com) · MIT-Lizenz
