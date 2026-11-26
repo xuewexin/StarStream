@@ -170,98 +170,6 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
 
-        # 批量选择与任务参数快速控制条
-        self.batch_bar = QWidget()
-        self.batch_bar.setObjectName("batchControlBar")
-        self.batch_bar.setFixedHeight(38)
-        self.batch_bar.setStyleSheet(
-            "QWidget#batchControlBar { background: rgba(15, 23, 42, 0.55); "
-            "border-bottom: 1px solid rgba(148, 163, 184, 0.14); }"
-        )
-        batch_layout = QHBoxLayout(self.batch_bar)
-        batch_layout.setContentsMargins(10, 4, 10, 4)
-        batch_layout.setSpacing(6)
-
-        self.chk_select_all = QCheckBox("全选")
-        self.chk_select_all.setStyleSheet("color: #cbd5e1; font-size: 12px; font-weight: 600;")
-        self.chk_select_all.clicked.connect(self._on_batch_select_all_clicked)
-        batch_layout.addWidget(self.chk_select_all)
-
-        self.btn_invert_select = QPushButton("反选")
-        self.btn_invert_select.setFixedHeight(25)
-        self.btn_invert_select.setStyleSheet(
-            "QPushButton { background: rgba(30, 41, 59, 0.9); color: #cbd5e1; border: 1px solid #334155; "
-            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; }"
-            "QPushButton:hover { border-color: #38bdf8; color: #f8fafc; }"
-        )
-        self.btn_invert_select.clicked.connect(self._action_invert_selection)
-        batch_layout.addWidget(self.btn_invert_select)
-
-        self.lbl_batch_count = QLabel("已选 0 项")
-        self.lbl_batch_count.setStyleSheet("color: #38bdf8; font-size: 11.5px; font-weight: 600; margin: 0 6px;")
-        batch_layout.addWidget(self.lbl_batch_count)
-
-        self.btn_batch_start = QPushButton("批量开始")
-        self.btn_batch_start.setIcon(get_icon("play", "#4ade80", 13))
-        self.btn_batch_start.setFixedHeight(25)
-        self.btn_batch_start.setStyleSheet(
-            "QPushButton { background: rgba(20, 83, 45, 0.55); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35); "
-            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
-            "QPushButton:hover { background: rgba(22, 101, 52, 0.85); }"
-        )
-        self.btn_batch_start.clicked.connect(self._action_start_selected)
-        batch_layout.addWidget(self.btn_batch_start)
-
-        self.btn_batch_pause = QPushButton("批量暂停")
-        self.btn_batch_pause.setIcon(get_icon("pause", "#fbbf24", 13))
-        self.btn_batch_pause.setFixedHeight(25)
-        self.btn_batch_pause.setStyleSheet(
-            "QPushButton { background: rgba(120, 53, 15, 0.5); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.35); "
-            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
-            "QPushButton:hover { background: rgba(146, 64, 14, 0.85); }"
-        )
-        self.btn_batch_pause.clicked.connect(self._action_pause_selected)
-        batch_layout.addWidget(self.btn_batch_pause)
-
-        self.btn_batch_settings = QPushButton("批量设置")
-        self.btn_batch_settings.setIcon(get_icon("settings", "#38bdf8", 13))
-        self.btn_batch_settings.setFixedHeight(25)
-        self.btn_batch_settings.setToolTip("批量修改已选任务的线程数、代理、存储目录及全局并发数")
-        self.btn_batch_settings.setStyleSheet(
-            "QPushButton { background: rgba(12, 74, 110, 0.65); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); "
-            "border-radius: 5px; padding: 0 10px; font-size: 11.5px; font-weight: 600; }"
-            "QPushButton:hover { background: rgba(3, 105, 161, 0.9); color: #ffffff; }"
-        )
-        self.btn_batch_settings.clicked.connect(self._action_batch_settings)
-        batch_layout.addWidget(self.btn_batch_settings)
-
-        self.btn_batch_delete = QPushButton("批量删除")
-        self.btn_batch_delete.setIcon(get_icon("delete", "#f87171", 13))
-        self.btn_batch_delete.setFixedHeight(25)
-        self.btn_batch_delete.setStyleSheet(
-            "QPushButton { background: rgba(127, 29, 29, 0.45); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.35); "
-            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
-            "QPushButton:hover { background: rgba(153, 27, 27, 0.85); color: #ffffff; }"
-        )
-        self.btn_batch_delete.clicked.connect(self._action_batch_delete_prompt)
-        batch_layout.addWidget(self.btn_batch_delete)
-
-        batch_layout.addStretch(1)
-
-        self.btn_patrol_now = QPushButton("巡检修复")
-        self.btn_patrol_now.setIcon(get_icon("refresh", "#a78bfa", 13))
-        self.btn_patrol_now.setFixedHeight(25)
-        self.btn_patrol_now.setToolTip("立即巡检队列状态：自动转正已完成任务、清理完成分片缓存并唤醒卡住队列")
-        self.btn_patrol_now.setStyleSheet(
-            "QPushButton { background: rgba(88, 28, 135, 0.45); color: #c4b5fd; border: 1px solid rgba(167, 139, 250, 0.35); "
-            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
-            "QPushButton:hover { background: rgba(107, 33, 168, 0.8); color: #ffffff; }"
-        )
-        self.btn_patrol_now.clicked.connect(self._action_patrol_now)
-        batch_layout.addWidget(self.btn_patrol_now)
-
-        right_layout.addWidget(self.batch_bar)
-
         self.table = QTableWidget()
         self.table.setColumnCount(11)
         self.table.setHorizontalHeaderLabels([
@@ -273,6 +181,11 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Fixed)
         self.table.horizontalHeader().setMinimumSectionSize(36)
         self.table.horizontalHeader().setStretchLastSection(False)
+        self.table.horizontalHeader().sectionClicked.connect(self._on_header_section_clicked)
+        if self.table.horizontalHeaderItem(0):
+            self.table.horizontalHeaderItem(0).setToolTip("点击表头【序号】一键全选 / 取消全选")
+        if self.table.horizontalHeaderItem(9):
+            self.table.horizontalHeaderItem(9).setToolTip("点击表头【状态】立即全部巡检修复状态与分片缓存")
         self.table.setColumnWidth(0, 62)
         self.table.setColumnWidth(2, 82)
         self.table.setColumnWidth(3, 64)
@@ -429,6 +342,9 @@ class MainWindow(QMainWindow):
 
         self.act_clean = tools_menu.addAction(get_icon("clean", "#d4d4d8", 16), t("clean_cache"))
         self.act_clean.triggered.connect(self._action_clean_cache)
+
+        self.act_patrol = tools_menu.addAction(get_icon("refresh", "#38bdf8", 16), "队列巡检修复与分片清理")
+        self.act_patrol.triggered.connect(self._action_patrol_now)
 
         self.act_view_errors = tools_menu.addAction(get_icon("log", "#38bdf8", 16), t("error_logs"))
         self.act_view_errors.triggered.connect(self._action_open_master_error_log)
@@ -1082,27 +998,19 @@ class MainWindow(QMainWindow):
                 ids.append(it.data(Qt.UserRole))
         return ids
 
-    def _update_batch_selection_label(self):
-        if not hasattr(self, "lbl_batch_count"):
-            return
-        checked_count = 0
-        row_total = self.table.rowCount()
-        for r in range(row_total):
-            it = self.table.item(r, 0)
-            if it and it.checkState() == Qt.Checked:
-                checked_count += 1
-        selected_rows = len({idx.row() for idx in self.table.selectedIndexes()})
-        if checked_count > 0:
-            self.lbl_batch_count.setText(f"已勾选 {checked_count} 项")
-        elif selected_rows > 0:
-            self.lbl_batch_count.setText(f"已高亮 {selected_rows} 项")
-        else:
-            self.lbl_batch_count.setText("已选 0 项")
+    def _on_header_section_clicked(self, col):
+        if col == 0:
+            row_total = self.table.rowCount()
+            all_checked = row_total > 0 and all(
+                self.table.item(r, 0) and self.table.item(r, 0).checkState() == Qt.Checked
+                for r in range(row_total)
+            )
+            self._on_batch_select_all_clicked(not all_checked)
+        elif col == 9:
+            self._action_patrol_now()
 
-        if hasattr(self, "chk_select_all"):
-            self.chk_select_all.blockSignals(True)
-            self.chk_select_all.setChecked(row_total > 0 and checked_count == row_total)
-            self.chk_select_all.blockSignals(False)
+    def _update_batch_selection_label(self):
+        return
 
     def _on_batch_select_all_clicked(self, checked):
         self.table.blockSignals(True)
@@ -1119,25 +1027,6 @@ class MainWindow(QMainWindow):
                             self._checked_task_ids.discard(tid)
         finally:
             self.table.blockSignals(False)
-            self._update_batch_selection_label()
-
-    def _action_invert_selection(self):
-        self.table.blockSignals(True)
-        try:
-            for r in range(self.table.rowCount()):
-                it = self.table.item(r, 0)
-                if it:
-                    tid = it.data(Qt.UserRole)
-                    now_checked = it.checkState() != Qt.Checked
-                    it.setCheckState(Qt.Checked if now_checked else Qt.Unchecked)
-                    if tid:
-                        if now_checked:
-                            self._checked_task_ids.add(tid)
-                        else:
-                            self._checked_task_ids.discard(tid)
-        finally:
-            self.table.blockSignals(False)
-            self._update_batch_selection_label()
 
     def _action_patrol_now(self):
         res = task_manager.run_patrol(force_cleanup=True)
@@ -1147,31 +1036,10 @@ class MainWindow(QMainWindow):
             5000
         )
 
-    def _action_batch_delete_prompt(self):
-        ids = self._get_selected_task_ids()
-        if not ids:
-            QMessageBox.information(self, "批量删除", "请先勾选或选中要操作的任务！")
-            return
-        msg_box = QMessageBox(self)
-        msg_box.setWindowTitle("批量删除任务")
-        msg_box.setText(f"已选定 {len(ids)} 个任务，请选择删除方式：")
-        btn_rec = msg_box.addButton("仅删除记录", QMessageBox.AcceptRole)
-        btn_all = msg_box.addButton("连带删除本地文件与分片", QMessageBox.DestructiveRole)
-        btn_cancel = msg_box.addButton("取消", QMessageBox.RejectRole)
-        msg_box.setDefaultButton(btn_cancel)
-        msg_box.exec_()
-        clicked = msg_box.clickedButton()
-        if clicked == btn_rec:
-            self._checked_task_ids.difference_update(ids)
-            self._delete_tasks(ids, delete_file=False)
-        elif clicked == btn_all:
-            self._checked_task_ids.difference_update(ids)
-            self._delete_tasks(ids, delete_file=True)
-
     def _action_batch_settings(self):
         ids = self._get_selected_task_ids()
         dlg = QDialog(self)
-        dlg.setWindowTitle("批量下载设置与队列调度")
+        dlg.setWindowTitle(f"任务参数设置（作用于选中的 {len(ids)} 项）" if ids else "下载队列参数设置")
         dlg.setMinimumWidth(460)
         layout = QVBoxLayout(dlg)
         layout.setSpacing(12)
@@ -1448,16 +1316,24 @@ class MainWindow(QMainWindow):
             return
 
         menu = QMenu(self)
+        if len(ids) > 1:
+            hdr_act = menu.addAction(f"作用于已选中的 {len(ids)} 项任务")
+            hdr_act.setEnabled(False)
+            menu.addSeparator()
+
         act_run = menu.addAction(get_icon("play", "#3875f6", 14), t("ctx_start"))
         act_run.triggered.connect(self._action_start_selected)
 
         act_pau = menu.addAction(get_icon("pause", "#d4d4d8", 14), t("ctx_pause"))
         act_pau.triggered.connect(self._action_pause_selected)
 
-        act_break = menu.addAction(get_icon("zap", "#f59e0b", 14), t("ctx_break_throttle", default="⚡ 打破限速并刷新凭证 (重置CDN极速链路)"))
+        act_task_set = menu.addAction(get_icon("settings", "#d4d4d8", 14), "修改任务设置..." if len(ids) <= 1 else f"修改选中任务设置 ({len(ids)} 项)...")
+        act_task_set.triggered.connect(self._action_batch_settings)
+
+        act_break = menu.addAction(get_icon("zap", "#f59e0b", 14), t("ctx_break_throttle", default="打破限速并刷新凭证 (重置CDN极速链路)"))
         act_break.triggered.connect(self._action_break_throttle_selected)
 
-        act_verify = menu.addAction(get_icon("globe", "#f59e0b", 14), "🛡️ 去浏览器人机验证 / 异常认证 (打破风控)")
+        act_verify = menu.addAction(get_icon("globe", "#f59e0b", 14), "去浏览器人机验证 / 异常认证")
         act_verify.triggered.connect(self._action_open_browser_verification_for_selected)
 
         if len(ids) == 1:
@@ -1466,6 +1342,13 @@ class MainWindow(QMainWindow):
 
             act_rename = menu.addAction(get_icon("edit", "#38bdf8", 14), t("ctx_rename", default="重命名任务..."))
             act_rename.triggered.connect(self._action_rename_selected)
+
+        menu.addSeparator()
+        act_sel_all = menu.addAction(get_icon("check", "#d4d4d8", 14), "全选当前列表")
+        act_sel_all.triggered.connect(lambda: self._on_batch_select_all_clicked(True))
+        if self._checked_task_ids:
+            act_unsel = menu.addAction(get_icon("clean", "#d4d4d8", 14), "取消全部勾选")
+            act_unsel.triggered.connect(lambda: self._on_batch_select_all_clicked(False))
 
         menu.addSeparator()
 
@@ -1815,6 +1698,7 @@ class MainWindow(QMainWindow):
     def _delete_tasks(self, ids, delete_file=False):
         if not ids:
             return
+        self._checked_task_ids.difference_update(ids)
         self.table.setUpdatesEnabled(False)
         try:
             for t_id in ids:

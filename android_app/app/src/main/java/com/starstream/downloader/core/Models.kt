@@ -129,6 +129,18 @@ object AppConfig {
         get() = prefs.getBoolean("auto_convert_mp4", true)
         set(v) = prefs.edit().putBoolean("auto_convert_mp4", v).apply()
 
+    var themeKey: String
+        get() = prefs.getString("app_theme_key", "obsidian") ?: "obsidian"
+        set(v) = prefs.edit().putString("app_theme_key", v.trim()).apply()
+
+    var customBgPath: String
+        get() = prefs.getString("custom_bg_path", "") ?: ""
+        set(v) = prefs.edit().putString("custom_bg_path", v.trim()).apply()
+
+    var bgDimPercent: Int
+        get() = prefs.getInt("bg_dim_percent", 55).coerceIn(15, 90)
+        set(v) = prefs.edit().putInt("bg_dim_percent", v.coerceIn(15, 90)).apply()
+
     var saveToGallery: Boolean
         get() = prefs.getBoolean("save_to_gallery", true)
         set(v) = prefs.edit().putBoolean("save_to_gallery", v).apply()

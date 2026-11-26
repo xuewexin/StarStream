@@ -51,6 +51,7 @@ class ParserActivity : AppCompatActivity() {
 
         val root = findViewById<ViewGroup>(R.id.root_parser_container)
         rootContainer = root
+        ThemeManager.applyTheme(this, root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(insets.left, insets.top, insets.right, insets.bottom)

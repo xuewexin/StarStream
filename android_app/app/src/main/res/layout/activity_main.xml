@@ -38,6 +38,7 @@
                     app:tint="@color/text_primary" />
 
                 <TextView
+                    android:id="@+id/tv_toolbar_title"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
@@ -101,25 +102,17 @@
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/btn_toolbar_batch"
+                <TextView
+                    android:id="@+id/btn_toolbar_select"
                     android:layout_width="wrap_content"
                     android:layout_height="34dp"
                     android:layout_marginEnd="4dp"
                     android:background="@drawable/bg_input"
                     android:gravity="center"
-                    android:orientation="horizontal"
-                    android:paddingHorizontal="9dp">
-
-                    <TextView
-                        android:id="@+id/tv_toolbar_batch"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="批量"
-                        android:textColor="@color/accent_blue"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
+                    android:paddingHorizontal="10dp"
+                    android:text="多选"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp" />
 
                 <ImageButton
                     android:id="@+id/btn_toolbar_more"
@@ -176,140 +169,73 @@
                 android:layout_height="1dp"
                 android:background="@color/border_subtle" />
 
-            <!-- 批量选择与参数控制条 (点击右上角“批量”或长按任务展开) -->
+            <!-- 多选操作栏（统一常规深灰底，仅在多选模式下显示；操作任一已选任务同样作用于整体） -->
             <LinearLayout
-                android:id="@+id/layout_batch_bar"
+                android:id="@+id/layout_selection_bar"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="42dp"
                 android:background="@color/bg_panel"
-                android:orientation="vertical"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
                 android:paddingHorizontal="10dp"
-                android:paddingVertical="6dp"
                 android:visibility="gone">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/tv_selection_count"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_weight="1"
+                    android:text="已选 0 项"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12.5sp"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:id="@+id/tv_batch_count"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="已选 0 项"
-                        android:textColor="@color/accent_cyan"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                <Button
+                    android:id="@+id/btn_sel_all"
+                    android:layout_width="wrap_content"
+                    android:layout_height="29dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_input"
+                    android:minWidth="46dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="全选"
+                    android:textColor="@color/text_primary"
+                    android:textSize="11.5sp" />
 
-                    <Button
-                        android:id="@+id/btn_batch_all"
-                        android:layout_width="wrap_content"
-                        android:layout_height="28dp"
-                        android:layout_marginEnd="6dp"
-                        android:background="@drawable/bg_input"
-                        android:minWidth="46dp"
-                        android:paddingHorizontal="8dp"
-                        android:text="全选"
-                        android:textColor="@color/text_primary"
-                        android:textSize="11sp" />
+                <Button
+                    android:id="@+id/btn_sel_settings"
+                    android:layout_width="wrap_content"
+                    android:layout_height="29dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_input"
+                    android:minWidth="46dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="设置"
+                    android:textColor="@color/text_primary"
+                    android:textSize="11.5sp" />
 
-                    <Button
-                        android:id="@+id/btn_batch_invert"
-                        android:layout_width="wrap_content"
-                        android:layout_height="28dp"
-                        android:layout_marginEnd="6dp"
-                        android:background="@drawable/bg_input"
-                        android:minWidth="46dp"
-                        android:paddingHorizontal="8dp"
-                        android:text="反选"
-                        android:textColor="@color/text_primary"
-                        android:textSize="11sp" />
+                <Button
+                    android:id="@+id/btn_sel_patrol"
+                    android:layout_width="wrap_content"
+                    android:layout_height="29dp"
+                    android:layout_marginEnd="6dp"
+                    android:background="@drawable/bg_input"
+                    android:minWidth="46dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="巡检"
+                    android:textColor="@color/text_primary"
+                    android:textSize="11.5sp" />
 
-                    <Button
-                        android:id="@+id/btn_batch_exit"
-                        android:layout_width="wrap_content"
-                        android:layout_height="28dp"
-                        android:background="@drawable/bg_input"
-                        android:minWidth="46dp"
-                        android:paddingHorizontal="8dp"
-                        android:text="完成"
-                        android:textColor="@color/text_muted"
-                        android:textSize="11sp" />
-                </LinearLayout>
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:scrollbars="none">
-
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <Button
-                            android:id="@+id/btn_batch_start"
-                            android:layout_width="wrap_content"
-                            android:layout_height="29dp"
-                            android:layout_marginEnd="6dp"
-                            android:background="@drawable/bg_btn_primary"
-                            android:minWidth="58dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="开始"
-                            android:textColor="#FFFFFF"
-                            android:textSize="11sp" />
-
-                        <Button
-                            android:id="@+id/btn_batch_pause"
-                            android:layout_width="wrap_content"
-                            android:layout_height="29dp"
-                            android:layout_marginEnd="6dp"
-                            android:background="@drawable/bg_input"
-                            android:minWidth="58dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="暂停"
-                            android:textColor="@color/accent_amber"
-                            android:textSize="11sp" />
-
-                        <Button
-                            android:id="@+id/btn_batch_settings"
-                            android:layout_width="wrap_content"
-                            android:layout_height="29dp"
-                            android:layout_marginEnd="6dp"
-                            android:background="@drawable/bg_input"
-                            android:minWidth="74dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="批量设置"
-                            android:textColor="@color/accent_cyan"
-                            android:textSize="11sp" />
-
-                        <Button
-                            android:id="@+id/btn_batch_delete"
-                            android:layout_width="wrap_content"
-                            android:layout_height="29dp"
-                            android:layout_marginEnd="6dp"
-                            android:background="@drawable/bg_input"
-                            android:minWidth="62dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="批量删"
-                            android:textColor="@color/accent_red"
-                            android:textSize="11sp" />
-
-                        <Button
-                            android:id="@+id/btn_batch_patrol"
-                            android:layout_width="wrap_content"
-                            android:layout_height="29dp"
-                            android:background="@drawable/bg_input"
-                            android:minWidth="72dp"
-                            android:paddingHorizontal="10dp"
-                            android:text="巡检清理"
-                            android:textColor="@color/accent_purple"
-                            android:textSize="11sp" />
-                    </LinearLayout>
-                </HorizontalScrollView>
+                <Button
+                    android:id="@+id/btn_sel_done"
+                    android:layout_width="wrap_content"
+                    android:layout_height="29dp"
+                    android:background="@drawable/bg_input"
+                    android:minWidth="46dp"
+                    android:paddingHorizontal="10dp"
+                    android:text="完成"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11.5sp" />
             </LinearLayout>
 
             <!-- 支持下拉刷新的下载列表区 -->

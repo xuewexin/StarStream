@@ -166,70 +166,42 @@ class FloatingDashboardPanel(QWidget):
         self.tools_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; font-weight: 600; border: none; margin-top: 2px;")
         card_layout.addWidget(self.tools_lbl)
 
+        neutral_btn_qss = """
+            QPushButton {
+                background: #1e293b;
+                color: #e2e8f0;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                padding: 6px 6px;
+                font-size: 11px;
+                font-weight: 500;
+            }
+            QPushButton:hover {
+                background: #273549;
+                border-color: #475569;
+                color: #ffffff;
+            }
+        """
+
         tools_row = QHBoxLayout()
         tools_row.setSpacing(6)
 
         self.btn_batch = QPushButton(t("batch_convert"))
-        self.btn_batch.setIcon(get_icon("refresh", "#c084fc", 14))
+        self.btn_batch.setIcon(get_icon("refresh", "#94a3b8", 13))
         self.btn_batch.setToolTip(t("batch_convert"))
-        self.btn_batch.setStyleSheet("""
-            QPushButton {
-                background: #1e1b4b;
-                color: #c084fc;
-                border: 1px solid #4338ca;
-                border-radius: 6px;
-                padding: 6px 4px;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #312e81;
-                border-color: #a855f7;
-                color: #ffffff;
-            }
-        """)
+        self.btn_batch.setStyleSheet(neutral_btn_qss)
         self.btn_batch.clicked.connect(self._on_open_batch)
 
         self.btn_ffmpeg = QPushButton(t("ffmpeg_box"))
-        self.btn_ffmpeg.setIcon(get_icon("toolbox", "#38bdf8", 14))
+        self.btn_ffmpeg.setIcon(get_icon("toolbox", "#94a3b8", 13))
         self.btn_ffmpeg.setToolTip(t("ffmpeg_box"))
-        self.btn_ffmpeg.setStyleSheet("""
-            QPushButton {
-                background: #0c4a6e;
-                color: #38bdf8;
-                border: 1px solid #0284c7;
-                border-radius: 6px;
-                padding: 6px 4px;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #0369a1;
-                border-color: #38bdf8;
-                color: #ffffff;
-            }
-        """)
+        self.btn_ffmpeg.setStyleSheet(neutral_btn_qss)
         self.btn_ffmpeg.clicked.connect(self._on_open_ffmpeg)
 
         self.btn_parser = QPushButton(t("video_parser"))
-        self.btn_parser.setIcon(get_icon("zap", "#fbbf24", 14))
+        self.btn_parser.setIcon(get_icon("zap", "#94a3b8", 13))
         self.btn_parser.setToolTip(t("tip_video_parser"))
-        self.btn_parser.setStyleSheet("""
-            QPushButton {
-                background: #451a03;
-                color: #fbbf24;
-                border: 1px solid #b45309;
-                border-radius: 6px;
-                padding: 6px 4px;
-                font-size: 11px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #78350f;
-                border-color: #f59e0b;
-                color: #ffffff;
-            }
-        """)
+        self.btn_parser.setStyleSheet(neutral_btn_qss)
         self.btn_parser.clicked.connect(self._on_open_parser)
 
         tools_row.addWidget(self.btn_batch)
@@ -237,59 +209,26 @@ class FloatingDashboardPanel(QWidget):
         tools_row.addWidget(self.btn_parser)
         card_layout.addLayout(tools_row)
 
-        # 4. 底部队列快捷控制栏 (点击仅执行快捷功能，不主动弹出主程序窗口)
+        # 4. 底部队列快捷控制栏 (统一常规按钮样式，点击仅执行快捷功能，不主动弹出主程序窗口)
         ctrl_row = QHBoxLayout()
         ctrl_row.setSpacing(6)
 
         self.btn_start_all = QPushButton("全部开始")
-        self.btn_start_all.setIcon(get_icon("play", "#4ade80", 13))
+        self.btn_start_all.setIcon(get_icon("play", "#94a3b8", 12))
         self.btn_start_all.setFixedHeight(28)
-        self.btn_start_all.setStyleSheet("""
-            QPushButton {
-                background: #064e3b;
-                color: #4ade80;
-                border: 1px solid #059669;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 600;
-                padding: 0 6px;
-            }
-            QPushButton:hover { background: #047857; color: #ffffff; }
-        """)
+        self.btn_start_all.setStyleSheet(neutral_btn_qss)
         self.btn_start_all.clicked.connect(self._on_start_all)
 
         self.btn_pause_all = QPushButton("全部暂停")
-        self.btn_pause_all.setIcon(get_icon("pause", "#fbbf24", 13))
+        self.btn_pause_all.setIcon(get_icon("pause", "#94a3b8", 12))
         self.btn_pause_all.setFixedHeight(28)
-        self.btn_pause_all.setStyleSheet("""
-            QPushButton {
-                background: #451a03;
-                color: #fbbf24;
-                border: 1px solid #b45309;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 600;
-                padding: 0 6px;
-            }
-            QPushButton:hover { background: #78350f; color: #ffffff; }
-        """)
+        self.btn_pause_all.setStyleSheet(neutral_btn_qss)
         self.btn_pause_all.clicked.connect(self._on_pause_all)
 
         self.btn_new_quick = QPushButton("新建")
-        self.btn_new_quick.setIcon(get_icon("add", "#38bdf8", 13))
+        self.btn_new_quick.setIcon(get_icon("add", "#94a3b8", 12))
         self.btn_new_quick.setFixedHeight(28)
-        self.btn_new_quick.setStyleSheet("""
-            QPushButton {
-                background: #0f172a;
-                color: #38bdf8;
-                border: 1px solid #334155;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 600;
-                padding: 0 8px;
-            }
-            QPushButton:hover { background: #1e293b; border-color: #38bdf8; }
-        """)
+        self.btn_new_quick.setStyleSheet(neutral_btn_qss)
         self.btn_new_quick.clicked.connect(lambda: (self.request_new_task.emit(), self.hide()))
 
         ctrl_row.addWidget(self.btn_start_all)
@@ -451,10 +390,11 @@ class FloatingDashboardPanel(QWidget):
                 pct_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; border: none; min-width: 28px;")
                 r2.addWidget(pct_lbl)
 
+                row_btn_qss = "color: #e2e8f0; font-size: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 3px; padding: 1px 6px;"
                 tid = t_item.get("id")
                 if t_item.get("verification_required"):
                     btn_act = QPushButton("去验证")
-                    btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 3px; padding: 1px 4px; font-weight: bold;")
+                    btn_act.setStyleSheet(row_btn_qss)
                     v_u = t_item.get("verification_url") or t_item.get("referer") or t_item.get("pageUrl") or t_item.get("url") or ""
                     def _do_open_v(u=v_u):
                         from PyQt5.QtGui import QDesktopServices
@@ -464,11 +404,11 @@ class FloatingDashboardPanel(QWidget):
                     btn_act.clicked.connect(lambda _, u=v_u: _do_open_v(u))
                 elif t_item.get("status") == "downloading":
                     btn_act = QPushButton("暂停")
-                    btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: transparent; border: 1px solid #78350f; border-radius: 3px; padding: 1px 4px;")
+                    btn_act.setStyleSheet(row_btn_qss)
                     btn_act.clicked.connect(lambda _, x=tid: (task_manager.pause_task(x), self.refresh_data()))
                 else:
                     btn_act = QPushButton("继续")
-                    btn_act.setStyleSheet("color: #4ade80; font-size: 10px; background: transparent; border: 1px solid #14532d; border-radius: 3px; padding: 1px 4px;")
+                    btn_act.setStyleSheet(row_btn_qss)
                     btn_act.clicked.connect(lambda _, x=tid: (task_manager.start_task(x), self.refresh_data()))
                 r2.addWidget(btn_act)
 

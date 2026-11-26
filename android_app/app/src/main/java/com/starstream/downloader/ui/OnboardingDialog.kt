@@ -77,9 +77,10 @@ object OnboardingDialog {
 
         var currentStep = 0
 
+        val pal = ThemeManager.current()
         val card = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(ContextCompat.getColor(context, R.color.bg_panel))
+            background = ThemeManager.makeRoundedBg(pal.bgPanel, 16f, pal.border, 1f, context)
             setPadding(56, 52, 56, 44)
         }
 
@@ -87,8 +88,8 @@ object OnboardingDialog {
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(ContextCompat.getColor(context, R.color.bg_input))
-                setStroke(2, ContextCompat.getColor(context, R.color.border_subtle))
+                setColor(pal.bgInput)
+                setStroke(2, pal.border)
             }
             layoutParams = LinearLayout.LayoutParams(148, 148).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
@@ -104,7 +105,7 @@ object OnboardingDialog {
         val tvSubtitle = TextView(context).apply {
             textSize = 12f
             gravity = Gravity.CENTER
-            setTextColor(ContextCompat.getColor(context, R.color.accent_cyan))
+            setTextColor(pal.accent)
         }
         card.addView(tvSubtitle)
 
@@ -112,7 +113,7 @@ object OnboardingDialog {
             textSize = 18f
             gravity = Gravity.CENTER
             setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+            setTextColor(pal.textPrimary)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
                 topMargin = 10
                 bottomMargin = 20
@@ -123,8 +124,8 @@ object OnboardingDialog {
         val tvBody = TextView(context).apply {
             textSize = 13f
             setLineSpacing(6f, 1.15f)
-            setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
-            setBackgroundResource(R.drawable.bg_card)
+            setTextColor(pal.textSecondary)
+            background = ThemeManager.makeRoundedBg(pal.bgCard, 12f, pal.border, 1f, context)
             setPadding(34, 30, 34, 30)
             minLines = 6
         }
@@ -153,22 +154,22 @@ object OnboardingDialog {
         val btnSkip = Button(context).apply {
             text = "跳过"
             textSize = 13f
-            setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
-            setBackgroundResource(R.drawable.bg_input)
+            setTextColor(pal.textPrimary)
+            background = ThemeManager.makeRoundedBg(pal.bgInput, 8f, pal.border, 1f, context)
             layoutParams = LinearLayout.LayoutParams(0, 108, 1f).apply { marginEnd = 16 }
         }
         val btnNext = Button(context).apply {
             textSize = 13.5f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(Color.WHITE)
-            setBackgroundResource(R.drawable.bg_btn_primary)
+            background = ThemeManager.makeRoundedBg(pal.accent, 8f, 0, 0f, context)
             layoutParams = LinearLayout.LayoutParams(0, 108, 1.6f)
         }
         btnRow.addView(btnSkip)
         btnRow.addView(btnNext)
         card.addView(btnRow)
 
-        val dialog = AlertDialog.Builder(context)
+        val dialog = ThemeManager.dialogBuilder(context)
             .setView(card)
             .setCancelable(force)
             .create()
@@ -235,6 +236,7 @@ fun showIconMenuDialog(
     items: List<IconMenuItem>,
     onSelect: (Int) -> Unit
 ) {
+    val pal = ThemeManager.current()
     val adapter = object : ArrayAdapter<IconMenuItem>(context, 0, items) {
         override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
             val row = (convertView as? LinearLayout) ?: LinearLayout(context).apply {
@@ -247,8 +249,8 @@ fun showIconMenuDialog(
 
             val iv = ImageView(context).apply {
                 setImageResource(item.iconRes)
-                setColorFilter(ContextCompat.getColor(context, R.color.accent_cyan))
-                layoutParams = LinearLayout.LayoutParams(52, 52).apply { marginEnd = 30 }
+                setColorFilter(pal.accent)
+                layoutParams = LinearLayout.LayoutParams(50, 50).apply { marginEnd = 30 }
             }
             row.addView(iv)
 
@@ -259,13 +261,13 @@ fun showIconMenuDialog(
             col.addView(TextView(context).apply {
                 text = item.title
                 textSize = 14.5f
-                setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+                setTextColor(pal.textPrimary)
             })
             if (item.subtitle.isNotBlank()) {
                 col.addView(TextView(context).apply {
                     text = item.subtitle
                     textSize = 11.5f
-                    setTextColor(ContextCompat.getColor(context, R.color.text_muted))
+                    setTextColor(pal.textMuted)
                 })
             }
             row.addView(col)
@@ -273,8 +275,9 @@ fun showIconMenuDialog(
         }
     }
 
-    AlertDialog.Builder(context)
+    ThemeManager.dialogBuilder(context)
         .setTitle(title)
         .setAdapter(adapter) { _, which -> onSelect(which) }
+        .setNegativeButton("取消", null)
         .show()
 }

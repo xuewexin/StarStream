@@ -40,6 +40,7 @@ import com.starstream.downloader.ui.IconMenuItem
 import com.starstream.downloader.ui.OnboardingDialog
 import com.starstream.downloader.ui.ParserActivity
 import com.starstream.downloader.ui.SettingsActivity
+import com.starstream.downloader.ui.ThemeManager
 import com.starstream.downloader.ui.showIconMenuDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,8 +63,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabActive: TextView
     private lateinit var tabDone: TextView
     private lateinit var adapter: DownloadTaskAdapter
-    private lateinit var layoutBatchBar: View
-    private lateinit var tvBatchCount: TextView
+    private lateinit var tvToolbarTitle: TextView
+    private lateinit var layoutSelectionBar: View
+    private lateinit var tvSelectionCount: TextView
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var filterMode = 0 // 0=全部, 1=队列中, 2=已完成
@@ -126,6 +128,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        tvToolbarTitle = findViewById(R.id.tv_toolbar_title)
+        layoutSelectionBar = findViewById(R.id.layout_selection_bar)
+        tvSelectionCount = findViewById(R.id.tv_selection_count)
         adapter = DownloadTaskAdapter(
             emptyList(),
             onAction = { task -> handleTaskAction(task) },
@@ -133,51 +138,34 @@ class MainActivity : AppCompatActivity() {
             onDelete = { task -> promptDeleteTaskDialog(task) },
             onMore = { task -> showTaskMoreMenu(task) },
             onSelectionChanged = { count ->
-                tvBatchCount.text = "已选 $count 项"
+                val isMulti = adapter.selectionMode
+                layoutSelectionBar.visibility = if (isMulti) View.VISIBLE else View.GONE
+                tvSelectionCount.text = "已选 $count 项"
+                tvToolbarTitle.text = if (isMulti) "已选 $count 项" else "星流下载器"
+            },
+            onEnterSelectionMode = { taskId ->
+                adapter.setSelectionMode(true, initialSelectedId = taskId)
+                Toast.makeText(this, "已进入多选，点选任务后操作任意一项即可作用于整体", Toast.LENGTH_SHORT).show()
             }
         )
         rvDownloads.layoutManager = LinearLayoutManager(this)
         rvDownloads.adapter = adapter
 
-        layoutBatchBar = findViewById(R.id.layout_batch_bar)
-        tvBatchCount = findViewById(R.id.tv_batch_count)
-        findViewById<View>(R.id.btn_toolbar_batch).setOnClickListener {
-            toggleBatchMode(!adapter.selectionMode)
+        findViewById<View>(R.id.btn_toolbar_select).setOnClickListener {
+            adapter.setSelectionMode(!adapter.selectionMode)
         }
-        findViewById<View>(R.id.btn_batch_exit).setOnClickListener {
-            toggleBatchMode(false)
-        }
-        findViewById<View>(R.id.btn_batch_all).setOnClickListener {
+        findViewById<View>(R.id.btn_sel_all).setOnClickListener {
             adapter.selectAllShown()
         }
-        findViewById<View>(R.id.btn_batch_invert).setOnClickListener {
-            adapter.invertSelectionShown()
+        findViewById<View>(R.id.btn_sel_done).setOnClickListener {
+            adapter.setSelectionMode(false)
         }
-        findViewById<View>(R.id.btn_batch_start).setOnClickListener {
-            val sel = adapter.selectedIds.toList()
-            if (sel.isEmpty()) {
-                Toast.makeText(this, "请先勾选要开始的任务", Toast.LENGTH_SHORT).show()
-            } else {
-                sel.forEach { TaskManager.startTask(this, it) }
-                Toast.makeText(this, "已批量加入下载队列 (${sel.size} 项)", Toast.LENGTH_SHORT).show()
-            }
+        findViewById<View>(R.id.btn_sel_settings).setOnClickListener {
+            val targets = if (adapter.selectedIds.isNotEmpty()) adapter.selectedIds.toList()
+            else TaskManager.getAllTasks().filter { it.status != TaskStatus.COMPLETED }.map { it.id }
+            showTaskSettingsDialog(targets)
         }
-        findViewById<View>(R.id.btn_batch_pause).setOnClickListener {
-            val sel = adapter.selectedIds.toList()
-            if (sel.isEmpty()) {
-                Toast.makeText(this, "请先勾选要暂停的任务", Toast.LENGTH_SHORT).show()
-            } else {
-                sel.forEach { TaskManager.pauseTask(it, this) }
-                Toast.makeText(this, "已批量暂停 (${sel.size} 项)", Toast.LENGTH_SHORT).show()
-            }
-        }
-        findViewById<View>(R.id.btn_batch_settings).setOnClickListener {
-            showBatchSettingsDialog()
-        }
-        findViewById<View>(R.id.btn_batch_delete).setOnClickListener {
-            promptBatchDeleteDialog()
-        }
-        findViewById<View>(R.id.btn_batch_patrol).setOnClickListener {
+        findViewById<View>(R.id.btn_sel_patrol).setOnClickListener {
             mainScope.launch(Dispatchers.IO) {
                 val r = TaskManager.runPatrol(this@MainActivity, forceCleanup = true)
                 withContext(Dispatchers.Main) {
@@ -185,7 +173,7 @@ class MainActivity : AppCompatActivity() {
                         refreshList()
                         Toast.makeText(
                             this@MainActivity,
-                            "巡检完成：修复已完成 ${r.fixed} 项，清理分片 ${r.cleaned} 处，唤醒 ${r.kicked} 项",
+                            "巡检完成：修复 ${r.fixed} 项，清理分片 ${r.cleaned} 处，唤醒 ${r.kicked} 项",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -235,6 +223,8 @@ class MainActivity : AppCompatActivity() {
             override fun handleOnBackPressed() {
                 if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
                     drawerLayout.closeDrawer(GravityCompat.START)
+                } else if (adapter.selectionMode) {
+                    adapter.setSelectionMode(false)
                 } else {
                     isEnabled = false
                     onBackPressedDispatcher.onBackPressed()
@@ -249,7 +239,14 @@ class MainActivity : AppCompatActivity() {
         checkLastCrashLog()
         handleShareIntent(intent)
 
+        ThemeManager.applyTheme(this, coordinator, navView)
         OnboardingDialog.showIfNeeded(this, force = false)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ThemeManager.applyTheme(this, findViewById(R.id.main_coordinator), findViewById(R.id.nav_view))
+        refreshList()
     }
 
     override fun onDestroy() {
@@ -331,7 +328,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 if (isFinishing) return@withContext
                 if (errMsg.isNotEmpty()) {
-                    AlertDialog.Builder(this@MainActivity)
+                    ThemeManager.dialogBuilder(this@MainActivity)
                         .setTitle("检查更新失败")
                         .setMessage("当前版本：v$CURRENT_VERSION\n原因：$errMsg\n\n若 GitHub 访问受限，可在设置中心配置 HTTP 代理后重试。")
                         .setPositiveButton("前往发布页") { _, _ -> openUrlExternally(htmlUrl) }
@@ -345,7 +342,7 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         "当前版本：v$CURRENT_VERSION\n\n已是最新版本，感谢使用星流下载器！"
                     }
-                    AlertDialog.Builder(this@MainActivity)
+                    ThemeManager.dialogBuilder(this@MainActivity)
                         .setTitle(if (hasNew) "发现新版本 $latestTag" else "软件更新检查")
                         .setMessage(msg)
                         .setPositiveButton(if (hasNew) "前往下载更新" else "访问项目主页") { _, _ -> openUrlExternally(htmlUrl) }
@@ -365,7 +362,7 @@ class MainActivity : AppCompatActivity() {
             "· QQ 邮箱：2792893068@qq.com\n" +
             "· Gmail：lepa23216@gmail.com\n" +
             "· 问题与建议反馈：$ISSUES_URL"
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("项目地址与作者联系")
             .setMessage(msg)
             .setPositiveButton("打开项目主页") { _, _ -> openUrlExternally(REPO_URL) }
@@ -403,7 +400,7 @@ class MainActivity : AppCompatActivity() {
             hint = "输入 M3U8 / MP4 / 文档直链或视频页面链接..."
             setPadding(40, 30, 40, 30)
         }
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("新建下载任务")
             .setView(input)
             .setPositiveButton("直链下载") { _, _ ->
@@ -439,9 +436,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showMoreMenu() {
-        val items = listOf(
+        val items = mutableListOf(
+            IconMenuItem(R.drawable.ic_info, if (adapter.selectionMode) "退出多选模式" else "多选任务", "勾选多个任务后操作任意一项即可作用于整体"),
             IconMenuItem(R.drawable.ic_refresh, "全部暂停", "暂停当前正在下载与等待队列"),
             IconMenuItem(R.drawable.ic_download, "全部继续", "恢复所有已暂停或失败任务"),
+            IconMenuItem(R.drawable.ic_refresh, "队列巡检清理", "核查已完成任务状态并清理残余临时分片"),
             IconMenuItem(R.drawable.ic_close, "清理已完成记录", "仅移除记录，保留本地文件"),
             IconMenuItem(R.drawable.ic_guide, "新手引导教程", "查看内置浏览器、嗅探与设置说明"),
             IconMenuItem(R.drawable.ic_settings, "下载与存储设置", "并发任务数、多线程、自定义储存路径"),
@@ -449,16 +448,35 @@ class MainActivity : AppCompatActivity() {
         )
         showIconMenuDialog(this, "任务与功能管理", items) { which ->
             when (which) {
-                0 -> TaskManager.getAllTasks().filter { it.status == TaskStatus.DOWNLOADING || it.status == TaskStatus.WAITING }.forEach { TaskManager.pauseTask(it.id, this) }
-                1 -> TaskManager.getAllTasks().filter { it.status == TaskStatus.PAUSED || it.status == TaskStatus.ERROR }.forEach { TaskManager.startTask(this, it.id) }
-                2 -> {
+                0 -> {
+                    val enable = !adapter.selectionMode
+                    adapter.setSelectionMode(enable)
+                }
+                1 -> TaskManager.getAllTasks().filter { it.status == TaskStatus.DOWNLOADING || it.status == TaskStatus.WAITING }.forEach { TaskManager.pauseTask(it.id, this) }
+                2 -> TaskManager.getAllTasks().filter { it.status == TaskStatus.PAUSED || it.status == TaskStatus.ERROR }.forEach { TaskManager.startTask(this, it.id) }
+                3 -> {
+                    mainScope.launch(Dispatchers.IO) {
+                        val r = TaskManager.runPatrol(this@MainActivity, forceCleanup = true)
+                        withContext(Dispatchers.Main) {
+                            if (!isFinishing) {
+                                refreshList()
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "巡检完成：修复 ${r.fixed} 项，清理分片 ${r.cleaned} 处，唤醒 ${r.kicked} 项",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    }
+                }
+                4 -> {
                     val done = TaskManager.getAllTasks().filter { it.status == TaskStatus.COMPLETED }
                     done.forEach { TaskManager.deleteTask(it.id, deleteFile = false, context = this) }
                     Toast.makeText(this, "已清理 ${done.size} 条记录", Toast.LENGTH_SHORT).show()
                 }
-                3 -> OnboardingDialog.showIfNeeded(this, force = true)
-                4 -> startActivity(Intent(this, SettingsActivity::class.java))
-                5 -> checkForUpdates()
+                5 -> OnboardingDialog.showIfNeeded(this, force = true)
+                6 -> startActivity(Intent(this, SettingsActivity::class.java))
+                7 -> checkForUpdates()
             }
         }
     }
@@ -479,7 +497,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun getActionTargets(clickedTask: DownloadTask): List<String> {
+        return if (adapter.selectionMode && adapter.selectedIds.isNotEmpty()) {
+            adapter.selectedIds.toList()
+        } else {
+            listOf(clickedTask.id)
+        }
+    }
+
     private fun handleTaskAction(t: DownloadTask) {
+        val targets = getActionTargets(t)
+        if (targets.size > 1) {
+            when (t.status) {
+                TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING -> {
+                    targets.forEach { TaskManager.pauseTask(it, this) }
+                    Toast.makeText(this, "已暂停选中的 ${targets.size} 个任务", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                TaskStatus.PAUSED -> {
+                    targets.forEach { TaskManager.startTask(this, it) }
+                    Toast.makeText(this, "已继续选中的 ${targets.size} 个任务", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                TaskStatus.ERROR -> {
+                    targets.forEach { TaskManager.retryTask(this, it) }
+                    Toast.makeText(this, "已重新尝试选中的 ${targets.size} 个任务", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                TaskStatus.COMPLETED -> {}
+            }
+        }
+
         when (t.status) {
             TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING -> TaskManager.pauseTask(t.id, this)
             TaskStatus.PAUSED -> TaskManager.startTask(this, t.id)
@@ -487,7 +535,7 @@ class MainActivity : AppCompatActivity() {
             TaskStatus.COMPLETED -> {
                 val f = File(t.outputPath)
                 if (!f.exists()) {
-                    AlertDialog.Builder(this)
+                    ThemeManager.dialogBuilder(this)
                         .setTitle("文件不存在")
                         .setMessage("本地文件可能已被移动或清理，是否重新尝试下载？")
                         .setPositiveButton("重新下载") { _, _ -> TaskManager.retryTask(this, t.id) }
@@ -519,13 +567,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun promptDeleteTaskDialog(task: DownloadTask) {
+        val targets = getActionTargets(task)
+        if (targets.size > 1) {
+            ThemeManager.dialogBuilder(this)
+                .setTitle("删除选中的 ${targets.size} 个任务")
+                .setMessage("当前多选已生效，操作将作用于全部选中的 ${targets.size} 个任务：\n· 仅删除记录：保留本地文件\n· 连带删除本地文件：同时清理视频与临时分片")
+                .setPositiveButton("仅删除记录") { _, _ ->
+                    targets.forEach { TaskManager.deleteTask(it, deleteFile = false, context = this) }
+                    adapter.setSelectionMode(false)
+                    Toast.makeText(this, "已删除 ${targets.size} 条任务记录", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("连带删除本地文件") { _, _ ->
+                    targets.forEach { TaskManager.deleteTask(it, deleteFile = true, context = this) }
+                    adapter.setSelectionMode(false)
+                    Toast.makeText(this, "已删除 ${targets.size} 个任务与本地文件", Toast.LENGTH_SHORT).show()
+                }
+                .setNeutralButton("取消", null)
+                .show()
+            return
+        }
+
         val hasLocal = task.outputPath.isNotBlank() || task.exportedUri.isNotBlank()
         val msg = if (hasLocal) {
             "请选择对「${task.title}」的删除方式：\n· 仅删除记录：保留本地已下载文件\n· 连带删除文件：同时清除本地文件与临时分片"
         } else {
             "确定从下载列表中移除「${task.title}」吗？"
         }
-        val builder = AlertDialog.Builder(this)
+        val builder = ThemeManager.dialogBuilder(this)
             .setTitle("删除下载任务")
             .setMessage(msg)
             .setNeutralButton("取消", null)
@@ -549,7 +617,7 @@ class MainActivity : AppCompatActivity() {
             hint = "输入新的任务与文件名称..."
             setPadding(44, 30, 44, 30)
         }
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("重命名任务 / 本地文件")
             .setView(input)
             .setPositiveButton("确定修改") { _, _ ->
@@ -565,82 +633,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showTaskMoreMenu(task: DownloadTask) {
-        val items = mutableListOf(
-            IconMenuItem(R.drawable.ic_info, "重命名任务与文件", "同步修改列表标题与已下载文件名"),
-            IconMenuItem(R.drawable.ic_refresh, "刷新令牌并加速下载", "同步最新 Cookie/签名地址并重置限速链路"),
-            IconMenuItem(R.drawable.ic_download, "重新尝试下载", "清理残留缓存并重新拉取音视频流"),
-            IconMenuItem(R.drawable.ic_close, "删除任务", "可选仅删除记录或连带删除本地文件")
-        )
-        if (task.mediaType != "file" && task.url.startsWith("http")) {
-            items.add(2, IconMenuItem(R.drawable.ic_video, "边下边看 / 在线预览", "使用内置缓冲代理立即播放"))
-        }
-        showIconMenuDialog(this, task.title, items) { idx ->
-            val hasPreview = task.mediaType != "file" && task.url.startsWith("http")
-            when {
-                idx == 0 -> promptRenameTaskDialog(task)
-                idx == 1 -> {
-                    Toast.makeText(this, "正在刷新下载令牌并尝试提速...", Toast.LENGTH_SHORT).show()
-                    TaskManager.boostTaskToken(this, task.id) { ok ->
-                        val msg = if (ok) "令牌刷新成功，已应用极速重连" else "已刷新请求指纹并重连"
-                        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                    }
-                }
-                hasPreview && idx == 2 -> startWatchWhileDownloading(task)
-                (hasPreview && idx == 3) || (!hasPreview && idx == 2) -> {
-                    TaskManager.retryTask(this, task.id)
-                    Toast.makeText(this, "已开始重新下载：${task.title}", Toast.LENGTH_SHORT).show()
-                }
-                else -> promptDeleteTaskDialog(task)
+        val targets = getActionTargets(task)
+        val isMulti = targets.size > 1 || adapter.selectionMode
+        val menuTitle = if (targets.size > 1) "作用于已选中的 ${targets.size} 个任务" else task.title
+
+        val actions = mutableListOf<Pair<IconMenuItem, () -> Unit>>()
+        if (targets.size <= 1) {
+            actions += IconMenuItem(R.drawable.ic_info, "重命名任务与文件", "同步修改列表标题与已下载文件名") to {
+                promptRenameTaskDialog(task)
             }
+        }
+        actions += IconMenuItem(
+            R.drawable.ic_settings,
+            if (targets.size > 1) "修改下载参数设置（作用于 ${targets.size} 项）" else "修改下载参数设置",
+            "调整并发任务数、线程数、自动转封装 MP4 等"
+        ) to {
+            showTaskSettingsDialog(targets)
+        }
+        actions += IconMenuItem(R.drawable.ic_refresh, "刷新令牌并加速下载", "同步最新 Cookie/签名并重置限速链路") to {
+            Toast.makeText(this, "正在为 ${targets.size} 项刷新令牌并提速...", Toast.LENGTH_SHORT).show()
+            targets.forEach { tid ->
+                TaskManager.boostTaskToken(this, tid) { _ -> }
+            }
+        }
+        if (targets.size <= 1 && task.mediaType != "file" && task.url.startsWith("http")) {
+            actions += IconMenuItem(R.drawable.ic_video, "边下边看 / 在线预览", "使用内置缓冲代理立即播放") to {
+                startWatchWhileDownloading(task)
+            }
+        }
+        actions += IconMenuItem(R.drawable.ic_download, "重新尝试下载", "清理残留缓存并重新拉取音视频流") to {
+            targets.forEach { TaskManager.retryTask(this, it) }
+            Toast.makeText(this, "已开始重新下载（${targets.size} 项）", Toast.LENGTH_SHORT).show()
+        }
+        if (isMulti) {
+            actions += IconMenuItem(R.drawable.ic_info, "全选当前列表", "勾选全部可见任务") to {
+                adapter.selectAllShown()
+            }
+            actions += IconMenuItem(R.drawable.ic_close, "退出多选模式", "返回普通单任务视图") to {
+                adapter.setSelectionMode(false)
+            }
+        } else {
+            actions += IconMenuItem(R.drawable.ic_info, "多选此任务", "开启多选勾选，后续操作将作用于所有选中项") to {
+                adapter.setSelectionMode(true, initialSelectedId = task.id)
+            }
+        }
+        actions += IconMenuItem(R.drawable.ic_close, "删除任务", "可选仅删除记录或连带删除本地文件") to {
+            promptDeleteTaskDialog(task)
+        }
+
+        showIconMenuDialog(this, menuTitle, actions.map { it.first }) { idx ->
+            actions.getOrNull(idx)?.second?.invoke()
         }
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
-            }
-        }
-    }
-
-    private fun toggleBatchMode(enable: Boolean) {
-        adapter.setSelectionMode(enable)
-        layoutBatchBar.visibility = if (enable) View.VISIBLE else View.GONE
-        tvBatchCount.text = "已选 ${adapter.selectedIds.size} 项"
-    }
-
-    private fun promptBatchDeleteDialog() {
-        val sel = adapter.selectedIds.toList()
-        if (sel.isEmpty()) {
-            Toast.makeText(this, "请先勾选要删除的任务", Toast.LENGTH_SHORT).show()
-            return
-        }
-        AlertDialog.Builder(this)
-            .setTitle("批量删除 (${sel.size} 项)")
-            .setMessage("请选择删除方式：\n· 仅删除记录：保留本地已下载文件\n· 连带删除本地文件：同步清理视频与临时分片缓存")
-            .setPositiveButton("仅删除记录") { _, _ ->
-                sel.forEach { TaskManager.deleteTask(it, deleteFile = false, context = this) }
-                toggleBatchMode(false)
-                Toast.makeText(this, "已批量删除 ${sel.size} 条记录", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("连带删除本地文件") { _, _ ->
-                sel.forEach { TaskManager.deleteTask(it, deleteFile = true, context = this) }
-                toggleBatchMode(false)
-                Toast.makeText(this, "已批量删除 ${sel.size} 个任务与本地文件", Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("取消", null)
-            .show()
-    }
-
-    private fun showBatchSettingsDialog() {
-        val sel = adapter.selectedIds.toList()
+    private fun showTaskSettingsDialog(targetIds: List<String>) {
         val container = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             setPadding(52, 30, 52, 16)
         }
         val tvScope = TextView(this).apply {
-            text = if (sel.isNotEmpty()) "批量作用域：已勾选 ${sel.size} 个任务（并发上限全局生效）"
-            else "未勾选任务：将调整全局并发、默认线程与未完成任务参数"
+            text = if (targetIds.size > 1) "修改将作用于选中的 ${targetIds.size} 个任务（并发上限全局生效）"
+            else "修改当前选中任务的线程参数与全局队列调度设置"
             textSize = 12f
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_cyan))
             setPadding(0, 0, 0, 18)
@@ -701,32 +754,40 @@ class MainActivity : AppCompatActivity() {
             setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
         }
         val cbRestart = android.widget.CheckBox(this).apply {
-            text = "立即对选中/队列中的任务应用并重建加速链路"
+            text = "立即对选中/队列中的任务应用并重建链路"
             isChecked = true
-            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_cyan))
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
         }
         container.addView(cbAutoMp4)
         container.addView(cbSaveGallery)
         container.addView(cbRestart)
 
-        AlertDialog.Builder(this)
-            .setTitle("批量下载与队列设置")
+        ThemeManager.dialogBuilder(this)
+            .setTitle(if (targetIds.size > 1) "任务设置（已选 ${targetIds.size} 项）" else "任务下载设置")
             .setView(container)
-            .setPositiveButton("应用设置") { _, _ ->
+            .setPositiveButton("保存并应用") { _, _ ->
                 AppConfig.maxConcurrentTasks = curConcurrent
                 AppConfig.threadCount = curThreads
                 AppConfig.autoConvertMp4 = cbAutoMp4.isChecked
                 AppConfig.saveToGallery = cbSaveGallery.isChecked
-                val targets = if (sel.isNotEmpty()) sel else TaskManager.getAllTasks().filter { it.status != TaskStatus.COMPLETED }.map { it.id }
-                val updated = TaskManager.batchUpdateTasks(this, targets, curThreads, cbRestart.isChecked)
+                val updated = TaskManager.batchUpdateTasks(this, targetIds, curThreads, cbRestart.isChecked)
                 TaskManager.schedulePendingTasks(this)
-                Toast.makeText(this, "批量设置已生效：并发=$curConcurrent，线程=$curThreads (更新 $updated 项)", Toast.LENGTH_SHORT).show()
+                if (adapter.selectionMode) adapter.setSelectionMode(false)
+                Toast.makeText(this, "设置已应用到 $updated 项任务（并发=$curConcurrent，线程=$curThreads）", Toast.LENGTH_SHORT).show()
             }
-            .setNeutralButton("高级存储路径...") { _, _ ->
+            .setNeutralButton("存储目录设置...") { _, _ ->
                 startActivity(Intent(this, SettingsActivity::class.java))
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
     }
 
     private fun checkLastCrashLog() {
@@ -735,7 +796,7 @@ class MainActivity : AppCompatActivity() {
         val logText = crashFile.readText().take(2500)
         crashFile.delete()
         if (logText.isBlank()) return
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("上次运行捕获到异常")
             .setMessage(logText)
             .setPositiveButton("确定", null)

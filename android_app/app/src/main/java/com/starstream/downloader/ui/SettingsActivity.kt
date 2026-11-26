@@ -5,15 +5,20 @@ import android.os.Bundle
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.documentfile.provider.DocumentFile
 import com.starstream.downloader.R
 import com.starstream.downloader.core.AppConfig
+import java.io.File
+import java.io.FileOutputStream
 
 class SettingsActivity : AppCompatActivity() {
+
+    private lateinit var rootSettingsView: View
+    private lateinit var tvCustomBgStatus: TextView
+    private lateinit var tvThemeName: TextView
 
     private val uaOptions = listOf(
         "chrome_pc" to "Chrome 桌面",
@@ -32,6 +37,31 @@ class SettingsActivity : AppCompatActivity() {
     )
 
     private lateinit var tvStoragePath: TextView
+
+    private val pickBgImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            try {
+                val outFile = File(filesDir, "custom_bg.jpg")
+                contentResolver.openInputStream(uri)?.use { inp ->
+                    FileOutputStream(outFile).use { fos ->
+                        inp.copyTo(fos)
+                    }
+                }
+                if (outFile.exists() && outFile.length() > 0) {
+                    AppConfig.customBgPath = outFile.absolutePath
+                    if (::tvCustomBgStatus.isInitialized) {
+                        tvCustomBgStatus.text = "已应用自定义背景图"
+                    }
+                    if (::rootSettingsView.isInitialized) {
+                        ThemeManager.applyTheme(this, rootSettingsView)
+                    }
+                    Toast.makeText(this, "自定义背景图片已生效", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this, "读取图片失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     private val pickFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) {
@@ -56,6 +86,7 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_settings)
 
         val root = findViewById<View>(R.id.root_settings_container)
+        rootSettingsView = root
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             v.setPadding(insets.left, insets.top, insets.right, insets.bottom)
@@ -63,6 +94,61 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         findViewById<View>(R.id.btn_settings_back).setOnClickListener { finish() }
+
+        tvThemeName = findViewById(R.id.tv_setting_theme)
+        tvCustomBgStatus = findViewById(R.id.tv_custom_bg_status)
+        val tvBgDimLabel = findViewById<TextView>(R.id.tv_bg_dim_label)
+        val sbBgDim = findViewById<SeekBar>(R.id.sb_bg_dim)
+
+        fun refreshThemeTexts() {
+            val curTheme = ThemeManager.current()
+            tvThemeName.text = curTheme.label
+            tvCustomBgStatus.text = if (ThemeManager.hasCustomBackground()) "已启用自定义壁纸" else "未设置 (跟随纯色主题)"
+            tvBgDimLabel.text = "背景遮罩浓度: ${AppConfig.bgDimPercent}% (保证文字清晰可读)"
+            sbBgDim.progress = (AppConfig.bgDimPercent - 15).coerceIn(0, 75)
+        }
+        refreshThemeTexts()
+
+        findViewById<View>(R.id.row_pick_theme).setOnClickListener {
+            val names = ThemeManager.PRESETS.map { it.label }.toTypedArray()
+            val cur = ThemeManager.PRESETS.indexOfFirst { it.key == AppConfig.themeKey }.coerceAtLeast(0)
+            ThemeManager.dialogBuilder(this)
+                .setTitle("选择软件背景配色方案")
+                .setSingleChoiceItems(names, cur) { dlg, w ->
+                    AppConfig.themeKey = ThemeManager.PRESETS[w].key
+                    refreshThemeTexts()
+                    ThemeManager.applyTheme(this, rootSettingsView)
+                    dlg.dismiss()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        }
+
+        findViewById<View>(R.id.row_pick_bg).setOnClickListener {
+            pickBgImageLauncher.launch("image/*")
+        }
+
+        findViewById<View>(R.id.btn_reset_bg).setOnClickListener {
+            AppConfig.customBgPath = ""
+            try { File(filesDir, "custom_bg.jpg").delete() } catch (_: Exception) {}
+            refreshThemeTexts()
+            ThemeManager.applyTheme(this, rootSettingsView)
+            Toast.makeText(this, "已清除自定义背景图", Toast.LENGTH_SHORT).show()
+        }
+
+        sbBgDim.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                val pct = (progress + 15).coerceIn(15, 90)
+                tvBgDimLabel.text = "背景遮罩浓度: $pct% (保证文字清晰可读)"
+                if (fromUser) {
+                    AppConfig.bgDimPercent = pct
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                ThemeManager.applyTheme(this@SettingsActivity, rootSettingsView)
+            }
+        })
 
         val tvUa = findViewById<TextView>(R.id.tv_setting_ua)
         val tvEngine = findViewById<TextView>(R.id.tv_setting_engine)
@@ -163,26 +249,28 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<View>(R.id.row_pick_ua).setOnClickListener {
             val names = uaOptions.map { it.second }.toTypedArray()
             val cur = uaOptions.indexOfFirst { it.first == selectedUa }.coerceAtLeast(0)
-            AlertDialog.Builder(this)
+            ThemeManager.dialogBuilder(this)
                 .setTitle("默认内置浏览器内核")
                 .setSingleChoiceItems(names, cur) { dlg, w ->
                     selectedUa = uaOptions[w].first
                     tvUa.text = uaOptions[w].second
                     dlg.dismiss()
                 }
+                .setNegativeButton("取消", null)
                 .show()
         }
 
         findViewById<View>(R.id.row_pick_engine).setOnClickListener {
             val names = engineOptions.map { it.second }.toTypedArray()
             val cur = engineOptions.indexOfFirst { it.first == selectedEngine }.coerceAtLeast(0)
-            AlertDialog.Builder(this)
+            ThemeManager.dialogBuilder(this)
                 .setTitle("默认搜索引擎")
                 .setSingleChoiceItems(names, cur) { dlg, w ->
                     selectedEngine = engineOptions[w].first
                     tvEngine.text = engineOptions[w].second
                     dlg.dismiss()
                 }
+                .setNegativeButton("取消", null)
                 .show()
         }
 
@@ -241,6 +329,15 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btn_replay_guide).setOnClickListener {
             OnboardingDialog.showIfNeeded(this, force = true)
+        }
+
+        ThemeManager.applyTheme(this, rootSettingsView)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::rootSettingsView.isInitialized) {
+            ThemeManager.applyTheme(this, rootSettingsView)
         }
     }
 }

@@ -257,7 +257,7 @@ class BrowserActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (AppConfig.isBookmarked(u)) {
-                AlertDialog.Builder(this)
+                ThemeManager.dialogBuilder(this)
                     .setTitle("管理当前网页收藏")
                     .setItems(arrayOf("更换所在文件夹", "取消收藏该网页")) { _, w ->
                         if (w == 0) {
@@ -334,6 +334,7 @@ class BrowserActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         syncConfigFlags()
+        ThemeManager.applyTheme(this, findViewById(R.id.browser_main_root))
         tabs.forEach { it.webView?.settings?.userAgentString = cachedUserAgent }
         if (currentTab().isStartPage) {
             renderStartPageHeaders()
@@ -656,7 +657,7 @@ class BrowserActivity : AppCompatActivity() {
             hint = "输入文件夹名称 (如: 影视 / 学习 / 工具)"
             setPadding(40, 30, 40, 30)
         }
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("新建收藏文件夹")
             .setView(input)
             .setPositiveButton("创建") { _, _ ->
@@ -678,7 +679,7 @@ class BrowserActivity : AppCompatActivity() {
     private fun promptBookmarkIntoFolder(title: String, url: String) {
         val folders = AppConfig.getBookmarkFolders()
         val options = (folders + "+ 新建文件夹...").toTypedArray()
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("选择保存到的收藏文件夹")
             .setItems(options) { _, which ->
                 if (which == folders.size) {
@@ -721,7 +722,7 @@ class BrowserActivity : AppCompatActivity() {
                 }
                 setOnLongClickListener {
                     if (folderName != "全部" && folderName != "默认收藏") {
-                        AlertDialog.Builder(this@BrowserActivity)
+                        ThemeManager.dialogBuilder(this@BrowserActivity)
                             .setTitle("删除收藏文件夹")
                             .setMessage("确定删除「$folderName」吗？其中的书签会自动移回「默认收藏」。")
                             .setPositiveButton("删除") { _, _ ->
@@ -944,9 +945,10 @@ class BrowserActivity : AppCompatActivity() {
 
     private fun showHistoryDialog() {
         val dlg = BottomSheetDialog(this)
+        ThemeManager.styleBottomSheet(dlg, this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getColor(R.color.bg_panel))
+            setBackgroundColor(ThemeManager.current().bgPanel)
             setPadding(36, 32, 36, 32)
         }
         val header = LinearLayout(this).apply {
@@ -1059,7 +1061,7 @@ class BrowserActivity : AppCompatActivity() {
     private fun showUaPickerDialog() {
         val names = uaProfiles.map { it.second }.toTypedArray()
         val curIdx = uaProfiles.indexOfFirst { it.first == AppConfig.uaProfile }.coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("选择内置浏览器内核 (UA)")
             .setSingleChoiceItems(names, curIdx) { dlg, which ->
                 AppConfig.uaProfile = uaProfiles[which].first
@@ -1075,7 +1077,7 @@ class BrowserActivity : AppCompatActivity() {
     private fun showEnginePickerDialog() {
         val names = engines.map { it.second }.toTypedArray()
         val curIdx = engines.indexOfFirst { it.first == AppConfig.searchEngine }.coerceAtLeast(0)
-        AlertDialog.Builder(this)
+        ThemeManager.dialogBuilder(this)
             .setTitle("选择默认搜索引擎")
             .setSingleChoiceItems(names, curIdx) { dlg, which ->
                 AppConfig.searchEngine = engines[which].first
@@ -1261,9 +1263,10 @@ class BrowserActivity : AppCompatActivity() {
     private fun showSniffedBottomSheet() {
         val tab = currentTab()
         val dlg = BottomSheetDialog(this)
+        ThemeManager.styleBottomSheet(dlg, this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getColor(R.color.bg_panel))
+            setBackgroundColor(ThemeManager.current().bgPanel)
             setPadding(36, 32, 36, 32)
         }
 
@@ -1364,7 +1367,7 @@ class BrowserActivity : AppCompatActivity() {
         renderDetailText(probing = true)
         box.addView(tvInfo)
 
-        val dlg = AlertDialog.Builder(this)
+        val dlg = ThemeManager.dialogBuilder(this)
             .setTitle("资源详细信息")
             .setView(box)
             .setPositiveButton("立即下载") { _, _ ->
@@ -1512,9 +1515,10 @@ class BrowserActivity : AppCompatActivity() {
 
     private fun showSeriesPickerDialog(series: SeriesInfo, extraHeaders: Map<String, String>) {
         val dlg = BottomSheetDialog(this)
+        ThemeManager.styleBottomSheet(dlg, this)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getColor(R.color.bg_panel))
+            setBackgroundColor(ThemeManager.current().bgPanel)
             setPadding(36, 32, 36, 32)
         }
         val titleRow = LinearLayout(this).apply {

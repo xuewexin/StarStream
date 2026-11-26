@@ -71,6 +71,7 @@ class SniffedAdapter(
         holder.btnPreview.setOnClickListener { onPreview(m) }
         holder.btn.text = if (m.audioUrl.isNotBlank() || m.mediaType == "bili_dash" || m.mediaType == "dual_dash") "合并下载" else "下载"
         holder.btn.setOnClickListener { onDownload(m) }
+        ThemeManager.applyThemeToViewTree(ctx, holder.itemView)
     }
 
     companion object {
@@ -143,9 +144,12 @@ class DownloadTaskAdapter(
         private set
     val selectedIds = linkedSetOf<String>()
 
-    fun setSelectionMode(enabled: Boolean) {
+    fun setSelectionMode(enabled: Boolean, initialSelectedId: String? = null) {
         selectionMode = enabled
-        if (!enabled) selectedIds.clear()
+        selectedIds.clear()
+        if (enabled && !initialSelectedId.isNullOrBlank()) {
+            selectedIds.add(initialSelectedId)
+        }
         notifyDataSetChanged()
         onSelectionChanged?.invoke(selectedIds.size)
     }
@@ -153,14 +157,6 @@ class DownloadTaskAdapter(
     fun selectAllShown() {
         selectedIds.clear()
         items.forEach { selectedIds.add(it.id) }
-        notifyDataSetChanged()
-        onSelectionChanged?.invoke(selectedIds.size)
-    }
-
-    fun invertSelectionShown() {
-        val current = selectedIds.toSet()
-        selectedIds.clear()
-        items.forEach { if (it.id !in current) selectedIds.add(it.id) }
         notifyDataSetChanged()
         onSelectionChanged?.invoke(selectedIds.size)
     }
@@ -241,8 +237,13 @@ class DownloadTaskAdapter(
         holder.btnDel.setOnClickListener { onDelete(t) }
         holder.btnMore.setOnClickListener { onMore(t) }
         holder.itemView.setOnLongClickListener {
-            onMore(t)
+            if (!selectionMode) {
+                onEnterSelectionMode?.invoke(t.id)
+            } else {
+                onMore(t)
+            }
             true
         }
+        ThemeManager.applyThemeToViewTree(holder.itemView.context, holder.itemView)
     }
 }
