@@ -910,11 +910,12 @@ object VideoParser {
             var okCount = 0
             episodes.forEachIndexed { idx, ep ->
                 val epClean = ep.title.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim()
+                val hasNumPrefix = Regex("^(?:0?${ep.index}(?:[\\s._\\-]|$)|第\\s*0?${ep.index}\\s*[集话期章节讲回])").containsMatchIn(epClean)
                 val title = if (seriesBase.isNotBlank() && !epClean.contains(seriesBase, ignoreCase = true)) {
-                    val epSuffix = if (addPrefix) String.format("%02d_%s", ep.index, epClean) else epClean
+                    val epSuffix = if (addPrefix && !hasNumPrefix) String.format("%02d_%s", ep.index, epClean) else epClean
                     "$seriesBase - $epSuffix"
                 } else {
-                    val prefix = if (addPrefix) String.format("%02d_", ep.index) else ""
+                    val prefix = if (addPrefix && !hasNumPrefix) String.format("%02d_", ep.index) else ""
                     "$prefix$epClean"
                 }.trim()
                 withContext(Dispatchers.Main) {

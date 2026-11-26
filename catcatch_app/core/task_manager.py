@@ -3,15 +3,17 @@ CatCatch Downloader - Task Manager
 中央任务队列管理、并发控制、调度与持久化
 """
 import os
+import re
 import json
 import time
 import uuid
+import shutil
 import threading
 from PyQt5.QtCore import QObject, pyqtSignal
 
 from .config import (
     config, APP_DIR, TASKS_FILE, build_save_name,
-    clean_filename, format_resolution, format_duration
+    clean_filename, format_resolution, format_duration, get_temp_segments_dir
 )
 from .download_stream import StreamDownloadTask
 from .download_file import FileDownloadTask, format_size
@@ -19,6 +21,84 @@ from .ffmpeg_engine import probe_media_info
 from .logger import record_download_error, diagnose_error
 
 TASKS_DB_FILE = TASKS_FILE
+
+
+def _is_valid_completed_file(path):
+    """校验文件是否真实落盘且非 HTML 错误拦截页"""
+    if not path or not os.path.isfile(path):
+        return False
+    try:
+        sz = os.path.getsize(path)
+        if sz < 4096:
+            return False
+        with open(path, "rb") as f:
+            head = f.read(256).lstrip().lower()
+        if head.startswith((b"<!doctype html", b"<html", b"<?xml", b'{"code":', b'{"error":')):
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def _find_completed_output_on_disk(task):
+    """根据任务信息在磁盘上核查是否已有完整落盘文件"""
+    out_p = (task.get("output_file") or "").strip()
+    if _is_valid_completed_file(out_p):
+        return out_p
+
+    save_dir = (task.get("save_dir") or config.get("save_dir") or "").strip()
+    if not save_dir or not os.path.isdir(save_dir):
+        return ""
+
+    cand_names = []
+    sn = clean_filename(task.get("save_name") or "").strip()
+    tl = clean_filename(task.get("title") or "").strip()
+    if sn:
+        cand_names.append(sn)
+    if tl and tl not in cand_names:
+        cand_names.append(tl)
+
+    exts = [".mp4", ".mkv", ".ts", ".flv", ".mov", ".webm", ".avi", ".mp3", ".m4a", ".aac", ".flac", ".wav", ".pdf", ".zip", ".rar", ".7z", ".apk"]
+    for base in cand_names:
+        b_no_ext = os.path.splitext(base)[0] if os.path.splitext(base)[1].lower() in exts else base
+        for ext in exts:
+            for candidate in (os.path.join(save_dir, f"{b_no_ext}{ext}"), os.path.join(save_dir, f"{b_no_ext}.MUX{ext}")):
+                if _is_valid_completed_file(candidate):
+                    return candidate
+        # 若 save_name 自带扩展名（非媒体列表或恰好命中）
+        direct_p = os.path.join(save_dir, base)
+        if _is_valid_completed_file(direct_p):
+            return direct_p
+    return ""
+
+
+def _cleanup_task_temp_dirs(task_id, save_dir="", save_name=""):
+    """清理单任务遗留的临时分片/缓存目录"""
+    removed = 0
+    tmp_root = get_temp_segments_dir()
+    if task_id and os.path.isdir(tmp_root):
+        for prefix in (f".tmp_{task_id}", f"dual_{task_id}", f"tmp_{task_id}"):
+            p = os.path.join(tmp_root, prefix)
+            if os.path.exists(p):
+                try:
+                    shutil.rmtree(p, ignore_errors=True)
+                    removed += 1
+                except Exception:
+                    pass
+    if save_dir and os.path.isdir(save_dir) and save_name:
+        safe = clean_filename(save_name).strip()
+        if safe:
+            b_no_ext = os.path.splitext(safe)[0]
+            try:
+                for fn in os.listdir(save_dir):
+                    if fn.startswith(b_no_ext) and (fn.endswith(".tmp") or ".part" in fn):
+                        fp = os.path.join(save_dir, fn)
+                        if os.path.isfile(fp):
+                            os.remove(fp)
+                            removed += 1
+            except Exception:
+                pass
+    return removed
 
 
 class TaskManager(QObject):
@@ -36,7 +116,9 @@ class TaskManager(QObject):
         self._active_workers = {}  # task_id -> task_instance
         self._lock = threading.RLock()
         self._save_timer = None
+        self._patrol_running = False
         self.load_tasks()
+        self._start_patrol_thread()
 
     def load_tasks(self):
         if os.path.exists(TASKS_DB_FILE):
@@ -44,14 +126,186 @@ class TaskManager(QObject):
                 with open(TASKS_DB_FILE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for item in data:
-                        # 恢复时，将之前的下载中状态调整为已暂停
-                        if item.get("status") in ["downloading", "waiting"]:
+                        # 恢复时先核查是否已实际完整落盘（解决 100% 重启或异常关闭后长期卡等待中/已暂停）
+                        prog = float(item.get("progress") or 0.0)
+                        st = item.get("status")
+                        if st in ["downloading", "waiting", "paused"] and prog >= 98.0:
+                            found_out = _find_completed_output_on_disk(item)
+                            if found_out:
+                                item["status"] = "completed"
+                                item["progress"] = 100.0
+                                item["speed"] = "完成"
+                                item["eta"] = "--"
+                                item["output_file"] = found_out
+                                try:
+                                    sz = os.path.getsize(found_out)
+                                    if sz > 0:
+                                        item["total_bytes"] = sz
+                                        item["downloaded_bytes"] = sz
+                                except Exception:
+                                    pass
+                                _cleanup_task_temp_dirs(item.get("id", ""), item.get("save_dir", ""), item.get("save_name", ""))
+                                self._tasks.append(item)
+                                continue
+
+                        # 恢复时，将未完成的历史下载中状态调整为已暂停
+                        if st in ["downloading", "waiting"]:
                             item["status"] = "paused"
                             item["speed"] = ""
                             item["eta"] = ""
                         self._tasks.append(item)
             except Exception as e:
                 print(f"[TaskManager] 加载历史任务失败: {e}")
+
+    def _start_patrol_thread(self):
+        """后台定时巡检线程：自动修复卡在 100%/等待中 的队列卡死、清理僵尸线程、清理已完成分片缓存并唤醒等待任务"""
+        def _loop():
+            time.sleep(2.5)
+            while True:
+                try:
+                    self.run_patrol(force_cleanup=True)
+                except Exception as e:
+                    print(f"[TaskManager Patrol] 巡检异常: {e}")
+                time.sleep(5.0)
+
+        t = threading.Thread(target=_loop, daemon=True)
+        t.start()
+
+    def run_patrol(self, force_cleanup=True):
+        """
+        队列巡检与状态自愈系统：
+        1. 回收已退出但未正常回调 on_fin 的僵尸 worker，释放并发槽位；
+        2. 核查进度 >= 98% 或本地已有完整文件却卡在 waiting/downloading 的任务并自动转正为 completed；
+        3. 自动清理已完成任务的临时分片目录及超龄孤儿缓存；
+        4. 若存在空闲槽位，自动拉起下一批 waiting 任务。
+        """
+        if self._patrol_running:
+            return {"fixed": 0, "cleaned": 0, "kicked": 0}
+        self._patrol_running = True
+        fixed_count = 0
+        cleaned_count = 0
+        kicked_count = 0
+        try:
+            changed = False
+            dead_worker_ids = []
+            with self._lock:
+                for tid, w in list(self._active_workers.items()):
+                    th = getattr(w, "_thread", None)
+                    if th is None or (hasattr(th, "is_alive") and not th.is_alive()):
+                        dead_worker_ids.append(tid)
+
+            for tid in dead_worker_ids:
+                self._active_workers.pop(tid, None)
+                t_obj = self.get_task(tid)
+                if t_obj and t_obj.get("status") in ("downloading", "waiting"):
+                    found_out = _find_completed_output_on_disk(t_obj)
+                    if found_out:
+                        self._promote_task_completed(t_obj, found_out)
+                        fixed_count += 1
+                    else:
+                        t_obj["status"] = "waiting"
+                        t_obj["speed"] = ""
+                        t_obj["eta"] = ""
+                        self.task_status_changed.emit(tid, "waiting")
+                        kicked_count += 1
+                    changed = True
+
+            # 巡检所有未活跃却处于 waiting / downloading 状态的任务
+            snapshot = self.get_all_tasks()
+            active_ids = set(self._active_workers.keys())
+            existing_ids = set()
+            for task in snapshot:
+                tid = task["id"]
+                existing_ids.add(tid)
+                st = task.get("status")
+                if st == "completed":
+                    if force_cleanup:
+                        cleaned_count += _cleanup_task_temp_dirs(tid, task.get("save_dir", ""), task.get("save_name", ""))
+                    continue
+
+                if tid in active_ids:
+                    continue
+
+                prog = float(task.get("progress") or 0.0)
+                tot_b = int(task.get("total_bytes") or 0)
+                dl_b = int(task.get("downloaded_bytes") or 0)
+                looks_finished = (
+                    prog >= 98.0
+                    or (tot_b > 8192 and dl_b >= tot_b * 0.99)
+                    or bool((task.get("output_file") or "").strip())
+                )
+                if st in ("waiting", "downloading") and looks_finished:
+                    found_out = _find_completed_output_on_disk(task)
+                    if found_out:
+                        self._promote_task_completed(task, found_out)
+                        fixed_count += 1
+                        cleaned_count += _cleanup_task_temp_dirs(tid, task.get("save_dir", ""), task.get("save_name", ""))
+                        changed = True
+                        continue
+
+                if st == "downloading" and tid not in self._active_workers:
+                    task["status"] = "waiting"
+                    task["speed"] = ""
+                    task["eta"] = ""
+                    self.task_status_changed.emit(tid, "waiting")
+                    kicked_count += 1
+                    changed = True
+
+            # 清理已完成或已不存在任务的孤儿临时分片目录
+            if force_cleanup:
+                tmp_root = get_temp_segments_dir()
+                if os.path.isdir(tmp_root):
+                    now_ts = time.time()
+                    try:
+                        for entry in os.listdir(tmp_root):
+                            epath = os.path.join(tmp_root, entry)
+                            if not os.path.isdir(epath):
+                                continue
+                            tid_match = None
+                            for pfx in (".tmp_", "dual_", "tmp_"):
+                                if entry.startswith(pfx):
+                                    tid_match = entry[len(pfx):]
+                                    break
+                            if tid_match:
+                                owner = self.get_task(tid_match)
+                                if (owner is None and now_ts - os.path.getmtime(epath) > 45) or (owner and owner.get("status") == "completed"):
+                                    shutil.rmtree(epath, ignore_errors=True)
+                                    cleaned_count += 1
+                    except Exception:
+                        pass
+
+            if changed:
+                self.save_tasks()
+            self._schedule_next()
+        finally:
+            self._patrol_running = False
+        return {"fixed": fixed_count, "cleaned": cleaned_count, "kicked": kicked_count}
+
+    def _promote_task_completed(self, task, output_path):
+        """将已完整落盘的卡死任务安全转正为 completed 并补齐属性"""
+        tid = task["id"]
+        task["status"] = "completed"
+        task["progress"] = 100.0
+        task["speed"] = "完成"
+        task["eta"] = "--"
+        task["output_file"] = output_path
+        if output_path and os.path.exists(output_path):
+            try:
+                sz = os.path.getsize(output_path)
+                if sz > 0:
+                    task["total_bytes"] = sz
+                    task["downloaded_bytes"] = sz
+                if not task.get("resolution") or not task.get("duration"):
+                    mi = probe_media_info(output_path)
+                    if not task.get("resolution") and mi.get("resolution") != "未知":
+                        task["resolution"] = format_resolution(mi.get("resolution"))
+                    if not task.get("duration") and mi.get("duration_str") != "未知":
+                        task["duration"] = mi.get("duration_str")
+            except Exception:
+                pass
+        _cleanup_task_temp_dirs(tid, task.get("save_dir", ""), task.get("save_name", ""))
+        self.task_status_changed.emit(tid, "completed")
+        self.task_updated.emit(tid, task)
 
     def save_tasks(self, immediate=False):
         """保存任务列表，默认防抖延迟写入，避免连续操作阻塞界面主线程"""
@@ -262,16 +516,58 @@ class TaskManager(QObject):
         self.save_tasks()
         self._schedule_next()
 
+    def update_task(self, task_id, updates):
+        task = self.get_task(task_id)
+        if not task or not isinstance(updates, dict):
+            return False
+        with self._lock:
+            task.update(updates)
+        self.save_tasks()
+        self.task_updated.emit(task_id, task)
+        return True
+
+    def batch_update_tasks(self, task_ids, updates, restart_active=False):
+        """批量更新选定任务的线程数/代理/目录等参数，可选自动重启队列中的受影响任务"""
+        if not task_ids or not isinstance(updates, dict):
+            return 0
+        count = 0
+        to_restart = []
+        with self._lock:
+            for tid in task_ids:
+                task = self.get_task(tid)
+                if not task:
+                    continue
+                for k, v in updates.items():
+                    if v is not None:
+                        task[k] = v
+                count += 1
+                self.task_updated.emit(tid, task)
+                if restart_active and task.get("status") in ("downloading", "waiting", "error", "paused"):
+                    to_restart.append(tid)
+        self.save_tasks()
+        if restart_active:
+            for tid in to_restart:
+                t_obj = self.get_task(tid)
+                if t_obj and t_obj.get("status") == "downloading":
+                    self.pause_task(tid)
+                self.start_task(tid)
+        return count
+
     def remove_task(self, task_id, delete_file=False):
         self.pause_task(task_id)
         target_file = ""
+        save_dir = ""
+        save_name = ""
         with self._lock:
             for i, t in enumerate(self._tasks):
                 if t["id"] == task_id:
                     target_file = t.get("output_file")
+                    save_dir = t.get("save_dir", "")
+                    save_name = t.get("save_name", "")
                     self._tasks.pop(i)
                     break
-        
+
+        _cleanup_task_temp_dirs(task_id, save_dir, save_name)
         if delete_file and target_file and os.path.exists(target_file):
             try:
                 os.remove(target_file)
@@ -291,6 +587,13 @@ class TaskManager(QObject):
                 # 寻找 waiting 状态任务
                 for t in self._tasks:
                     if t["status"] == "waiting" and t["id"] not in self._active_workers:
+                        # 安全自愈：若该 waiting 任务实际已完成落盘，不重复启动而是立即转正完成
+                        prog = float(t.get("progress") or 0.0)
+                        if prog >= 98.0 or (t.get("output_file") and os.path.exists(t.get("output_file", ""))):
+                            found_out = _find_completed_output_on_disk(t)
+                            if found_out:
+                                self._promote_task_completed(t, found_out)
+                                continue
                         to_start.append(t)
                         active_count += 1
                         if active_count >= max_concurrent:
@@ -314,6 +617,9 @@ class TaskManager(QObject):
         self.task_status_changed.emit(task_id, "downloading")
 
         def on_prog(percent, speed_str, eta_str, cur_dl=0, tot_dl=0, cur_parts=0, tot_parts=0):
+            # 防止完成/暂停后迟到回调覆盖最终状态
+            if task.get("status") in ("completed", "paused", "error"):
+                return
             task["progress"] = round(percent, 1)
             task["speed"] = speed_str
             task["eta"] = eta_str
@@ -331,95 +637,113 @@ class TaskManager(QObject):
                 task["logs"].pop(0)
 
         def on_fin(success, message, output_path):
-            self._active_workers.pop(task_id, None)
-            if success:
-                task["status"] = "completed"
-                task["progress"] = 100.0
-                task["speed"] = "完成"
-                task["eta"] = "--"
-                task["output_file"] = output_path
-
-                # 自动调用 FFmpeg 校验并补齐视频规格信息 (时长、真实分辨率、真实大小)
-                if output_path and os.path.exists(output_path):
-                    try:
-                        file_sz = os.path.getsize(output_path)
-                        if file_sz > 0:
-                            task["total_bytes"] = file_sz
-                            task["downloaded_bytes"] = file_sz
-                        media_info = probe_media_info(output_path)
-                        if not task.get("resolution") and media_info.get("resolution") != "未知":
-                            task["resolution"] = format_resolution(media_info.get("resolution"))
-                        if not task.get("duration") and media_info.get("duration_str") != "未知":
-                            task["duration"] = media_info.get("duration_str")
-                    except Exception as e:
-                        print(f"[TaskManager] 探测媒体属性异常: {e}")
-
-                # 可选后处理：若用户手动开启了"下载完成后自动高清画质增强" (默认关闭)
-                if (
-                    config.get("auto_enhance_video", False)
-                    and output_path
-                    and os.path.exists(output_path)
-                    and os.path.splitext(output_path)[1].lower() in (".mp4", ".mkv", ".mov", ".flv")
-                ):
-                    try:
-                        from .video_enhancer import enhance_video_fast, enhance_video_ai, find_realesrgan_path
-                        base_no_ext, ext = os.path.splitext(output_path)
-                        hd_out = f"{base_no_ext}_HD.mp4"
-                        mode = config.get("enhance_mode", "fast")
-                        scale = int(config.get("enhance_scale", 2) or 2)
-                        task["speed"] = "画质增强中"
-                        self.task_updated.emit(task_id, dict(task))
-
-                        def _on_enh_done(enh_ok, _enh_msg):
-                            if enh_ok and os.path.exists(hd_out):
-                                task["output_file"] = hd_out
-                                task["total_bytes"] = os.path.getsize(hd_out)
-                                task["downloaded_bytes"] = task["total_bytes"]
-                                try:
-                                    mi = probe_media_info(hd_out)
-                                    if mi.get("resolution") and mi.get("resolution") != "未知":
-                                        task["resolution"] = format_resolution(mi.get("resolution"))
-                                except Exception:
-                                    pass
-                            task["speed"] = "完成"
-                            self._schedule_save()
-                            self.task_completed.emit(task_id, task.get("output_file", output_path))
-
-                        if mode == "ai" and find_realesrgan_path():
-                            enhance_video_ai(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
-                        else:
-                            enhance_video_fast(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
-                        return
-                    except Exception as enh_ex:
-                        print(f"[TaskManager] 自动画质增强跳过: {enh_ex}")
-
-                self.task_completed.emit(task_id, output_path)
-            else:
-                if "手动取消" in message or task.get("status") == "paused":
-                    task["status"] = "paused"
-                    task["speed"] = "已暂停"
+            try:
+                self._active_workers.pop(task_id, None)
+                if success:
+                    # 再核查一次最终落盘文件路径
+                    if (not output_path or not os.path.exists(output_path)):
+                        found_fallback = _find_completed_output_on_disk(task)
+                        if found_fallback:
+                            output_path = found_fallback
+                    task["status"] = "completed"
+                    task["progress"] = 100.0
+                    task["speed"] = "完成"
                     task["eta"] = "--"
-                    task["error_msg"] = message
+                    task["output_file"] = output_path
+
+                    # 自动调用 FFmpeg 校验并补齐视频规格信息 (时长、真实分辨率、真实大小)
+                    if output_path and os.path.exists(output_path):
+                        try:
+                            file_sz = os.path.getsize(output_path)
+                            if file_sz > 0:
+                                task["total_bytes"] = file_sz
+                                task["downloaded_bytes"] = file_sz
+                            media_info = probe_media_info(output_path)
+                            if not task.get("resolution") and media_info.get("resolution") != "未知":
+                                task["resolution"] = format_resolution(media_info.get("resolution"))
+                            if not task.get("duration") and media_info.get("duration_str") != "未知":
+                                task["duration"] = media_info.get("duration_str")
+                        except Exception as e:
+                            print(f"[TaskManager] 探测媒体属性异常: {e}")
+
+                    _cleanup_task_temp_dirs(task_id, task.get("save_dir", ""), task.get("save_name", ""))
+
+                    # 可选后处理：若用户手动开启了"下载完成后自动高清画质增强" (默认关闭)
+                    if (
+                        config.get("auto_enhance_video", False)
+                        and output_path
+                        and os.path.exists(output_path)
+                        and os.path.splitext(output_path)[1].lower() in (".mp4", ".mkv", ".mov", ".flv")
+                    ):
+                        try:
+                            from .video_enhancer import enhance_video_fast, enhance_video_ai, find_realesrgan_path
+                            base_no_ext, ext = os.path.splitext(output_path)
+                            hd_out = f"{base_no_ext}_HD.mp4"
+                            mode = config.get("enhance_mode", "fast")
+                            scale = int(config.get("enhance_scale", 2) or 2)
+                            task["speed"] = "画质增强中"
+                            self.task_updated.emit(task_id, dict(task))
+
+                            def _on_enh_done(enh_ok, _enh_msg):
+                                if enh_ok and os.path.exists(hd_out):
+                                    task["output_file"] = hd_out
+                                    task["total_bytes"] = os.path.getsize(hd_out)
+                                    task["downloaded_bytes"] = task["total_bytes"]
+                                    try:
+                                        mi = probe_media_info(hd_out)
+                                        if mi.get("resolution") and mi.get("resolution") != "未知":
+                                            task["resolution"] = format_resolution(mi.get("resolution"))
+                                    except Exception:
+                                        pass
+                                task["speed"] = "完成"
+                                self.save_tasks()
+                                self.task_completed.emit(task_id, task.get("output_file", output_path))
+
+                            if mode == "ai" and find_realesrgan_path():
+                                enhance_video_ai(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
+                            else:
+                                enhance_video_fast(output_path, hd_out, scale=scale, on_finished=_on_enh_done)
+                            return
+                        except Exception as enh_ex:
+                            print(f"[TaskManager] 自动画质增强跳过: {enh_ex}")
+
+                    self.task_completed.emit(task_id, output_path)
                 else:
-                    task["status"] = "error"
-                    task["speed"] = "失败"
-                    task["eta"] = "--"
-                    task["error_msg"] = message
+                    # 容错：若报错前文件其实已经完整落盘，则直接转正为已完成
+                    found_disk = _find_completed_output_on_disk(task)
+                    if found_disk and float(task.get("progress") or 0.0) >= 98.0:
+                        self._promote_task_completed(task, found_disk)
+                        self.task_completed.emit(task_id, found_disk)
+                    elif "手动取消" in message or task.get("status") == "paused":
+                        task["status"] = "paused"
+                        task["speed"] = "已暂停"
+                        task["eta"] = "--"
+                        task["error_msg"] = message
+                    else:
+                        task["status"] = "error"
+                        task["speed"] = "失败"
+                        task["eta"] = "--"
+                        task["error_msg"] = message
 
-                    # 智能诊断出错根因并写入 Logs/ 错误日志
-                    diag_title, diag_hint, log_p = record_download_error(task, message, task.get("logs", []))
-                    task["error_reason"] = diag_title
-                    task["error_hint"] = diag_hint
-                    task["log_file"] = log_p
+                        # 智能诊断出错根因并写入 Logs/ 错误日志
+                        diag_title, diag_hint, log_p = record_download_error(task, message, task.get("logs", []))
+                        task["error_reason"] = diag_title
+                        task["error_hint"] = diag_hint
+                        task["log_file"] = log_p
 
-                    self.task_failed.emit(task_id, message)
-            
-            self.task_status_changed.emit(task_id, task["status"])
-            self.save_tasks()
-            self._schedule_next()
+                        self.task_failed.emit(task_id, message)
+            except Exception as fin_ex:
+                print(f"[TaskManager] on_fin 回调异常 ({task_id}): {fin_ex}")
+            finally:
+                try:
+                    self._active_workers.pop(task_id, None)
+                    self.task_status_changed.emit(task_id, task.get("status", "paused"))
+                    self.save_tasks()
+                finally:
+                    self._schedule_next()
 
         audio_target = (task.get("audio_url") or task.get("audioUrl") or "").strip()
-        if audio_target or task.get("media_type") == "bili_dash":
+        if audio_target or task.get("media_type") in ("bili_dash", "dual_dash"):
             worker = FileDownloadTask(task, on_progress=on_prog, on_log=on_log, on_finished=on_fin)
         elif task.get("media_type") == "m3u8":
             worker = StreamDownloadTask(task, on_progress=on_prog, on_log=on_log, on_finished=on_fin)

@@ -26,7 +26,8 @@ data class DownloadTask(
     var outputPath: String = "",
     var exportedUri: String = "",
     var errorMsg: String = "",
-    var logSummary: String = ""
+    var logSummary: String = "",
+    var threadOverride: Int = 0
 )
 
 data class SniffedMedia(

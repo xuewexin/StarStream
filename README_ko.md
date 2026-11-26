@@ -31,20 +31,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
-    <img src="https://img.shields.io/badge/포터블%20패키지-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_v3.3.0_Portable.zip">
+    <img src="https://img.shields.io/badge/포터블%20패키지-StarStream_v3.3.0_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream.exe">
     <img src="https://img.shields.io/badge/단독%20실행%20파일-StarStream.exe-059669?style=for-the-badge" alt="EXE">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
-    <img src="https://img.shields.io/badge/브라우저%20확장-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_Browser_Extension_v3.3.0.zip">
+    <img src="https://img.shields.io/badge/브라우저%20확장-Extension_v3.3.0.zip-7c3aed?style=for-the-badge" alt="Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
-    <img src="https://img.shields.io/badge/Android%20앱-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="APK">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream-Android-v3.3.0.apk">
+    <img src="https://img.shields.io/badge/Android%20앱-StarStream--Android--v3.3.0.apk-0284c7?style=for-the-badge" alt="APK">
   </a>
 </p>
 

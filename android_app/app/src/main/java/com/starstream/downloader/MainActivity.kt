@@ -62,12 +62,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabActive: TextView
     private lateinit var tabDone: TextView
     private lateinit var adapter: DownloadTaskAdapter
+    private lateinit var layoutBatchBar: View
+    private lateinit var tvBatchCount: TextView
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var filterMode = 0 // 0=全部, 1=队列中, 2=已完成
 
     companion object {
-        private const val CURRENT_VERSION = "3.2.9"
+        private const val CURRENT_VERSION = "3.3.0"
         private const val REPO_URL = "https://github.com/xuewexin/StarStream"
         private const val ISSUES_URL = "https://github.com/xuewexin/StarStream/issues"
     }
@@ -129,10 +131,67 @@ class MainActivity : AppCompatActivity() {
             onAction = { task -> handleTaskAction(task) },
             onPreview = { task -> startWatchWhileDownloading(task) },
             onDelete = { task -> promptDeleteTaskDialog(task) },
-            onMore = { task -> showTaskMoreMenu(task) }
+            onMore = { task -> showTaskMoreMenu(task) },
+            onSelectionChanged = { count ->
+                tvBatchCount.text = "已选 $count 项"
+            }
         )
         rvDownloads.layoutManager = LinearLayoutManager(this)
         rvDownloads.adapter = adapter
+
+        layoutBatchBar = findViewById(R.id.layout_batch_bar)
+        tvBatchCount = findViewById(R.id.tv_batch_count)
+        findViewById<View>(R.id.btn_toolbar_batch).setOnClickListener {
+            toggleBatchMode(!adapter.selectionMode)
+        }
+        findViewById<View>(R.id.btn_batch_exit).setOnClickListener {
+            toggleBatchMode(false)
+        }
+        findViewById<View>(R.id.btn_batch_all).setOnClickListener {
+            adapter.selectAllShown()
+        }
+        findViewById<View>(R.id.btn_batch_invert).setOnClickListener {
+            adapter.invertSelectionShown()
+        }
+        findViewById<View>(R.id.btn_batch_start).setOnClickListener {
+            val sel = adapter.selectedIds.toList()
+            if (sel.isEmpty()) {
+                Toast.makeText(this, "请先勾选要开始的任务", Toast.LENGTH_SHORT).show()
+            } else {
+                sel.forEach { TaskManager.startTask(this, it) }
+                Toast.makeText(this, "已批量加入下载队列 (${sel.size} 项)", Toast.LENGTH_SHORT).show()
+            }
+        }
+        findViewById<View>(R.id.btn_batch_pause).setOnClickListener {
+            val sel = adapter.selectedIds.toList()
+            if (sel.isEmpty()) {
+                Toast.makeText(this, "请先勾选要暂停的任务", Toast.LENGTH_SHORT).show()
+            } else {
+                sel.forEach { TaskManager.pauseTask(it, this) }
+                Toast.makeText(this, "已批量暂停 (${sel.size} 项)", Toast.LENGTH_SHORT).show()
+            }
+        }
+        findViewById<View>(R.id.btn_batch_settings).setOnClickListener {
+            showBatchSettingsDialog()
+        }
+        findViewById<View>(R.id.btn_batch_delete).setOnClickListener {
+            promptBatchDeleteDialog()
+        }
+        findViewById<View>(R.id.btn_batch_patrol).setOnClickListener {
+            mainScope.launch(Dispatchers.IO) {
+                val r = TaskManager.runPatrol(this@MainActivity, forceCleanup = true)
+                withContext(Dispatchers.Main) {
+                    if (!isFinishing) {
+                        refreshList()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "巡检完成：修复已完成 ${r.fixed} 项，清理分片 ${r.cleaned} 处，唤醒 ${r.kicked} 项",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
 
         findViewById<View>(R.id.btn_open_drawer).setOnClickListener {
             drawerLayout.openDrawer(GravityCompat.START)
@@ -542,6 +601,132 @@ class MainActivity : AppCompatActivity() {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
             }
         }
+    }
+
+    private fun toggleBatchMode(enable: Boolean) {
+        adapter.setSelectionMode(enable)
+        layoutBatchBar.visibility = if (enable) View.VISIBLE else View.GONE
+        tvBatchCount.text = "已选 ${adapter.selectedIds.size} 项"
+    }
+
+    private fun promptBatchDeleteDialog() {
+        val sel = adapter.selectedIds.toList()
+        if (sel.isEmpty()) {
+            Toast.makeText(this, "请先勾选要删除的任务", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("批量删除 (${sel.size} 项)")
+            .setMessage("请选择删除方式：\n· 仅删除记录：保留本地已下载文件\n· 连带删除本地文件：同步清理视频与临时分片缓存")
+            .setPositiveButton("仅删除记录") { _, _ ->
+                sel.forEach { TaskManager.deleteTask(it, deleteFile = false, context = this) }
+                toggleBatchMode(false)
+                Toast.makeText(this, "已批量删除 ${sel.size} 条记录", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("连带删除本地文件") { _, _ ->
+                sel.forEach { TaskManager.deleteTask(it, deleteFile = true, context = this) }
+                toggleBatchMode(false)
+                Toast.makeText(this, "已批量删除 ${sel.size} 个任务与本地文件", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("取消", null)
+            .show()
+    }
+
+    private fun showBatchSettingsDialog() {
+        val sel = adapter.selectedIds.toList()
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(52, 30, 52, 16)
+        }
+        val tvScope = TextView(this).apply {
+            text = if (sel.isNotEmpty()) "批量作用域：已勾选 ${sel.size} 个任务（并发上限全局生效）"
+            else "未勾选任务：将调整全局并发、默认线程与未完成任务参数"
+            textSize = 12f
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_cyan))
+            setPadding(0, 0, 0, 18)
+        }
+        container.addView(tvScope)
+
+        val tvConcurrentLabel = TextView(this).apply {
+            text = "同时下载任务数上限：${AppConfig.maxConcurrentTasks} 个"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            textSize = 13f
+        }
+        var curConcurrent = AppConfig.maxConcurrentTasks
+        val sbConcurrent = android.widget.SeekBar(this).apply {
+            max = 5
+            progress = (curConcurrent - 1).coerceIn(0, 5)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: android.widget.SeekBar?, p: Int, f: Boolean) {
+                    curConcurrent = p + 1
+                    tvConcurrentLabel.text = "同时下载任务数上限：$curConcurrent 个"
+                }
+                override fun onStartTrackingTouch(s: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(s: android.widget.SeekBar?) {}
+            })
+        }
+        container.addView(tvConcurrentLabel)
+        container.addView(sbConcurrent)
+
+        val tvThreadLabel = TextView(this).apply {
+            text = "单任务并发线程数：${AppConfig.threadCount} 线程"
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+            textSize = 13f
+            setPadding(0, 16, 0, 0)
+        }
+        var curThreads = AppConfig.threadCount
+        val sbThreads = android.widget.SeekBar(this).apply {
+            max = 22
+            progress = (curThreads - 2).coerceIn(0, 22)
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: android.widget.SeekBar?, p: Int, f: Boolean) {
+                    curThreads = p + 2
+                    tvThreadLabel.text = "单任务并发线程数：$curThreads 线程"
+                }
+                override fun onStartTrackingTouch(s: android.widget.SeekBar?) {}
+                override fun onStopTrackingTouch(s: android.widget.SeekBar?) {}
+            })
+        }
+        container.addView(tvThreadLabel)
+        container.addView(sbThreads)
+
+        val cbAutoMp4 = android.widget.CheckBox(this).apply {
+            text = "下载完成后自动封装为标准 MP4"
+            isChecked = AppConfig.autoConvertMp4
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+        val cbSaveGallery = android.widget.CheckBox(this).apply {
+            text = "自动导出到系统存储位置 / 相册 (Download/StarStream)"
+            isChecked = AppConfig.saveToGallery
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+        }
+        val cbRestart = android.widget.CheckBox(this).apply {
+            text = "立即对选中/队列中的任务应用并重建加速链路"
+            isChecked = true
+            setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_cyan))
+        }
+        container.addView(cbAutoMp4)
+        container.addView(cbSaveGallery)
+        container.addView(cbRestart)
+
+        AlertDialog.Builder(this)
+            .setTitle("批量下载与队列设置")
+            .setView(container)
+            .setPositiveButton("应用设置") { _, _ ->
+                AppConfig.maxConcurrentTasks = curConcurrent
+                AppConfig.threadCount = curThreads
+                AppConfig.autoConvertMp4 = cbAutoMp4.isChecked
+                AppConfig.saveToGallery = cbSaveGallery.isChecked
+                val targets = if (sel.isNotEmpty()) sel else TaskManager.getAllTasks().filter { it.status != TaskStatus.COMPLETED }.map { it.id }
+                val updated = TaskManager.batchUpdateTasks(this, targets, curThreads, cbRestart.isChecked)
+                TaskManager.schedulePendingTasks(this)
+                Toast.makeText(this, "批量设置已生效：并发=$curConcurrent，线程=$curThreads (更新 $updated 项)", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("高级存储路径...") { _, _ ->
+                startActivity(Intent(this, SettingsActivity::class.java))
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     private fun checkLastCrashLog() {

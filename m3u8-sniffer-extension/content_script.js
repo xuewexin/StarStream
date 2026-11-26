@@ -478,9 +478,17 @@
     const btn = document.createElement('div');
     btn.className = 'catcatch-floating-btn';
     const t = (k, def) => (typeof ExtI18n !== 'undefined' ? ExtI18n.t(k) : def);
+    const iconHtml = (() => {
+      try {
+        if (chrome && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
+          return `<img src="${chrome.runtime.getURL('icons/icon48.png')}" style="width:16px;height:16px;border-radius:4px;object-fit:cover;flex-shrink:0;" alt="StarStream" />`;
+        }
+      } catch (e) {}
+      return SVG_DOWNLOAD_ICON;
+    })();
     btn.innerHTML = `
       <div class="catcatch-btn-main" style="display:inline-flex;align-items:center;gap:5px;">
-        ${SVG_DOWNLOAD_ICON}
+        ${iconHtml}
         <span>${t('cap_download_video', '下载视频')}</span>
       </div>
       <span class="catcatch-close-badge" title="${t('cap_close_badge', '关闭悬浮角标')}">×</span>

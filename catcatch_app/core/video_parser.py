@@ -1424,11 +1424,12 @@ def submit_series_downloads(
             raw_title = (ep.get("title") or f"第{idx + 1}集").strip()
             ep_idx = int(ep.get("index") or (idx + 1))
             clean_ep = re.sub(r'[\\/*?:"<>|]', '_', raw_title).strip()
+            has_num_prefix = bool(re.match(rf"^(?:0?{ep_idx}(?:[\s._\-]|$)|第\s*0?{ep_idx}\s*[集话期章节讲回])", clean_ep))
             if series_base and series_base.lower() not in clean_ep.lower():
-                ep_part = f"{ep_idx:02d}_{clean_ep}" if add_index_prefix else clean_ep
+                ep_part = f"{ep_idx:02d}_{clean_ep}" if (add_index_prefix and not has_num_prefix) else clean_ep
                 final_title = f"{series_base} - {ep_part}"
             else:
-                prefix = f"{ep_idx:02d}_" if add_index_prefix else ""
+                prefix = f"{ep_idx:02d}_" if (add_index_prefix and not has_num_prefix) else ""
                 final_title = f"{prefix}{clean_ep}"
 
             if on_progress:

@@ -31,20 +31,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
-    <img src="https://img.shields.io/badge/桌面便攜全套包-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="下載便攜全套包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_v3.3.0_Portable.zip">
+    <img src="https://img.shields.io/badge/桌面便攜全套包-StarStream_v3.3.0_Portable.zip-2563eb?style=for-the-badge" alt="下載便攜全套包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream.exe">
     <img src="https://img.shields.io/badge/獨立主程式-StarStream.exe-059669?style=for-the-badge" alt="下載獨立版">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
-    <img src="https://img.shields.io/badge/瀏覽器探測擴充-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="下載瀏覽器擴充">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_Browser_Extension_v3.3.0.zip">
+    <img src="https://img.shields.io/badge/瀏覽器探測擴充-Extension_v3.3.0.zip-7c3aed?style=for-the-badge" alt="下載瀏覽器擴充">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
-    <img src="https://img.shields.io/badge/Android%20手機端-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="下載安卓版">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream-Android-v3.3.0.apk">
+    <img src="https://img.shields.io/badge/Android%20手機端-StarStream--Android--v3.3.0.apk-0284c7?style=for-the-badge" alt="下載安卓版">
   </a>
 </p>
 

@@ -237,25 +237,65 @@ class FloatingDashboardPanel(QWidget):
         tools_row.addWidget(self.btn_parser)
         card_layout.addLayout(tools_row)
 
-        # 4. 底部打开主程序大按钮
-        self.main_btn = QPushButton(t("float_open_main"))
-        self.main_btn.setIcon(get_icon("monitor", "#ffffff", 14))
-        self.main_btn.setFixedHeight(28)
-        self.main_btn.setStyleSheet("""
+        # 4. 底部队列快捷控制栏 (点击仅执行快捷功能，不主动弹出主程序窗口)
+        ctrl_row = QHBoxLayout()
+        ctrl_row.setSpacing(6)
+
+        self.btn_start_all = QPushButton("全部开始")
+        self.btn_start_all.setIcon(get_icon("play", "#4ade80", 13))
+        self.btn_start_all.setFixedHeight(28)
+        self.btn_start_all.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #2563eb, stop:1 #4f46e5);
-                color: #ffffff;
-                border: none;
+                background: #064e3b;
+                color: #4ade80;
+                border: 1px solid #059669;
                 border-radius: 6px;
                 font-size: 11px;
                 font-weight: 600;
+                padding: 0 6px;
             }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1d4ed8, stop:1 #4338ca);
-            }
+            QPushButton:hover { background: #047857; color: #ffffff; }
         """)
-        self.main_btn.clicked.connect(self._on_open_main)
-        card_layout.addWidget(self.main_btn)
+        self.btn_start_all.clicked.connect(self._on_start_all)
+
+        self.btn_pause_all = QPushButton("全部暂停")
+        self.btn_pause_all.setIcon(get_icon("pause", "#fbbf24", 13))
+        self.btn_pause_all.setFixedHeight(28)
+        self.btn_pause_all.setStyleSheet("""
+            QPushButton {
+                background: #451a03;
+                color: #fbbf24;
+                border: 1px solid #b45309;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0 6px;
+            }
+            QPushButton:hover { background: #78350f; color: #ffffff; }
+        """)
+        self.btn_pause_all.clicked.connect(self._on_pause_all)
+
+        self.btn_new_quick = QPushButton("新建")
+        self.btn_new_quick.setIcon(get_icon("add", "#38bdf8", 13))
+        self.btn_new_quick.setFixedHeight(28)
+        self.btn_new_quick.setStyleSheet("""
+            QPushButton {
+                background: #0f172a;
+                color: #38bdf8;
+                border: 1px solid #334155;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0 8px;
+            }
+            QPushButton:hover { background: #1e293b; border-color: #38bdf8; }
+        """)
+        self.btn_new_quick.clicked.connect(lambda: (self.request_new_task.emit(), self.hide()))
+
+        ctrl_row.addWidget(self.btn_start_all)
+        ctrl_row.addWidget(self.btn_pause_all)
+        ctrl_row.addWidget(self.btn_new_quick)
+        card_layout.addLayout(ctrl_row)
 
         root_layout.addWidget(self.card)
 
@@ -275,9 +315,31 @@ class FloatingDashboardPanel(QWidget):
         if hasattr(self, "btn_parser") and self.btn_parser:
             self.btn_parser.setText(t("video_parser"))
             self.btn_parser.setToolTip(t("tip_video_parser"))
-        if hasattr(self, "main_btn") and self.main_btn:
-            self.main_btn.setText(t("float_open_main"))
+        if hasattr(self, "btn_start_all") and self.btn_start_all:
+            self.btn_start_all.setText(t("float_menu_start_all"))
+        if hasattr(self, "btn_pause_all") and self.btn_pause_all:
+            self.btn_pause_all.setText(t("float_menu_pause_all"))
+        if hasattr(self, "btn_new_quick") and self.btn_new_quick:
+            self.btn_new_quick.setText(t("new_download"))
         self.refresh_data()
+
+    def _on_start_all(self):
+        try:
+            for item in task_manager.get_all_tasks():
+                if item.get("status") in ["paused", "error", "waiting"]:
+                    task_manager.start_task(item["id"])
+            self.refresh_data()
+        except Exception:
+            pass
+
+    def _on_pause_all(self):
+        try:
+            for item in task_manager.get_all_tasks():
+                if item.get("status") in ["downloading", "waiting"]:
+                    task_manager.pause_task(item["id"])
+            self.refresh_data()
+        except Exception:
+            pass
 
     def _on_open_batch(self):
         self.request_open_batch_convert.emit()
@@ -299,118 +361,121 @@ class FloatingDashboardPanel(QWidget):
         if not self.isVisible():
             return
 
-        tasks = task_manager.get_all_tasks()
-        active = [t for t in tasks if t.get("status") in ["downloading", "waiting"]]
+        try:
+            tasks = task_manager.get_all_tasks()
+            active = [item for item in tasks if item.get("status") in ["downloading", "waiting"]]
 
-        # 清除现有项目 (保留末尾的 stretch)
-        while self.task_list_layout.count() > 1:
-            child = self.task_list_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            # 清除现有项目 (保留末尾的 stretch)
+            while self.task_list_layout.count() > 1:
+                child = self.task_list_layout.takeAt(0)
+                if child and child.widget():
+                    child.widget().deleteLater()
 
-        if not active:
-            empty_box = QWidget()
-            empty_l = QVBoxLayout(empty_box)
-            empty_l.setContentsMargins(0, 18, 0, 18)
-            empty_l.setSpacing(6)
+            if not active:
+                empty_box = QWidget()
+                empty_l = QVBoxLayout(empty_box)
+                empty_l.setContentsMargins(0, 18, 0, 18)
+                empty_l.setSpacing(6)
 
-            lbl = QLabel(t("float_no_active"))
-            lbl.setAlignment(Qt.AlignCenter)
-            lbl.setStyleSheet("color: #64748b; font-size: 11px; border: none;")
-            empty_l.addWidget(lbl)
+                lbl = QLabel(t("float_no_active"))
+                lbl.setAlignment(Qt.AlignCenter)
+                lbl.setStyleSheet("color: #64748b; font-size: 11px; border: none;")
+                empty_l.addWidget(lbl)
 
-            btn_new = QPushButton(t("float_new_task"))
-            btn_new.setFixedWidth(90)
-            btn_new.setStyleSheet("""
-                QPushButton {
-                    background: #1e293b;
-                    color: #38bdf8;
-                    border: 1px solid #334155;
-                    border-radius: 4px;
-                    padding: 3px 6px;
-                    font-size: 11px;
-                }
-                QPushButton:hover { background: #334155; }
-            """)
-            btn_new.clicked.connect(lambda: (self.request_new_task.emit(), self.hide()))
-            empty_l.addWidget(btn_new, 0, Qt.AlignCenter)
+                btn_new = QPushButton(t("float_new_task"))
+                btn_new.setFixedWidth(90)
+                btn_new.setStyleSheet("""
+                    QPushButton {
+                        background: #1e293b;
+                        color: #38bdf8;
+                        border: 1px solid #334155;
+                        border-radius: 4px;
+                        padding: 3px 6px;
+                        font-size: 11px;
+                    }
+                    QPushButton:hover { background: #334155; }
+                """)
+                btn_new.clicked.connect(lambda: (self.request_new_task.emit(), self.hide()))
+                empty_l.addWidget(btn_new, 0, Qt.AlignCenter)
 
-            self.task_list_layout.insertWidget(0, empty_box)
-            self.speed_pill.setText("0.00 B/s")
-            return
+                self.task_list_layout.insertWidget(0, empty_box)
+                self.speed_pill.setText("0.00 B/s")
+                return
 
-        # 展示活跃任务 (至多前 4 项)
-        for t_item in active[:4]:
-            t_row = QWidget()
-            t_row.setStyleSheet("background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 4px;")
-            tl = QVBoxLayout(t_row)
-            tl.setContentsMargins(6, 4, 6, 4)
-            tl.setSpacing(4)
+            # 展示活跃任务 (至多前 4 项)
+            for t_item in active[:4]:
+                t_row = QWidget()
+                t_row.setStyleSheet("background: #0f172a; border: 1px solid #1e293b; border-radius: 6px; padding: 4px;")
+                tl = QVBoxLayout(t_row)
+                tl.setContentsMargins(6, 4, 6, 4)
+                tl.setSpacing(4)
 
-            # 行 1: 标题与速度
-            r1 = QHBoxLayout()
-            name = t_item.get("title") or t_item.get("save_name") or t("float_unnamed_task")
-            if len(name) > 20:
-                name = name[:18] + "..."
-            name_lbl = QLabel(name)
-            name_lbl.setStyleSheet("color: #f1f5f9; font-size: 11px; font-weight: 500; border: none;")
-            r1.addWidget(name_lbl, 1)
+                # 行 1: 标题与速度
+                r1 = QHBoxLayout()
+                name = t_item.get("title") or t_item.get("save_name") or t("float_unnamed_task")
+                if len(name) > 20:
+                    name = name[:18] + "..."
+                name_lbl = QLabel(name)
+                name_lbl.setStyleSheet("color: #f1f5f9; font-size: 11px; font-weight: 500; border: none;")
+                r1.addWidget(name_lbl, 1)
 
-            spd = t_item.get("speed_str") or "0.00 B/s"
-            spd_lbl = QLabel(spd)
-            spd_lbl.setStyleSheet("color: #38bdf8; font-size: 10px; font-weight: bold; border: none;")
-            r1.addWidget(spd_lbl)
+                spd = t_item.get("speed") or t_item.get("speed_str") or ("等待中" if t_item.get("status") == "waiting" else "0.00 B/s")
+                spd_lbl = QLabel(spd)
+                spd_lbl.setStyleSheet("color: #38bdf8; font-size: 10px; font-weight: bold; border: none;")
+                r1.addWidget(spd_lbl)
 
-            tl.addLayout(r1)
+                tl.addLayout(r1)
 
-            # 行 2: 进度条与操作按键
-            r2 = QHBoxLayout()
-            pbar = QProgressBar()
-            pbar.setFixedHeight(5)
-            pbar.setTextVisible(False)
-            pbar.setRange(0, 100)
-            prog = int(float(t.get("progress") or 0))
-            pbar.setValue(prog)
-            pbar.setStyleSheet("""
-                QProgressBar {
-                    background: #1e293b;
-                    border: none;
-                    border-radius: 2px;
-                }
-                QProgressBar::chunk {
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #38bdf8, stop:1 #818cf8);
-                    border-radius: 2px;
-                }
-            """)
-            r2.addWidget(pbar, 1)
+                # 行 2: 进度条与操作按键
+                r2 = QHBoxLayout()
+                pbar = QProgressBar()
+                pbar.setFixedHeight(5)
+                pbar.setTextVisible(False)
+                pbar.setRange(0, 100)
+                prog = int(float(t_item.get("progress") or 0))
+                pbar.setValue(prog)
+                pbar.setStyleSheet("""
+                    QProgressBar {
+                        background: #1e293b;
+                        border: none;
+                        border-radius: 2px;
+                    }
+                    QProgressBar::chunk {
+                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #38bdf8, stop:1 #818cf8);
+                        border-radius: 2px;
+                    }
+                """)
+                r2.addWidget(pbar, 1)
 
-            pct_lbl = QLabel(f"{prog}%")
-            pct_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; border: none; min-width: 28px;")
-            r2.addWidget(pct_lbl)
+                pct_lbl = QLabel(f"{prog}%")
+                pct_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; border: none; min-width: 28px;")
+                r2.addWidget(pct_lbl)
 
-            tid = t.get("id")
-            if t.get("verification_required"):
-                btn_act = QPushButton("去验证")
-                btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 3px; padding: 1px 4px; font-weight: bold;")
-                v_u = t.get("verification_url") or t.get("referer") or t.get("pageUrl") or t.get("url") or ""
-                def _do_open_v(u=v_u):
-                    from PyQt5.QtGui import QDesktopServices
-                    from PyQt5.QtCore import QUrl
-                    if u:
-                        QDesktopServices.openUrl(QUrl(u))
-                btn_act.clicked.connect(lambda _, u=v_u: _do_open_v(u))
-            elif t.get("status") == "downloading":
-                btn_act = QPushButton("暂停")
-                btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: transparent; border: 1px solid #78350f; border-radius: 3px; padding: 1px 4px;")
-                btn_act.clicked.connect(lambda _, x=tid: task_manager.pause_task(x))
-            else:
-                btn_act = QPushButton("继续")
-                btn_act.setStyleSheet("color: #4ade80; font-size: 10px; background: transparent; border: 1px solid #14532d; border-radius: 3px; padding: 1px 4px;")
-                btn_act.clicked.connect(lambda _, x=tid: task_manager.start_task(x))
-            r2.addWidget(btn_act)
+                tid = t_item.get("id")
+                if t_item.get("verification_required"):
+                    btn_act = QPushButton("去验证")
+                    btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; border-radius: 3px; padding: 1px 4px; font-weight: bold;")
+                    v_u = t_item.get("verification_url") or t_item.get("referer") or t_item.get("pageUrl") or t_item.get("url") or ""
+                    def _do_open_v(u=v_u):
+                        from PyQt5.QtGui import QDesktopServices
+                        from PyQt5.QtCore import QUrl
+                        if u:
+                            QDesktopServices.openUrl(QUrl(u))
+                    btn_act.clicked.connect(lambda _, u=v_u: _do_open_v(u))
+                elif t_item.get("status") == "downloading":
+                    btn_act = QPushButton("暂停")
+                    btn_act.setStyleSheet("color: #f59e0b; font-size: 10px; background: transparent; border: 1px solid #78350f; border-radius: 3px; padding: 1px 4px;")
+                    btn_act.clicked.connect(lambda _, x=tid: (task_manager.pause_task(x), self.refresh_data()))
+                else:
+                    btn_act = QPushButton("继续")
+                    btn_act.setStyleSheet("color: #4ade80; font-size: 10px; background: transparent; border: 1px solid #14532d; border-radius: 3px; padding: 1px 4px;")
+                    btn_act.clicked.connect(lambda _, x=tid: (task_manager.start_task(x), self.refresh_data()))
+                r2.addWidget(btn_act)
 
-            tl.addLayout(r2)
-            self.task_list_layout.insertWidget(self.task_list_layout.count() - 1, t_row)
+                tl.addLayout(r2)
+                self.task_list_layout.insertWidget(self.task_list_layout.count() - 1, t_row)
+        except Exception as e:
+            print(f"[FloatingDashboardPanel] refresh_data error: {e}")
 
 
 class FloatingWidget(QWidget):
@@ -993,15 +1058,20 @@ class FloatingWidget(QWidget):
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.request_show_main.emit()
+            # 双击悬浮球同样仅控制悬浮快捷面板，不主动弹出主程序窗口
+            self._toggle_dashboard()
 
     def _toggle_dashboard(self):
-        if self._dashboard.isVisible():
-            self._dashboard.hide()
-        else:
-            self._reposition_dashboard()
-            self._dashboard.refresh_data()
-            self._dashboard.show()
+        try:
+            if self._dashboard.isVisible():
+                self._dashboard.hide()
+            else:
+                self._reposition_dashboard()
+                self._dashboard.refresh_data()
+                self._dashboard.show()
+                self._dashboard.raise_()
+        except Exception as e:
+            print(f"[FloatingWidget] toggle dashboard error: {e}")
 
     def _reposition_dashboard(self):
         screen = QApplication.primaryScreen()

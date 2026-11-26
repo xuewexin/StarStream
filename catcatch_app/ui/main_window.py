@@ -12,7 +12,8 @@ from PyQt5.QtWidgets import (
     QToolBar, QAction, QStatusBar, QLabel, QLineEdit, QMenu,
     QMessageBox, QHeaderView, QProgressBar, QSystemTrayIcon,
     QApplication, QPushButton, QDialog, QFileDialog, QToolButton,
-    QSlider, QInputDialog, QCheckBox
+    QSlider, QInputDialog, QCheckBox, QComboBox, QSpinBox, QFormLayout,
+    QDialogButtonBox
 )
 from PyQt5.QtCore import Qt, QTimer, QSize
 from PyQt5.QtGui import QIcon, QColor, QFont, QPainter, QPixmap
@@ -93,6 +94,7 @@ class MainWindow(QMainWindow):
         self.current_category = "all"
         self.search_keyword = ""
         self._active_notifiers = []
+        self._checked_task_ids = set()
 
         self._init_ui()
         self._init_tray()
@@ -168,6 +170,98 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(0, 0, 0, 0)
         right_layout.setSpacing(0)
 
+        # 批量选择与任务参数快速控制条
+        self.batch_bar = QWidget()
+        self.batch_bar.setObjectName("batchControlBar")
+        self.batch_bar.setFixedHeight(38)
+        self.batch_bar.setStyleSheet(
+            "QWidget#batchControlBar { background: rgba(15, 23, 42, 0.55); "
+            "border-bottom: 1px solid rgba(148, 163, 184, 0.14); }"
+        )
+        batch_layout = QHBoxLayout(self.batch_bar)
+        batch_layout.setContentsMargins(10, 4, 10, 4)
+        batch_layout.setSpacing(6)
+
+        self.chk_select_all = QCheckBox("全选")
+        self.chk_select_all.setStyleSheet("color: #cbd5e1; font-size: 12px; font-weight: 600;")
+        self.chk_select_all.clicked.connect(self._on_batch_select_all_clicked)
+        batch_layout.addWidget(self.chk_select_all)
+
+        self.btn_invert_select = QPushButton("反选")
+        self.btn_invert_select.setFixedHeight(25)
+        self.btn_invert_select.setStyleSheet(
+            "QPushButton { background: rgba(30, 41, 59, 0.9); color: #cbd5e1; border: 1px solid #334155; "
+            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; }"
+            "QPushButton:hover { border-color: #38bdf8; color: #f8fafc; }"
+        )
+        self.btn_invert_select.clicked.connect(self._action_invert_selection)
+        batch_layout.addWidget(self.btn_invert_select)
+
+        self.lbl_batch_count = QLabel("已选 0 项")
+        self.lbl_batch_count.setStyleSheet("color: #38bdf8; font-size: 11.5px; font-weight: 600; margin: 0 6px;")
+        batch_layout.addWidget(self.lbl_batch_count)
+
+        self.btn_batch_start = QPushButton("批量开始")
+        self.btn_batch_start.setIcon(get_icon("play", "#4ade80", 13))
+        self.btn_batch_start.setFixedHeight(25)
+        self.btn_batch_start.setStyleSheet(
+            "QPushButton { background: rgba(20, 83, 45, 0.55); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.35); "
+            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
+            "QPushButton:hover { background: rgba(22, 101, 52, 0.85); }"
+        )
+        self.btn_batch_start.clicked.connect(self._action_start_selected)
+        batch_layout.addWidget(self.btn_batch_start)
+
+        self.btn_batch_pause = QPushButton("批量暂停")
+        self.btn_batch_pause.setIcon(get_icon("pause", "#fbbf24", 13))
+        self.btn_batch_pause.setFixedHeight(25)
+        self.btn_batch_pause.setStyleSheet(
+            "QPushButton { background: rgba(120, 53, 15, 0.5); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.35); "
+            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
+            "QPushButton:hover { background: rgba(146, 64, 14, 0.85); }"
+        )
+        self.btn_batch_pause.clicked.connect(self._action_pause_selected)
+        batch_layout.addWidget(self.btn_batch_pause)
+
+        self.btn_batch_settings = QPushButton("批量设置")
+        self.btn_batch_settings.setIcon(get_icon("settings", "#38bdf8", 13))
+        self.btn_batch_settings.setFixedHeight(25)
+        self.btn_batch_settings.setToolTip("批量修改已选任务的线程数、代理、存储目录及全局并发数")
+        self.btn_batch_settings.setStyleSheet(
+            "QPushButton { background: rgba(12, 74, 110, 0.65); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); "
+            "border-radius: 5px; padding: 0 10px; font-size: 11.5px; font-weight: 600; }"
+            "QPushButton:hover { background: rgba(3, 105, 161, 0.9); color: #ffffff; }"
+        )
+        self.btn_batch_settings.clicked.connect(self._action_batch_settings)
+        batch_layout.addWidget(self.btn_batch_settings)
+
+        self.btn_batch_delete = QPushButton("批量删除")
+        self.btn_batch_delete.setIcon(get_icon("delete", "#f87171", 13))
+        self.btn_batch_delete.setFixedHeight(25)
+        self.btn_batch_delete.setStyleSheet(
+            "QPushButton { background: rgba(127, 29, 29, 0.45); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.35); "
+            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
+            "QPushButton:hover { background: rgba(153, 27, 27, 0.85); color: #ffffff; }"
+        )
+        self.btn_batch_delete.clicked.connect(self._action_batch_delete_prompt)
+        batch_layout.addWidget(self.btn_batch_delete)
+
+        batch_layout.addStretch(1)
+
+        self.btn_patrol_now = QPushButton("巡检修复")
+        self.btn_patrol_now.setIcon(get_icon("refresh", "#a78bfa", 13))
+        self.btn_patrol_now.setFixedHeight(25)
+        self.btn_patrol_now.setToolTip("立即巡检队列状态：自动转正已完成任务、清理完成分片缓存并唤醒卡住队列")
+        self.btn_patrol_now.setStyleSheet(
+            "QPushButton { background: rgba(88, 28, 135, 0.45); color: #c4b5fd; border: 1px solid rgba(167, 139, 250, 0.35); "
+            "border-radius: 5px; padding: 0 9px; font-size: 11.5px; font-weight: 600; }"
+            "QPushButton:hover { background: rgba(107, 33, 168, 0.8); color: #ffffff; }"
+        )
+        self.btn_patrol_now.clicked.connect(self._action_patrol_now)
+        batch_layout.addWidget(self.btn_patrol_now)
+
+        right_layout.addWidget(self.batch_bar)
+
         self.table = QTableWidget()
         self.table.setColumnCount(11)
         self.table.setHorizontalHeaderLabels([
@@ -179,7 +273,7 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Fixed)
         self.table.horizontalHeader().setMinimumSectionSize(36)
         self.table.horizontalHeader().setStretchLastSection(False)
-        self.table.setColumnWidth(0, 44)
+        self.table.setColumnWidth(0, 62)
         self.table.setColumnWidth(2, 82)
         self.table.setColumnWidth(3, 64)
         self.table.setColumnWidth(4, 60)
@@ -200,6 +294,7 @@ class MainWindow(QMainWindow):
         self.table.customContextMenuRequested.connect(self._show_context_menu)
         self.table.cellDoubleClicked.connect(self._on_cell_double_clicked)
         self.table.itemChanged.connect(self._on_table_item_changed)
+        self.table.itemSelectionChanged.connect(self._update_batch_selection_label)
 
         right_layout.addWidget(self.table)
         splitter.addWidget(right_container)
@@ -790,8 +885,9 @@ class MainWindow(QMainWindow):
                 self._render_row(row, t)
         finally:
             self.table.setUpdatesEnabled(True)
+            self._update_batch_selection_label()
 
-    def _set_cell_item(self, row, col, text, color=None, font=None, align=None, tooltip=None, role_data=None):
+    def _set_cell_item(self, row, col, text, color=None, font=None, align=None, tooltip=None, role_data=None, checkable=False, checked=False):
         item = self.table.item(row, col)
         if item is None:
             item = QTableWidgetItem()
@@ -801,6 +897,9 @@ class MainWindow(QMainWindow):
             item.setText(str(text))
             if col == 1:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsEditable)
+            elif checkable:
+                item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Checked if checked else Qt.Unchecked)
             else:
                 item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
             if color is not None:
@@ -823,8 +922,11 @@ class MainWindow(QMainWindow):
         text_col = QColor(cur_theme.get("text", "#f8fafc"))
         text_sec_col = QColor(cur_theme.get("text_secondary", "#cbd5e1"))
 
-        # 0. 序号
-        self._set_cell_item(row, 0, str(row + 1), color=text_sec_col, align=Qt.AlignCenter, role_data=t_task["id"])
+        # 0. 序号 + 批量勾选框
+        self._set_cell_item(
+            row, 0, str(row + 1), color=text_sec_col, align=Qt.AlignCenter,
+            role_data=t_task["id"], checkable=True, checked=(t_task["id"] in self._checked_task_ids)
+        )
 
         # 1. 任务名称
         title = t_task.get("title") or t_task.get("save_name") or "未命名"
@@ -956,15 +1058,231 @@ class MainWindow(QMainWindow):
         return -1
 
     def _get_selected_task_ids(self):
+        # 优先采用批量勾选的任务；若未勾选，则回退采用当前高亮选中的表格行
+        checked_ids = []
+        visible_ids = []
+        for r in range(self.table.rowCount()):
+            it = self.table.item(r, 0)
+            if it:
+                tid = it.data(Qt.UserRole)
+                if tid:
+                    visible_ids.append(tid)
+                    if it.checkState() == Qt.Checked:
+                        checked_ids.append(tid)
+        if checked_ids:
+            return checked_ids
+
         selected_rows = set()
         for idx in self.table.selectedIndexes():
             selected_rows.add(idx.row())
         ids = []
         for r in sorted(selected_rows):
             it = self.table.item(r, 0)
-            if it:
+            if it and it.data(Qt.UserRole):
                 ids.append(it.data(Qt.UserRole))
         return ids
+
+    def _update_batch_selection_label(self):
+        if not hasattr(self, "lbl_batch_count"):
+            return
+        checked_count = 0
+        row_total = self.table.rowCount()
+        for r in range(row_total):
+            it = self.table.item(r, 0)
+            if it and it.checkState() == Qt.Checked:
+                checked_count += 1
+        selected_rows = len({idx.row() for idx in self.table.selectedIndexes()})
+        if checked_count > 0:
+            self.lbl_batch_count.setText(f"已勾选 {checked_count} 项")
+        elif selected_rows > 0:
+            self.lbl_batch_count.setText(f"已高亮 {selected_rows} 项")
+        else:
+            self.lbl_batch_count.setText("已选 0 项")
+
+        if hasattr(self, "chk_select_all"):
+            self.chk_select_all.blockSignals(True)
+            self.chk_select_all.setChecked(row_total > 0 and checked_count == row_total)
+            self.chk_select_all.blockSignals(False)
+
+    def _on_batch_select_all_clicked(self, checked):
+        self.table.blockSignals(True)
+        try:
+            for r in range(self.table.rowCount()):
+                it = self.table.item(r, 0)
+                if it:
+                    tid = it.data(Qt.UserRole)
+                    it.setCheckState(Qt.Checked if checked else Qt.Unchecked)
+                    if tid:
+                        if checked:
+                            self._checked_task_ids.add(tid)
+                        else:
+                            self._checked_task_ids.discard(tid)
+        finally:
+            self.table.blockSignals(False)
+            self._update_batch_selection_label()
+
+    def _action_invert_selection(self):
+        self.table.blockSignals(True)
+        try:
+            for r in range(self.table.rowCount()):
+                it = self.table.item(r, 0)
+                if it:
+                    tid = it.data(Qt.UserRole)
+                    now_checked = it.checkState() != Qt.Checked
+                    it.setCheckState(Qt.Checked if now_checked else Qt.Unchecked)
+                    if tid:
+                        if now_checked:
+                            self._checked_task_ids.add(tid)
+                        else:
+                            self._checked_task_ids.discard(tid)
+        finally:
+            self.table.blockSignals(False)
+            self._update_batch_selection_label()
+
+    def _action_patrol_now(self):
+        res = task_manager.run_patrol(force_cleanup=True)
+        self.refresh_table()
+        self.statusBar().showMessage(
+            f"队列巡检完成：转正已完成 {res.get('fixed', 0)} 项，清理分片缓存 {res.get('cleaned', 0)} 处，唤醒队列 {res.get('kicked', 0)} 项",
+            5000
+        )
+
+    def _action_batch_delete_prompt(self):
+        ids = self._get_selected_task_ids()
+        if not ids:
+            QMessageBox.information(self, "批量删除", "请先勾选或选中要操作的任务！")
+            return
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("批量删除任务")
+        msg_box.setText(f"已选定 {len(ids)} 个任务，请选择删除方式：")
+        btn_rec = msg_box.addButton("仅删除记录", QMessageBox.AcceptRole)
+        btn_all = msg_box.addButton("连带删除本地文件与分片", QMessageBox.DestructiveRole)
+        btn_cancel = msg_box.addButton("取消", QMessageBox.RejectRole)
+        msg_box.setDefaultButton(btn_cancel)
+        msg_box.exec_()
+        clicked = msg_box.clickedButton()
+        if clicked == btn_rec:
+            self._checked_task_ids.difference_update(ids)
+            self._delete_tasks(ids, delete_file=False)
+        elif clicked == btn_all:
+            self._checked_task_ids.difference_update(ids)
+            self._delete_tasks(ids, delete_file=True)
+
+    def _action_batch_settings(self):
+        ids = self._get_selected_task_ids()
+        dlg = QDialog(self)
+        dlg.setWindowTitle("批量下载设置与队列调度")
+        dlg.setMinimumWidth(460)
+        layout = QVBoxLayout(dlg)
+        layout.setSpacing(12)
+
+        scope_lbl = QLabel(
+            f"当前操作范围：<b>已选中的 {len(ids)} 个任务</b>（并发限制对全局队列生效）"
+            if ids else
+            "当前未勾选特定任务：将应用到<b>全部未完成/队列中任务</b>与全局并发设置"
+        )
+        scope_lbl.setWordWrap(True)
+        layout.addWidget(scope_lbl)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+
+        sp_concurrent = QSpinBox()
+        sp_concurrent.setRange(1, 10)
+        sp_concurrent.setValue(int(config.get("max_concurrent_tasks", 3)))
+        form.addRow("最大同时下载任务数 (全局):", sp_concurrent)
+
+        chk_threads = QCheckBox("修改单任务多线程数")
+        sp_threads = QSpinBox()
+        sp_threads.setRange(1, 32)
+        sp_threads.setValue(int(config.get("max_threads_per_task", 16)))
+        sp_threads.setEnabled(False)
+        chk_threads.toggled.connect(sp_threads.setEnabled)
+        th_row = QHBoxLayout()
+        th_row.addWidget(chk_threads)
+        th_row.addWidget(sp_threads)
+        form.addRow("单任务下载线程数:", th_row)
+
+        chk_proxy = QCheckBox("统一变更任务代理")
+        cb_proxy = QComboBox()
+        cb_proxy.addItem("跟随客户端全局设置", "GLOBAL")
+        cb_proxy.addItem("直连 (不使用代理)", "DIRECT")
+        for p in config.get_proxies_list():
+            cb_proxy.addItem(f"{p.get('name', '代理')} ({p.get('url', '')})", p.get("url", ""))
+        cb_proxy.setEnabled(False)
+        chk_proxy.toggled.connect(cb_proxy.setEnabled)
+        px_row = QHBoxLayout()
+        px_row.addWidget(chk_proxy)
+        px_row.addWidget(cb_proxy, 1)
+        form.addRow("网络代理策略:", px_row)
+
+        chk_dir = QCheckBox("更改未完成任务保存目录")
+        ed_dir = QLineEdit(config.get("save_dir"))
+        ed_dir.setEnabled(False)
+        btn_browse = QPushButton("浏览...")
+        btn_browse.setEnabled(False)
+        def _pick_dir():
+            d = QFileDialog.getExistingDirectory(dlg, "选择批量保存目录", ed_dir.text() or config.get("save_dir"))
+            if d:
+                ed_dir.setText(d)
+        btn_browse.clicked.connect(_pick_dir)
+        def _toggle_dir(en):
+            ed_dir.setEnabled(en)
+            btn_browse.setEnabled(en)
+        chk_dir.toggled.connect(_toggle_dir)
+        dir_row = QHBoxLayout()
+        dir_row.addWidget(ed_dir, 1)
+        dir_row.addWidget(btn_browse)
+        form.addRow(chk_dir, dir_row)
+
+        layout.addLayout(form)
+
+        chk_auto_mp4 = QCheckBox("完成后自动使用 FFmpeg 转封装为标准 MP4")
+        chk_auto_mp4.setChecked(bool(config.get("auto_convert_mp4", True)))
+        layout.addWidget(chk_auto_mp4)
+
+        chk_restart = QCheckBox("立即对已选中且处于排队/下载中的任务应用新参数并重连")
+        chk_restart.setChecked(True)
+        layout.addWidget(chk_restart)
+
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.button(QDialogButtonBox.Ok).setText("应用批量设置")
+        btns.button(QDialogButtonBox.Cancel).setText("取消")
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        layout.addWidget(btns)
+
+        if dlg.exec_() != QDialog.Accepted:
+            return
+
+        config.set("max_concurrent_tasks", sp_concurrent.value())
+        config.set("auto_convert_mp4", chk_auto_mp4.isChecked())
+
+        updates = {}
+        if chk_threads.isChecked():
+            updates["thread_count"] = sp_threads.value()
+            config.set("max_threads_per_task", sp_threads.value())
+        if chk_proxy.isChecked():
+            updates["proxy"] = cb_proxy.currentData()
+        if chk_dir.isChecked() and ed_dir.text().strip():
+            os.makedirs(ed_dir.text().strip(), exist_ok=True)
+            updates["save_dir"] = ed_dir.text().strip()
+
+        target_ids = ids if ids else [
+            t_item["id"] for t_item in task_manager.get_all_tasks()
+            if t_item.get("status") != "completed"
+        ]
+        updated_cnt = 0
+        if updates and target_ids:
+            updated_cnt = task_manager.batch_update_tasks(
+                target_ids, updates, restart_active=chk_restart.isChecked()
+            )
+        task_manager._schedule_next()
+        self.refresh_table()
+        self.statusBar().showMessage(
+            f"批量设置已生效：全局并发={sp_concurrent.value()}，已更新 {updated_cnt} 个任务参数",
+            4500
+        )
 
     def _on_task_added(self, task):
         self.refresh_table()
@@ -1245,7 +1563,18 @@ class MainWindow(QMainWindow):
             self.refresh_table()
 
     def _on_table_item_changed(self, item):
-        if not item or item.column() != 1:
+        if not item:
+            return
+        if item.column() == 0:
+            tid = item.data(Qt.UserRole)
+            if tid:
+                if item.checkState() == Qt.Checked:
+                    self._checked_task_ids.add(tid)
+                else:
+                    self._checked_task_ids.discard(tid)
+            self._update_batch_selection_label()
+            return
+        if item.column() != 1:
             return
         row = item.row()
         it_id = self.table.item(row, 0)

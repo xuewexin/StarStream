@@ -33,20 +33,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
-    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="Download Portable Package">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_v3.3.0_Portable.zip">
+    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.3.0_Portable.zip-2563eb?style=for-the-badge" alt="Download Portable Package">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream.exe">
     <img src="https://img.shields.io/badge/Standalone%20Client-StarStream.exe-059669?style=for-the-badge" alt="Download Standalone Executable">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
-    <img src="https://img.shields.io/badge/Sniffer%20Extension-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="Download Browser Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream_Browser_Extension_v3.3.0.zip">
+    <img src="https://img.shields.io/badge/Sniffer%20Extension-Extension_v3.3.0.zip-7c3aed?style=for-the-badge" alt="Download Browser Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
-    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="Download Android APK">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.3.0/StarStream-Android-v3.3.0.apk">
+    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.3.0.apk-0284c7?style=for-the-badge" alt="Download Android APK">
   </a>
 </p>
 
@@ -129,7 +129,7 @@
 
 ## 📦 Releases & Source Build
 
-- Grab prebuilt releases directly from [GitHub Releases v3.2.9](https://github.com/xuewexin/StarStream/releases/tag/v3.2.9).
+- Grab prebuilt releases directly from [GitHub Releases v3.3.0](https://github.com/xuewexin/StarStream/releases/tag/v3.3.0).
 - **Desktop Source**: `pip install -r requirements.txt && python run_app.py`
 - **Android Source**: `cd android_app && gradle assembleDebug --no-daemon`
 

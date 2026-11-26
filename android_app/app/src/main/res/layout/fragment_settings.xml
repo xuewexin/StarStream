@@ -390,7 +390,7 @@
             android:layout_marginTop="16dp"
             android:layout_marginBottom="16dp"
             android:gravity="center"
-            android:text="星流媒体嗅探与下载器 (StarStream Pro) Android v3.2.9\n作者: xuewexin · github.com/xuewexin/StarStream\n内置 FFmpeg 无损混流 · 全站音画合一 · 自定义嗅探扩展名"
+            android:text="星流媒体嗅探与下载器 (StarStream Pro) Android v3.3.0\n作者: xuewexin · github.com/xuewexin/StarStream\n内置 FFmpeg 无损混流 · 全站音画合一 · 自定义嗅探扩展名"
             android:textColor="@color/text_muted"
             android:textSize="11sp" />
     </LinearLayout>

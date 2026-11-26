@@ -134,10 +134,39 @@ class DownloadTaskAdapter(
     private val onAction: (DownloadTask) -> Unit,
     private val onPreview: (DownloadTask) -> Unit,
     private val onDelete: (DownloadTask) -> Unit,
-    private val onMore: (DownloadTask) -> Unit
+    private val onMore: (DownloadTask) -> Unit,
+    private val onSelectionChanged: ((Int) -> Unit)? = null,
+    private val onEnterSelectionMode: ((String) -> Unit)? = null
 ) : RecyclerView.Adapter<DownloadTaskAdapter.VH>() {
 
+    var selectionMode: Boolean = false
+        private set
+    val selectedIds = linkedSetOf<String>()
+
+    fun setSelectionMode(enabled: Boolean) {
+        selectionMode = enabled
+        if (!enabled) selectedIds.clear()
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedIds.size)
+    }
+
+    fun selectAllShown() {
+        selectedIds.clear()
+        items.forEach { selectedIds.add(it.id) }
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedIds.size)
+    }
+
+    fun invertSelectionShown() {
+        val current = selectedIds.toSet()
+        selectedIds.clear()
+        items.forEach { if (it.id !in current) selectedIds.add(it.id) }
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedIds.size)
+    }
+
     class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val cbSelect: CheckBox = v.findViewById(R.id.cb_task_select)
         val title: TextView = v.findViewById(R.id.tv_task_title)
         val status: TextView = v.findViewById(R.id.tv_task_status)
         val pb: ProgressBar = v.findViewById(R.id.pb_task)
@@ -150,7 +179,10 @@ class DownloadTaskAdapter(
 
     fun updateData(newList: List<DownloadTask>) {
         items = newList
+        val validIds = newList.map { it.id }.toSet()
+        selectedIds.retainAll(validIds)
         notifyDataSetChanged()
+        onSelectionChanged?.invoke(selectedIds.size)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -164,6 +196,22 @@ class DownloadTaskAdapter(
         val t = items[position]
         holder.title.text = t.title
         holder.pb.progress = t.progress
+
+        holder.cbSelect.setOnCheckedChangeListener(null)
+        holder.cbSelect.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        holder.cbSelect.isChecked = selectedIds.contains(t.id)
+        holder.cbSelect.setOnCheckedChangeListener { _, checked ->
+            if (checked) selectedIds.add(t.id) else selectedIds.remove(t.id)
+            onSelectionChanged?.invoke(selectedIds.size)
+        }
+        holder.itemView.setOnClickListener {
+            if (selectionMode) {
+                val nowChecked = !selectedIds.contains(t.id)
+                if (nowChecked) selectedIds.add(t.id) else selectedIds.remove(t.id)
+                holder.cbSelect.isChecked = nowChecked
+                onSelectionChanged?.invoke(selectedIds.size)
+            }
+        }
 
         val (statusStr, btnText) = when (t.status) {
             TaskStatus.WAITING -> "等待中" to "暂停"

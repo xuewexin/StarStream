@@ -21,14 +21,20 @@ object TaskManager {
     @Volatile
     private var initialized = false
 
+    @Volatile
+    private var patrolStarted = false
+
     fun init(context: Context) {
-        if (initialized) return
-        synchronized(this) {
-            if (initialized) return
-            appContext = context.applicationContext
-            loadTasksLocked()
-            initialized = true
+        if (!initialized) {
+            synchronized(this) {
+                if (!initialized) {
+                    appContext = context.applicationContext
+                    loadTasksLocked()
+                    initialized = true
+                }
+            }
         }
+        startPatrolLoopIfNeeded()
     }
 
     private fun ensureInit(context: Context?) {
@@ -45,9 +51,8 @@ object TaskManager {
                 val o = arr.getJSONObject(i)
                 val statusStr = o.optString("status", TaskStatus.PAUSED.name)
                 var st = try { TaskStatus.valueOf(statusStr) } catch (_: Exception) { TaskStatus.PAUSED }
-                if (st == TaskStatus.DOWNLOADING || st == TaskStatus.WAITING || st == TaskStatus.MUXING) {
-                    st = TaskStatus.PAUSED
-                }
+                val prog = o.optInt("progress", 0)
+                var outPath = o.optString("outputPath")
                 val hMap = mutableMapOf<String, String>()
                 o.optJSONObject("headers")?.let { ho ->
                     val keys = ho.keys()
@@ -56,30 +61,199 @@ object TaskManager {
                         hMap[k] = ho.optString(k)
                     }
                 }
-                tasks.add(
-                    DownloadTask(
-                        id = o.optString("id"),
-                        title = o.optString("title", "未命名任务"),
-                        url = o.optString("url"),
-                        audioUrl = o.optString("audioUrl"),
-                        pageUrl = o.optString("pageUrl"),
-                        mediaType = o.optString("mediaType", "video"),
-                        resolution = o.optString("resolution"),
-                        durationSec = o.optInt("durationSec", 0),
-                        subDir = o.optString("subDir"),
-                        headers = hMap,
-                        status = st,
-                        progress = o.optInt("progress", 0),
-                        downloadedBytes = o.optLong("downloadedBytes", 0L),
-                        totalBytes = o.optLong("totalBytes", 0L),
-                        speedText = if (st == TaskStatus.PAUSED) "已暂停" else o.optString("speedText"),
-                        outputPath = o.optString("outputPath"),
-                        exportedUri = o.optString("exportedUri"),
-                        errorMsg = o.optString("errorMsg")
-                    )
+                val taskObj = DownloadTask(
+                    id = o.optString("id"),
+                    title = o.optString("title", "未命名任务"),
+                    url = o.optString("url"),
+                    audioUrl = o.optString("audioUrl"),
+                    pageUrl = o.optString("pageUrl"),
+                    mediaType = o.optString("mediaType", "video"),
+                    resolution = o.optString("resolution"),
+                    durationSec = o.optInt("durationSec", 0),
+                    subDir = o.optString("subDir"),
+                    headers = hMap,
+                    status = st,
+                    progress = prog,
+                    downloadedBytes = o.optLong("downloadedBytes", 0L),
+                    totalBytes = o.optLong("totalBytes", 0L),
+                    speedText = o.optString("speedText"),
+                    outputPath = outPath,
+                    exportedUri = o.optString("exportedUri"),
+                    errorMsg = o.optString("errorMsg"),
+                    threadOverride = o.optInt("threadOverride", 0)
                 )
+
+                // 启动自愈核查：若历史任务已达 98%+ 或本地已存在有效输出文件，直接标为已完成
+                if (st in listOf(TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING, TaskStatus.PAUSED)) {
+                    val found = if (prog >= 98 || outPath.isNotBlank()) findValidCompletedFile(ctx, taskObj) else null
+                    if (found != null) {
+                        taskObj.status = TaskStatus.COMPLETED
+                        taskObj.progress = 100
+                        taskObj.outputPath = found.absolutePath
+                        taskObj.totalBytes = found.length()
+                        taskObj.downloadedBytes = found.length()
+                        taskObj.speedText = "完成"
+                        cleanupTempDirs(ctx, taskObj.id)
+                    } else if (st in listOf(TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING)) {
+                        taskObj.status = TaskStatus.PAUSED
+                        taskObj.speedText = "已暂停"
+                    }
+                }
+                tasks.add(taskObj)
             }
         } catch (_: Exception) {}
+    }
+
+    private fun startPatrolLoopIfNeeded() {
+        if (patrolStarted) return
+        patrolStarted = true
+        scope.launch(Dispatchers.IO) {
+            delay(2000)
+            while (true) {
+                try {
+                    val ctx = appContext
+                    if (ctx != null) runPatrol(ctx, forceCleanup = true)
+                } catch (_: Throwable) {}
+                delay(4000)
+            }
+        }
+    }
+
+    private fun isValidOutputFile(f: File): Boolean {
+        if (!f.exists() || !f.isFile || f.length() < 4096L) return false
+        return !AndroidMediaMuxer.isHtmlOrInvalidFile(f)
+    }
+
+    private fun findValidCompletedFile(ctx: Context, task: DownloadTask): File? {
+        if (task.outputPath.isNotBlank()) {
+            val f = File(task.outputPath)
+            if (isValidOutputFile(f)) return f
+        }
+        val workRoot = File(ctx.getExternalFilesDir(null), "downloads")
+        val outDir = if (task.subDir.isNotBlank()) File(workRoot, task.subDir) else workRoot
+        if (!outDir.exists()) return null
+        val safeName = task.title.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim()
+        if (safeName.isBlank()) return null
+        val base = safeName.substringBeforeLast('.').ifBlank { safeName }
+        val exts = listOf("mp4", "mkv", "ts", "flv", "mov", "webm", "m4a", "mp3", "aac", "pdf", "zip", "rar", "7z", "apk")
+        for (ext in exts) {
+            val cand = File(outDir, "$base.$ext")
+            if (isValidOutputFile(cand)) return cand
+        }
+        val exact = File(outDir, safeName)
+        if (isValidOutputFile(exact)) return exact
+        return null
+    }
+
+    data class PatrolReport(val fixed: Int, val cleaned: Int, val kicked: Int)
+
+    /**
+     * 队列巡检与状态自愈系统：
+     * 1. 清理已经退出的僵尸 Runner，防止占用并发槽位；
+     * 2. 核查进度 >= 98% 或本地已有完整文件却卡在等待中/下载中的任务并转正为 COMPLETED；
+     * 3. 清理已完成或孤儿任务的临时分片目录 (seg_*, dash_*, .parts_*)；
+     * 4. 若队列存在空闲并发槽位，自动拉起 waiting 任务。
+     */
+    @Synchronized
+    fun runPatrol(context: Context, forceCleanup: Boolean = true): PatrolReport {
+        ensureInit(context)
+        val ctx = context.applicationContext
+        var fixed = 0
+        var cleaned = 0
+        var kicked = 0
+        var changed = false
+
+        // 1. 清理死亡 Runner
+        val deadIds = runners.entries.filter { !it.value.isAlive() }.map { it.key }
+        for (id in deadIds) {
+            runners.remove(id)
+            val t = tasks.find { it.id == id }
+            if (t != null && t.status in listOf(TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.MUXING)) {
+                val found = findValidCompletedFile(ctx, t)
+                if (found != null) {
+                    promoteTaskCompleted(ctx, t, found)
+                    fixed++
+                } else {
+                    t.status = TaskStatus.WAITING
+                    t.speedText = "巡检重新排队..."
+                    kicked++
+                }
+                changed = true
+            }
+        }
+
+        // 2. 核查卡在 WAITING / DOWNLOADING / MUXING 的已完成或掉线任务
+        for (t in tasks) {
+            if (t.status == TaskStatus.COMPLETED) {
+                if (forceCleanup) cleaned += cleanupTempDirs(ctx, t.id)
+                continue
+            }
+            if (runners.containsKey(t.id)) continue
+
+            val looksDone = t.progress >= 98 ||
+                (t.totalBytes > 4096L && t.downloadedBytes >= (t.totalBytes * 0.99).toLong()) ||
+                t.outputPath.isNotBlank()
+            if (t.status in listOf(TaskStatus.WAITING, TaskStatus.DOWNLOADING, TaskStatus.MUXING) && looksDone) {
+                val found = findValidCompletedFile(ctx, t)
+                if (found != null) {
+                    promoteTaskCompleted(ctx, t, found)
+                    fixed++
+                    cleaned += cleanupTempDirs(ctx, t.id)
+                    changed = true
+                    continue
+                }
+            }
+
+            if (t.status in listOf(TaskStatus.DOWNLOADING, TaskStatus.MUXING) && !runners.containsKey(t.id)) {
+                t.status = TaskStatus.WAITING
+                t.speedText = "等待队列恢复..."
+                kicked++
+                changed = true
+            }
+        }
+
+        // 3. 清理已完成或失效孤儿分片目录
+        if (forceCleanup) {
+            val nowMs = System.currentTimeMillis()
+            ctx.cacheDir.listFiles()?.forEach { f ->
+                if (f.isDirectory && (f.name.startsWith("seg_") || f.name.startsWith("dash_"))) {
+                    val tid = f.name.substringAfter('_')
+                    val owner = tasks.find { it.id == tid }
+                    if ((owner == null && nowMs - f.lastModified() > 45_000L) || owner?.status == TaskStatus.COMPLETED) {
+                        if (f.deleteRecursively()) cleaned++
+                    }
+                }
+            }
+            val dlRoot = File(ctx.getExternalFilesDir(null), "downloads")
+            if (dlRoot.exists()) {
+                dlRoot.walkTopDown().maxDepth(3).filter { it.isDirectory && it.name.startsWith(".parts_") }.toList().forEach { pf ->
+                    val targetName = pf.name.removePrefix(".parts_")
+                    val parentOut = File(pf.parentFile, targetName)
+                    if (isValidOutputFile(parentOut) || (nowMs - pf.lastModified() > 120_000L && runners.isEmpty())) {
+                        if (pf.deleteRecursively()) cleaned++
+                    }
+                }
+            }
+        }
+
+        if (changed) notifyChanged()
+        schedulePendingTasks(ctx)
+        return PatrolReport(fixed, cleaned, kicked)
+    }
+
+    private fun promoteTaskCompleted(ctx: Context, task: DownloadTask, outFile: File) {
+        task.status = TaskStatus.COMPLETED
+        task.progress = 100
+        task.outputPath = outFile.absolutePath
+        task.totalBytes = outFile.length()
+        task.downloadedBytes = outFile.length()
+        task.speedText = "完成"
+        if (task.exportedUri.isBlank() && (AppConfig.saveToGallery || AppConfig.customSaveUri.isNotBlank())) {
+            try {
+                task.exportedUri = AndroidMediaMuxer.exportToPublicDownloads(ctx, outFile, task.subDir)
+            } catch (_: Throwable) {}
+        }
+        cleanupTempDirs(ctx, task.id)
     }
 
     private fun saveTasksAsync() {
@@ -108,6 +282,7 @@ object TaskManager {
                         put("outputPath", t.outputPath)
                         put("exportedUri", t.exportedUri)
                         put("errorMsg", t.errorMsg)
+                        put("threadOverride", t.threadOverride)
                     })
                 }
                 File(ctx.filesDir, "tasks_v1.json").writeText(arr.toString())
@@ -159,13 +334,50 @@ object TaskManager {
     @Synchronized
     fun schedulePendingTasks(context: Context) {
         ensureInit(context)
+        val ctx = context.applicationContext
         val limit = AppConfig.maxConcurrentTasks
         for (t in tasks) {
             if (runners.size >= limit) break
             if (t.status == TaskStatus.WAITING && !runners.containsKey(t.id)) {
-                launchRunner(context.applicationContext, t)
+                if (t.progress >= 98 || t.outputPath.isNotBlank()) {
+                    val found = findValidCompletedFile(ctx, t)
+                    if (found != null) {
+                        promoteTaskCompleted(ctx, t, found)
+                        continue
+                    }
+                }
+                launchRunner(ctx, t)
             }
         }
+    }
+
+    fun batchUpdateTasks(context: Context, taskIds: Collection<String>, threadOverride: Int?, restartActive: Boolean): Int {
+        ensureInit(context)
+        val ctx = context.applicationContext
+        var cnt = 0
+        val toRestart = mutableListOf<String>()
+        for (t in tasks) {
+            if (t.id !in taskIds) continue
+            if (threadOverride != null) {
+                t.threadOverride = threadOverride
+            }
+            cnt++
+            if (restartActive && t.status in listOf(TaskStatus.DOWNLOADING, TaskStatus.WAITING, TaskStatus.PAUSED, TaskStatus.ERROR)) {
+                toRestart.add(t.id)
+            }
+        }
+        notifyChanged()
+        if (restartActive) {
+            toRestart.forEach { id ->
+                runners.remove(id)?.cancel()
+                val obj = tasks.find { it.id == id }
+                if (obj != null && obj.status != TaskStatus.COMPLETED) {
+                    obj.status = TaskStatus.WAITING
+                }
+            }
+            schedulePendingTasks(ctx)
+        }
+        return cnt
     }
 
     private fun launchRunner(appCtx: Context, task: DownloadTask) {
@@ -290,6 +502,7 @@ object TaskManager {
             } catch (_: Exception) {}
         }
         notifyChanged()
+        runPatrol(context, forceCleanup = true)
         count
     }
 
@@ -328,8 +541,16 @@ object TaskManager {
         if (ctx != null) schedulePendingTasks(ctx)
     }
 
-    private fun cleanupTempDirs(appCtx: Context, taskId: String) {
-        try { File(appCtx.cacheDir, "seg_$taskId").deleteRecursively() } catch (_: Exception) {}
-        try { File(appCtx.cacheDir, "dash_$taskId").deleteRecursively() } catch (_: Exception) {}
+    private fun cleanupTempDirs(appCtx: Context, taskId: String): Int {
+        var count = 0
+        try {
+            val seg = File(appCtx.cacheDir, "seg_$taskId")
+            if (seg.exists() && seg.deleteRecursively()) count++
+        } catch (_: Exception) {}
+        try {
+            val dash = File(appCtx.cacheDir, "dash_$taskId")
+            if (dash.exists() && dash.deleteRecursively()) count++
+        } catch (_: Exception) {}
+        return count
     }
 }

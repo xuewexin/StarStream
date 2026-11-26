@@ -13,6 +13,16 @@
         android:gravity="center_vertical"
         android:orientation="horizontal">
 
+        <CheckBox
+            android:id="@+id/cb_task_select"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:buttonTint="@color/accent_cyan"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/tv_task_title"
             android:layout_width="0dp"

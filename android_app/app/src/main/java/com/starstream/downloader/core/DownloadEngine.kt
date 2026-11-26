@@ -194,12 +194,16 @@ class DownloadRunner(
         job?.cancel()
     }
 
+    fun isAlive(): Boolean = job?.isActive == true
+
     fun requestTokenBoost() {
         tokenBoostRequested.set(true)
     }
 
     fun start(scope: CoroutineScope, onComplete: (Boolean, String) -> Unit) {
         job = scope.launch(Dispatchers.IO) {
+            var completedSuccess = false
+            var completionMsg = ""
             try {
                 task.status = TaskStatus.DOWNLOADING
                 task.errorMsg = ""
@@ -238,34 +242,45 @@ class DownloadRunner(
                 }
 
                 if (cancelled.get()) {
-                    onComplete(false, "已暂停/取消")
+                    completionMsg = "已暂停/取消"
                     return@launch
                 }
 
-                var exported = ""
-                if (AppConfig.saveToGallery || AppConfig.customSaveUri.isNotBlank()) {
-                    exported = AndroidMediaMuxer.exportToPublicDownloads(context, outFile, task.subDir)
-                }
                 task.outputPath = outFile.absolutePath
-                task.exportedUri = exported
                 task.totalBytes = outFile.length()
                 task.downloadedBytes = outFile.length()
                 task.progress = 100
                 task.speedText = "完成"
                 task.status = TaskStatus.COMPLETED
+
+                // 清理该任务所有临时分片目录 (.parts_* / seg_* / dash_*)
+                try { File(context.cacheDir, "seg_${task.id}").deleteRecursively() } catch (_: Exception) {}
+                try { File(context.cacheDir, "dash_${task.id}").deleteRecursively() } catch (_: Exception) {}
+                try { File(outFile.parentFile, ".parts_${outFile.name}").deleteRecursively() } catch (_: Exception) {}
+
+                var exported = ""
+                try {
+                    if (AppConfig.saveToGallery || AppConfig.customSaveUri.isNotBlank()) {
+                        exported = AndroidMediaMuxer.exportToPublicDownloads(context, outFile, task.subDir)
+                    }
+                } catch (_: Throwable) {}
+                task.exportedUri = exported
+                completedSuccess = true
+                completionMsg = "下载完成"
                 onProgress()
-                onComplete(true, "下载完成")
             } catch (e: CancellationException) {
                 task.status = TaskStatus.PAUSED
                 task.speedText = "已暂停"
+                completionMsg = "任务已暂停"
                 onProgress()
-                onComplete(false, "任务已暂停")
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 task.status = TaskStatus.ERROR
                 task.errorMsg = e.message ?: "下载异常"
                 task.speedText = "失败"
+                completionMsg = task.errorMsg
                 onProgress()
-                onComplete(false, task.errorMsg)
+            } finally {
+                onComplete(completedSuccess, completionMsg)
             }
         }
     }
@@ -456,7 +471,8 @@ class DownloadRunner(
         val totalCount = parsed.segments.size
         val doneCount = AtomicInteger(0)
         val totalDownloaded = AtomicLong(0)
-        val semaphore = Semaphore(AppConfig.threadCount)
+        val threads = (if (task.threadOverride > 0) task.threadOverride else AppConfig.threadCount).coerceIn(1, 24)
+        val semaphore = Semaphore(threads)
         val monitor = ThrottleMonitor()
         val refreshLock = Any()
 
@@ -723,7 +739,7 @@ class DownloadRunner(
         progStart: Int,
         progSpanStartToEnd: Int
     ) = coroutineScope {
-        val threads = AppConfig.threadCount.coerceIn(1, 16)
+        val threads = (if (task.threadOverride > 0) task.threadOverride else AppConfig.threadCount).coerceIn(1, 24)
         var targetUrl = urlSupplier()
         var totalLen = -1L
         var acceptRanges = false

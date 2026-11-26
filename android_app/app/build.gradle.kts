@@ -11,8 +11,8 @@ android {
         applicationId = "com.starstream.downloader"
         minSdk = 24
         targetSdk = 35
-        versionCode = 329
-        versionName = "3.2.9"
+        versionCode = 330
+        versionName = "3.3.0"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")

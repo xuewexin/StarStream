@@ -697,9 +697,8 @@ class FileDownloadTask:
 
             if res.returncode == 0 and os.path.exists(final_mp4) and os.path.getsize(final_mp4) > 0:
                 try:
-                    if os.path.exists(tmp_video): os.remove(tmp_video)
-                    if os.path.exists(tmp_audio): os.remove(tmp_audio)
-                    if os.path.exists(temp_dir): os.rmdir(temp_dir)
+                    import shutil
+                    shutil.rmtree(temp_dir, ignore_errors=True)
                 except Exception:
                     pass
 
