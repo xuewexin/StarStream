@@ -210,12 +210,46 @@ QWidget#centralWidget, QWidget#rightContainer, QSplitter {{
     background-color: {bg_central};
 }}
 
+QSplitter::handle {{
+    background-color: {t["border"]};
+    width: 1px;
+    margin: 0px;
+}}
+
+QSplitter::handle:hover {{
+    background-color: {t["accent"]};
+}}
+
 /* 顶部主工具栏与自适应扩展 */
 QToolBar {{
     background-color: {bg_panel_css};
     border-bottom: 1px solid {t["border"]};
-    padding: 5px 8px;
-    spacing: 4px;
+    padding: 6px 10px;
+    spacing: 6px;
+}}
+
+QToolBar QToolButton {{
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    padding: 6px 10px;
+    color: {t["text"]};
+    font-weight: 500;
+}}
+
+QToolBar QToolButton:hover {{
+    background-color: {t["bg_hover"]};
+    border: 1px solid {t["border"]};
+}}
+
+QToolBar QToolButton:pressed {{
+    background-color: {bg_item_selected};
+}}
+
+QToolBar::separator {{
+    background-color: {t["border"]};
+    width: 1px;
+    margin: 6px 4px;
 }}
 
 QToolBarExtension {{
@@ -356,8 +390,8 @@ QTreeWidget::item:selected {{
 /* 中央多任务表格 */
 QTableWidget {{
     background-color: {bg_table_css};
-    border: 1px solid {t["border_subtle"]};
-    border-radius: 8px;
+    border: none;
+    border-radius: 0px;
     gridline-color: transparent;
     selection-background-color: {bg_item_selected};
     selection-color: #ffffff;

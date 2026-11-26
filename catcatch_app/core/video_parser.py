@@ -883,8 +883,26 @@ def _extract_generic_series(html: str, base_url: str, page_title: str = ""):
 
         episodes = []
         cur_idx = 0
-        clean_series_title = re.sub(r'\s*[-_|—].*$', '', page_title).strip() or "网页同系列合集"
-        for idx, item in enumerate(pool[:150]):
+        # 优先从 "系列 · 剧名" 或剧集共同前缀提取真实剧集名，避免只取到站点品牌名（如“黄果短剧”）
+        clean_series_title = ""
+        m_ser_name = re.search(r'(?:系列|合集|剧集)\s*[·:：]\s*([^|—\-]+)', page_title)
+        if m_ser_name:
+            clean_series_title = m_ser_name.group(1).strip()
+        if not clean_series_title and pool:
+            ep0_base = re.sub(r'\s*[·\-—]\s*第?\s*\d+\s*[集话期章节].*$', '', pool[0]["title"]).strip()
+            if ep0_base and len(ep0_base) >= 2 and all(ep0_base in p["title"] for p in pool[:min(3, len(pool))]):
+                clean_series_title = ep0_base
+        if not clean_series_title:
+            clean_series_title = re.sub(r'\s*[-_|—].*$', '', page_title).strip() or "网页同系列合集"
+
+        # 若剧集标题包含明确的 "第N集/话" 编号，按集数升序排列
+        def _ep_sort_key(item_tuple):
+            i, it = item_tuple
+            m_num = re.search(r'第\s*(\d+)\s*[集话期章节]', it["title"])
+            return (0, int(m_num.group(1)), i) if m_num else (1, i, i)
+
+        ordered_pool = [it for _, it in sorted(enumerate(pool[:150]), key=_ep_sort_key)]
+        for idx, item in enumerate(ordered_pool):
             if item["page_url"] == base_url:
                 cur_idx = idx
             episodes.append({
@@ -1151,6 +1169,41 @@ def _parse_generic_web(url, session):
                 "used_proxy": used_proxy,
                 "error": ""
             }
+
+        # StreamitVideoPlyr 异步流接口 (例如 huangguo123.com 等站点: streamApi + videoUid)
+        m_sapi = re.search(r'var\s+streamApi\s*=\s*["\']([^"\']+)["\']', html)
+        m_vuid = re.search(r'var\s+videoUid\s*=\s*["\']([^"\']+)["\']', html)
+        if m_sapi and m_vuid:
+            from urllib.parse import urljoin, quote
+            ep_uid_m = re.search(r'var\s+currentEpisodeUid\s*=\s*["\']([^"\']*)["\']', html)
+            api_base = urljoin(final_page_url, m_sapi.group(1))
+            sep = "&" if "?" in api_base else "?"
+            api_url = f"{api_base}{sep}video_uid={quote(m_vuid.group(1))}"
+            if ep_uid_m and ep_uid_m.group(1):
+                api_url += f"&episode_uid={quote(ep_uid_m.group(1))}"
+            try:
+                api_resp, _ = _fetch_with_proxy_fallback(session, api_url, timeout=12)
+                if api_resp.status_code == 200:
+                    j = api_resp.json()
+                    plist = j.get("playlist") or []
+                    if plist and isinstance(plist, list) and plist[0].get("url"):
+                        s_url = str(plist[0]["url"]).strip()
+                        u_type = str(plist[0].get("urlType") or "").lower()
+                        m_type = "m3u8" if (u_type == "m3u8" or ".m3u8" in s_url.lower() or "/api/hls/" in s_url.lower()) else "video"
+                        return {
+                            "success": True,
+                            "title": title,
+                            "url": s_url,
+                            "media_type": m_type,
+                            "duration": 0,
+                            "resolution": "高清",
+                            "headers": {"Referer": final_page_url},
+                            "series": series_info,
+                            "used_proxy": used_proxy,
+                            "error": "",
+                        }
+            except Exception:
+                pass
 
         return {
             "success": False,

@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 StarStream Pro - Media Downloader
@@ -74,79 +74,63 @@
 ---
 
 > [!TIP]
-> ### 🆕 What's new in v3.2.7 (2026-11-15)
+> ### 🆕 What's New in v3.2.7 (2026-11-26)
 >
-> - 🎬 **DASH Audio/Video 100% Remuxing Fixed** — Resolved missing `audio_url` in TaskManager; rebuilt FFmpeg stream mapping (`-map 0:v:0 -map 1:a:0`) with AAC transcoding fallback. Completely eradicated the bug where video preview had sound but downloaded MP4 had no audio!
-> - 🛡️ **Anti-Bot & Captcha Challenge Breakthrough** — Captures HTTP 412 / Geetest / Cloudflare challenges. Shows `Verification Required` label with 1-click browser challenge solver, and browser extension immediately syncs fresh credentials to resume downloads seamlessly.
-> - 🌐 **Dynamic Browser Fingerprint Alignment** — Dynamically aligns User-Agent and Client Hints with the actual sniffing browser (Edge / Chrome) to defeat TLS/fingerprint-based anti-scraping blocks.
-> - 🖱️ **Ghost Click / Penetration Fixed** — Eradicated phantom click feedback on the previous window position when the main window is minimized to system tray or floating widget.
+> - 📺 **One-Click Series & Collection Batch Crawler** — Auto-detects multi-episode playlists and collections (`player_aaaa`, `ev:{d,k}`, `StreamitVideoPlyr` async stream API), sorts episodes in natural order, and organizes downloads into folders named cleanly after the series title.
+> - 🎯 **Precision Metadata Sniffing & Performance Boost** — Parses `Content-Range` for exact file sizes and extracts M3U8 resolution, FPS, codecs (`H.265/H.264/AV1`), bitrate, segment count, and estimated size with 65ms debounced rendering.
+> - 🎨 **Obsidian Glass Seamless UI** — Eliminated sidebar-to-table gap and horizontal scroll clutter, balanced all 11 table columns, and refined toolbar/popup visual hierarchy.
+> - 🎬 **100% Lossless DASH Muxing & Anti-Bot Breakthrough** — Guarantees synchronized audio & video MP4 output with dynamic browser fingerprint/cookie alignment.
 >
-> 👉 [Full changelog](CHANGELOG.md) · [Download latest](https://github.com/xuewexin/StarStream/releases/latest)
-
+> 👉 [Full Changelog](CHANGELOG.md) · [Download v3.2.7](https://github.com/xuewexin/StarStream/releases/tag/v3.2.7)
 ---
 
 ## 📸 Screenshots & Showcase
 
-### 1. Desktop Dashboard (Modern Dark Slate Industrial UI)
-> Crisp vector icons, full status monitoring at a glance: Local RPC port `18910` ready, `FFmpeg` ready, `N_m3u8DL (RE)` engine ready, real-time proxy status indicator, and instant mode switching.
+### 🖥️ Desktop Dashboard (Obsidian Glass Seamless Dark UI)
+> Crisp vector icons and complete status telemetry at a glance: RPC port `18910`, `FFmpeg`, `N_m3u8DL (RE)`, real-time proxy status, and all 11 task columns cleanly aligned.
 
 <p align="center">
-  <img src="docs/images/app_main_window.png" width="92%" alt="Desktop Dashboard Screenshot">
+  <img src="docs/images/app_main_window.png" width="94%" alt="Desktop Dashboard Screenshot">
 </p>
 
----
-
-### 2. New Download Task & Deep URL Parsing (Per-Task Proxy & Thread Config)
-> One-click paste and deep extraction for mainstream video URLs. Configure dedicated threads (4~32), custom save directories, and proxy network modes per task.
-
-<p align="center">
-  <img src="docs/images/app_new_task.png" width="82%" alt="New Task Dialog Screenshot">
-</p>
-
----
-
-### 3. FFmpeg Professional Multimedia Toolbox (Conversion & Post-Processing)
-> Built-in out-of-the-box media workstation: Single & batch format conversion (MP4/MKV/TS/MOV), audio-video muxing, lossless audio extraction, fast video trimming, and stream probing.
-
-<p align="center">
-  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg Toolbox Screenshot">
-</p>
-
----
-
-### 4. Seamless International Stream Sniffing (YouTube Example)
-> A sleek floating capsule discreetly appears during video playback. Automatically captures real resolution, audio streams, duration, and pushes tasks directly via the identical proxy tunnel.
-
-<p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube Video Sniffer Capsule">
-</p>
-
----
-
-### 5. Web Stream Sniffing & One-Click Push (Auto-Align Browser Proxy)
-> A compact card surfaces genuine video resolutions, duration, and format. One-click aligns with browser proxy and dispatches high-speed downloads to the desktop client.
-
-<p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="Web Video Sniffer Card">
-</p>
-
----
-
-### 6. Desktop Task Monitor & Quick Tools Hub
-> Click the floating orb to expand the live monitoring dashboard: inspect active downloads, global transfer rate, and launch Batch Converter, FFmpeg Toolbox, or Video Extractor instantly.
-
-<p align="center">
-  <img src="docs/images/app_floating_panel.png" width="68%" alt="Desktop Task Monitor & Tools Hub">
-</p>
-
----
-
-### 7. Futuristic Mini Celestial Floating Orb (Live Status Tracking)
-> Sci-fi inspired mini planet widget with desktop dragging, edge snapping, and scaling. Stay updated on ready tasks, download progress, and global throughput at any time.
-
-<p align="center">
-  <img src="docs/images/app_floating_widget.png" width="28%" alt="Desktop Floating Widget">
-</p>
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <b>⚡ New Task & Deep URL / Series Parser</b><br>
+      <sub>Per-task thread count (4~32), directory, and proxy routing</sub><br><br>
+      <img src="docs/images/app_new_task.png" width="95%" alt="New Task Dialog">
+    </td>
+    <td width="50%" align="center">
+      <b>🧰 Built-in FFmpeg Multimedia Toolbox</b><br>
+      <sub>Lossless remux, batch convert, audio extract & fast trim</sub><br><br>
+      <img src="docs/images/app_ffmpeg_toolbox.png" width="95%" alt="FFmpeg Toolbox">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>🌍 International Stream Sniffing (YouTube)</b><br>
+      <sub>Floating download capsule auto-aligned with browser proxy</sub><br><br>
+      <img src="docs/images/web_capsule_youtube.png" width="95%" alt="YouTube Capsule">
+    </td>
+    <td width="50%" align="center">
+      <b>🎯 Task Monitor & Quick Tools Hub</b><br>
+      <sub>Live throughput tracking and instant access to tools</sub><br><br>
+      <img src="docs/images/app_floating_panel.png" width="95%" alt="Desktop Monitor Hub">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>🧩 Smart Web Sniffer Card</b><br>
+      <sub>Displays exact resolution, FPS, codecs & 1-click push</sub><br><br>
+      <img src="docs/images/web_capsule_bilibili.png" width="90%" alt="Web Sniffer Card">
+    </td>
+    <td width="50%" align="center">
+      <b>🪐 Celestial Floating Orb</b><br>
+      <sub>Draggable edge-snapping widget with live speed telemetry</sub><br><br>
+      <img src="docs/images/app_floating_widget.png" width="48%" alt="Desktop Floating Widget">
+    </td>
+  </tr>
+</table>
 
 
 ## 📦 Releases & Downloads
@@ -155,14 +139,14 @@ You can obtain the latest release of StarStream via the following distribution c
 
 | Distribution Channel | Included Components | Recommended For | Direct Download Link |
 |---|---|---|---|
-| **⭐ Recommended: StarStream_v3.2.3_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | **Highly recommended if you do NOT have FFmpeg / N_m3u8DL**, zero setup required | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
-| **🚀 Standalone Executable: StarStream.exe (82.5MB)** | Standalone compiled executable binary | **For users who already have FFmpeg or N_m3u8DL**, auto-scans system path; **please run in a clean dedicated folder** | [👉 Download StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
-| **🧩 Companion: Browser Sniffer Extension (v3.2.3)** | Clean extension package (177KB), MV3 detection, browser proxy auto-align | Sniffs web video, clean tab view, duration/quality sort | [👉 Download Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
+| **⭐ Recommended: StarStream_v3.2.7_Portable.zip** | Built-in **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + Extension Source | **Highly recommended if you do NOT have FFmpeg / N_m3u8DL**, zero setup required | [👉 Download Portable Package](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
+| **🚀 Standalone Executable: StarStream.exe (82.5MB)** | Standalone compiled executable binary | **For users who already have FFmpeg or N_m3u8DL**, auto-scans system path; **please run in a clean dedicated folder** | [👉 Download StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
+| **🧩 Companion: Browser Sniffer Extension (v3.2.7)** | Clean extension package (177KB), MV3 detection, browser proxy auto-align | Sniffs web video, clean tab view, duration/quality sort | [👉 Download Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
 | **GitHub Releases Page** | View all release notes, history and asset checksums | Full version history | [👉 Visit Releases](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **Download & Installation Advice (Important Guide)**:
 > 1. **For users without FFmpeg or N_m3u8DL installed**:
->    👉 **Highly Recommended: Download the Portable Package (`StarStream_v3.2.3_Portable.zip`)**! It comes pre-packaged with all required prerequisite engines (`ffmpeg.exe` and `N_m3u8DL-RE.exe`). Simply unzip and run—no extra setup required.
+>    👉 **Highly Recommended: Download the Portable Package (`StarStream_v3.2.7_Portable.zip`)**! It comes pre-packaged with all required prerequisite engines (`ffmpeg.exe` and `N_m3u8DL-RE.exe`). Simply unzip and run—no extra setup required.
 > 2. **For users who already have FFmpeg or N_m3u8DL**:
 >    👉 **You can directly download the standalone executable (`StarStream.exe`)**! Upon startup, StarStream will automatically scan system paths (`PATH`) and standard directories to detect and bind your existing prerequisite tools.
 > 3. **⚠️ Important Usage Tip**:
@@ -349,3 +333,15 @@ Every star helps more people discover the project — and keeps the updates comi
 </a>
 
 </div>
+
+---
+
+## ⭐ Support & Star History
+
+If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
+  </a>
+</p>

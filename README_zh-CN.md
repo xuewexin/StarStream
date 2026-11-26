@@ -16,7 +16,7 @@
 
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 星流媒体下载器 (StarStream Pro)
@@ -75,17 +75,16 @@
 ---
 
 > [!TIP]
-> ### 🆕 最新版本 v3.2.7 · 2026-11-15
+> ### 🆕 最新版本 v3.2.7 · 2026-11-26
 >
-> | 更新 | 说明 |
+> | 核心更新 | 说明 |
 > | --- | --- |
-> | 🎬 **DASH 独立音视频 100% 混流闭环** | 彻底修复 `TaskManager` 任务池 `audio_url` 字段丢失缺陷，重构 FFmpeg 显式流映射（`-map 0:v:0 -map 1:a:0`）与 AAC 自动降级转码混流，彻底根除**预览有声音但下载无声音** |
-> | 🛡️ **安全风控与人机验证异常穿透** | 自动捕获 HTTP 412 / 极验 / 验证码 / Cloudflare 拦截；客户端标记 `需人机认证` 并支持一键唤起真实浏览器，扩展端一键回传新凭证即时复活断点续传 |
-> | 🌐 **动态对齐爬取浏览器指纹** | 解除 Token/Cookie 刷新参数写死，动态跟随嗅探到视频流的真实浏览器（Edge / Chrome）User-Agent 与 Client Hints 凭证，规避反爬指纹拦截 |
-> | 🖱️ **隐藏窗口穿透反馈根除** | 彻底修复客户端主窗口在隐藏（最小化到系统托盘或桌面悬浮球）后，原主窗口屏幕位置依然响应鼠标点击和穿透反馈的问题 |
+> | 📺 **同系列 / 剧集一键批量爬取** | 扩展端自动扫描页内选集列表；服务端深度适配 MacCMS `player_aaaa`、`ev:{d,k}` 与 `StreamitVideoPlyr` 异步流接口，自动按正序重排集数并以**剧集真实名称命名专属文件夹** |
+> | 🎯 **浏览器扩展精准元数据探测** | 解析 `Content-Range` 获取真实总文件大小；解析 M3U8 `RESOLUTION` / `FRAME-RATE` / `CODECS` / `BANDWIDTH` / 分片数并智能估算体积；内置 65ms 防抖增量渲染流畅不卡顿 |
+> | 🎨 **Obsidian Glass 无间隙桌面 UI** | 消除侧边栏与任务列表分栏空隙及多余滚动条，统一任务列宽展示进度、速度与规格，优化工具栏交互反馈 |
+> | 🎬 **DASH 双流 100% 混流 + 风控穿透** | 彻底根除“预览有声、下载无声”，支持 HTTP 412 / 人机验证一键回传真实浏览器 Cookie & User-Agent 断点恢复 |
 >
-> 👉 [查看完整更新日志 CHANGELOG](CHANGELOG.md) · [下载最新版](https://github.com/xuewexin/StarStream/releases/latest)
-
+> 👉 [查看完整更新日志 CHANGELOG](CHANGELOG.md) · [下载最新版 v3.2.7](https://github.com/xuewexin/StarStream/releases/tag/v3.2.7)
 ---
 
 ## 🎯 一句话了解 StarStream
@@ -104,66 +103,51 @@
 
 ## 📸 应用实机展示
 
-### 1. 桌面端主控中心 (沉浸式 Dark Slate 灰蓝工业级 UI)
-> 全矢量高精度图标，全状态监控一目了然：本地监听端口 `18910` 就绪、`FFmpeg` 就绪、`N_m3u8DL (RE)` 引擎就绪、网络代理实时状态指示与一键极速切换。
+### 🖥️ 桌面端主控中心 (Obsidian Glass 无间隙暗夜工业 UI)
+> 全矢量高精度图标，全状态监控一目了然：本地 RPC 监听端口 `18910` 就绪、`FFmpeg` 就绪、`N_m3u8DL (RE)` 引擎就绪，11 列核心任务数据同屏完整呈现。
 
 <p align="center">
-  <img src="docs/images/app_main_window.png" width="92%" alt="桌面端主控中心实机截图">
+  <img src="docs/images/app_main_window.png" width="94%" alt="桌面端主控中心实机截图">
 </p>
 
----
-
-### 2. 新建下载任务与深度逆向解析 (智能代理与独立并发配置)
-> 支持全网主流视频分享口令与链接一键粘贴解析。针对单个任务独立配置并发线程数（4~32 线程）、专用保存目录与网络代理模式（直连 / 本地代理 / 跟随全局）。
-
-<p align="center">
-  <img src="docs/images/app_new_task.png" width="82%" alt="新建任务与代理配置对话框">
-</p>
-
----
-
-### 3. FFmpeg 多媒体专业处理工具箱 (格式转换与音视频后处理)
-> 开箱即用内置专业级媒体工具箱：支持单文件/批量格式转换（MP4/MKV/TS/MOV）、音视频混流、无损音频提取、视频无损剪切与媒体元数据探测。
-
-<p align="center">
-  <img src="docs/images/app_ffmpeg_toolbox.png" width="82%" alt="FFmpeg 专业处理工具箱">
-</p>
-
----
-
-### 4. 海外流媒体无感嗅探 (以 YouTube 为例)
-> 访问各类海外流媒体播放视频时，播放器右上角无感浮现【下载视频】胶囊。自动捕获真实分辨率、音频流与播放时长，自动对齐浏览器代理并支持一键推送到桌面端。
-
-<p align="center">
-  <img src="docs/images/web_capsule_youtube.png" width="82%" alt="YouTube 网页视频一键悬浮胶囊嗅探">
-</p>
-
----
-
-### 5. 主流网页视频智能嗅探与直推下载 (自动对齐浏览器代理)
-> 在任意网页播放视频时，播放器右上角无感浮现下载胶囊。直观呈现真实分辨率、时长与格式，一键对齐浏览器代理并推送至桌面客户端高速下载。
-
-<p align="center">
-  <img src="docs/images/web_capsule_bilibili.png" width="58%" alt="网页视频智能悬浮嗅探卡片">
-</p>
-
----
-
-### 6. 桌面任务监控与便捷工具中心
-> 点击悬浮球即刻展开监控面板：实时查看正在进行的下载任务进度、全局下载速率，并一键呼出格式转换、FFmpeg 工具箱与短视频提取工作台。
-
-<p align="center">
-  <img src="docs/images/app_floating_panel.png" width="68%" alt="桌面任务监控与工具中心">
-</p>
-
----
-
-### 7. 灵动微型太空星球悬浮球 (随时掌握任务动态)
-> 极具科技感的迷你太空星球悬浮球，支持桌面任意拖拽、智能贴边吸附与多级缩放，实时掌握就绪任务数与全局传输动态。
-
-<p align="center">
-  <img src="docs/images/app_floating_widget.png" width="28%" alt="桌面迷你悬浮监控挂件">
-</p>
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <b>⚡ 新建任务与深度逆向解析</b><br>
+      <sub>支持口令/选集解析、独立线程与代理节点配置</sub><br><br>
+      <img src="docs/images/app_new_task.png" width="95%" alt="新建任务与代理配置">
+    </td>
+    <td width="50%" align="center">
+      <b>🧰 内置 FFmpeg 专业多媒体工具箱</b><br>
+      <sub>支持格式无损转换、音视频混流、音频提取与无损剪切</sub><br><br>
+      <img src="docs/images/app_ffmpeg_toolbox.png" width="95%" alt="FFmpeg 工具箱">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>🌍 海外流媒体无感嗅探 (YouTube)</b><br>
+      <sub>播放器右上角自动浮现胶囊，对齐代理直推客户端</sub><br><br>
+      <img src="docs/images/web_capsule_youtube.png" width="95%" alt="YouTube 悬浮胶囊">
+    </td>
+    <td width="50%" align="center">
+      <b>🎯 浏览器扩展精准嗅探与桌面监控中心</b><br>
+      <sub>一键查看捕获分辨率/码率/时长与实时下载监控</sub><br><br>
+      <img src="docs/images/app_floating_panel.png" width="95%" alt="桌面监控面板">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <b>🧩 主流站点智能嗅探卡片</b><br>
+      <sub>直观呈现真实分辨率、时长与编码并一键推送</sub><br><br>
+      <img src="docs/images/web_capsule_bilibili.png" width="90%" alt="网页视频智能悬浮嗅探卡片">
+    </td>
+    <td width="50%" align="center">
+      <b>🪐 灵动太空星球悬浮球</b><br>
+      <sub>支持桌面拖拽贴边与实时传输速率监控</sub><br><br>
+      <img src="docs/images/app_floating_widget.png" width="48%" alt="桌面迷你悬浮监控挂件">
+    </td>
+  </tr>
+</table>
 
 
 ## 📦 软件版本与下载 (Releases)
@@ -172,14 +156,14 @@
 
 | 下载方式 | 包含组件 | 适用场景 | 官方下载链接 |
 |---|---|---|---|
-| **⭐ 推荐：StarStream_v3.2.3_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | **强烈推荐未安装 FFmpeg / N_m3u8DL 的用户**，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
-| **🚀 独立单文件版：StarStream.exe (82.5MB)** | 最新编译独立单文件可执行程序 (内置全部依赖) | **适合本地已有 FFmpeg 或 N_m3u8DL 的用户**，自动全盘扫描识别依赖；**请放入独立空白文件夹运行** | [👉 点击直接下载 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
-| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.2.3)** | 纯插件源码包 (仅 177KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
+| **⭐ 推荐：StarStream_v3.2.7_Portable.zip 全套便携包** | 内置完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 浏览器插件源码 | **强烈推荐未安装 FFmpeg / N_m3u8DL 的用户**，解压即用，全套核心内置 | [👉 点击下载 Portable 便携包](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
+| **🚀 独立单文件版：StarStream.exe (82.5MB)** | 最新编译独立单文件可执行程序 (内置全部依赖) | **适合本地已有 FFmpeg 或 N_m3u8DL 的用户**，自动全盘扫描识别依赖；**请放入独立空白文件夹运行** | [👉 点击直接下载 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
+| **🧩 必装搭档：浏览器嗅探插件独立包 (v3.2.7)** | 纯插件源码包 (仅 177KB)，含 MV3 嗅探/自动匹配浏览器代理/画质时长智能排序 | 嗅探网页视频、当前页面纯净展示、按时长画质降序置顶 | [👉 点击下载 Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
 | **GitHub Releases 官方发行版主页** | 查看所有发布版本、更新日志与资产列表 | 追溯所有更新与校验包 | [👉 访问 Releases 页面](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **下载与使用重要建议 (必读指南)**：
 > 1. **未安装 FFmpeg 与 N_m3u8DL 的用户**：
->    👉 **强烈建议直接下载【便携完整包 (`StarStream_v3.2.3_Portable.zip`)】**！便携包内已预置并配置好了全部必需的 `ffmpeg.exe` 与 `N_m3u8DL-RE.exe` 核心引擎，解压即可直接使用，无需任何环境配置。
+>    👉 **强烈建议直接下载【便携完整包 (`StarStream_v3.2.7_Portable.zip`)】**！便携包内已预置并配置好了全部必需的 `ffmpeg.exe` 与 `N_m3u8DL-RE.exe` 核心引擎，解压即可直接使用，无需任何环境配置。
 > 2. **本地已有 FFmpeg 或 N_m3u8DL 的用户**：
 >    👉 **可以直接下载单文件【独立主程序 (`StarStream.exe`)】**！星流在首次启动时会自动全盘扫描系统环境变量（`PATH`）与常见目录，智能识别并自动挂载这两个前置依赖工具，无需重复配置。
 > 3. **⚠️ 运行注意事项 (强烈建议)**：

@@ -280,6 +280,30 @@
       }
     }
 
+    // 优化合集文件夹命名：优先提取 "系列 · 剧名" 或多集共同前缀，避免取到网站品牌名
+    const mSer = (document.title || '').match(/(?:系列|合集|剧集)\s*[·:：]\s*([^|—\-]+)/);
+    if (mSer && mSer[1].trim()) {
+      seriesTitle = mSer[1].trim();
+    } else if (episodes.length >= 2) {
+      const ep0Base = String(episodes[0].title || '').replace(/\s*[·\-—]\s*第?\s*\d+\s*[集话期章节].*$/, '').trim();
+      if (ep0Base.length >= 2 && episodes.slice(0, 3).every((ep) => String(ep.title || '').includes(ep0Base))) {
+        seriesTitle = ep0Base;
+      }
+    }
+    if (episodes.length >= 2) {
+      const hasNum = episodes.some((ep) => /第\s*\d+\s*[集话期章节]/.test(ep.title || ''));
+      if (hasNum) {
+        episodes.sort((a, b) => {
+          const ma = String(a.title || '').match(/第\s*(\d+)\s*[集话期章节]/);
+          const mb = String(b.title || '').match(/第\s*(\d+)\s*[集话期章节]/);
+          const na = ma ? parseInt(ma[1], 10) : 999999;
+          const nb = mb ? parseInt(mb[1], 10) : 999999;
+          return na !== nb ? na - nb : a.index - b.index;
+        });
+        episodes.forEach((ep, idx) => { ep.index = idx + 1; });
+      }
+    }
+
     return {
       has_series: episodes.length > 1,
       series_title: seriesTitle || pageTitle,
@@ -824,7 +848,7 @@
           if (!taskData.headers[k]) delete taskData.headers[k];
         });
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2500);
+        const timer = setTimeout(() => controller.abort(), 8000);
         const resp = await fetch(`http://127.0.0.1:18910/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -850,9 +874,9 @@
             pushBtn.textContent = t('cap_pushed', '已加入下载队列');
             pushBtn.className = 'catcatch-btn success';
           } else {
-            pushBtn.textContent = t('cap_client_offline', '客户端未连接');
+            pushBtn.textContent = (res && res.error) ? '推送失败' : t('cap_client_offline', '客户端未连接');
           }
-          setTimeout(() => removeFloatingBar(), 1500);
+          setTimeout(() => removeFloatingBar(), 1800);
         });
       }
     });

@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 StarStream Pro - 미디어 다운로더
@@ -70,7 +70,7 @@
 
 
 > [!TIP]
-> ### 🆕 최신 버전 v3.2.7 · 2026-11-15
+> ### 🆕 최신 버전 v3.2.7 · 2026-11-26
 >
 > - 🎬 **DASH 오디오/비디오 100% 리먹싱 수정** — `TaskManager`의 `audio_url` 누락 결함을 완벽 수정. FFmpeg 명시적 스트림 매핑 (`-map 0:v:0 -map 1:a:0`) 및 AAC 자동 트랜스코딩 폴백을 도입하여 미리보기에서는 소리가 나지만 다운로드 파일에 소리가 없는 문제를 완전히 해결!
 > - 🛡️ **보안 리스크 제어 및 CAPTCHA 돌파 메커니즘** — HTTP 412 / Geetest / Cloudflare 챌린지 감지. 원클릭 브라우저 인증을 호출하고 새 자격 증명을 클라이언트에 즉시 동기화하여 중단 없는 다운로드 재개.
@@ -298,3 +298,15 @@ flowchart TD
 
 ### 🏷️ Search Topics & SEO Keywords
 `m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+---
+
+## ⭐ Support & Star History
+
+If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
+  </a>
+</p>

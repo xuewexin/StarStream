@@ -222,12 +222,18 @@ chrome.webRequest.onHeadersReceived.addListener(
     let contentDisposition = "";
 
     if (details.responseHeaders) {
+      let rangeTotal = 0;
       for (const h of details.responseHeaders) {
         const key = h.name.toLowerCase();
         if (key === "content-type") contentType = h.value.toLowerCase();
         if (key === "content-length") contentLength = parseInt(h.value, 10) || 0;
+        if (key === "content-range") {
+          const rm = String(h.value).match(/\/(\d+)\s*$/);
+          if (rm) rangeTotal = parseInt(rm[1], 10) || 0;
+        }
         if (key === "content-disposition") contentDisposition = h.value;
       }
+      if (rangeTotal > contentLength) contentLength = rangeTotal;
     }
 
     // 过滤纯粹微小切片类型 (video/mp2t 为 TS 切片, video/iso.segment 为 DASH 分片)
@@ -749,38 +755,49 @@ async function parseM3u8Metadata(entry) {
 
   const isMasterPlaylist = /#EXT-X-STREAM-INF/i.test(text);
   let resolution = "";
+  let bandwidth = 0;
+  let fps = 0;
+  let codecs = "";
   let duration = 0;
+  let segmentCount = 0;
   let hasKey = false;
   let keyUrl = "";
   let direct1080Url = "";
 
-  if (isMasterPlaylist) {
-    // 主清单 (Master Playlist)：解析内部各画质变体，提取最高画质
-    const resMatches = [...text.matchAll(/RESOLUTION=(\d+x\d+)/gi)];
-    if (resMatches.length > 0) {
-      let maxHeight = 0;
-      let bestRes = "";
-      for (const m of resMatches) {
-        const parts = m[1].split('x');
-        const h = parseInt(parts[1], 10) || 0;
-        if (h > maxHeight) {
-          maxHeight = h;
-          bestRes = m[1];
-        }
-      }
-      resolution = bestRes || resMatches[0][1];
-    } else {
-      resolution = "最高画质";
-    }
+  function parseCodecTag(rawCodecs) {
+    const c = String(rawCodecs || "").toLowerCase();
+    if (c.includes("av01")) return "AV1";
+    if (c.includes("hvc1") || c.includes("hev1")) return "H.265";
+    if (c.includes("avc1")) return "H.264";
+    if (c.includes("vp09") || c.includes("vp9")) return "VP9";
+    return "";
+  }
 
-    // 检查是否存在 1080p 子清单相对地址
+  if (isMasterPlaylist) {
+    // 主清单 (Master Playlist)：解析内部各画质变体，提取最高画质、码率、帧率与编码
     const lines = text.split(/\r?\n/);
     let pendingInf = "";
+    let bestScore = -1;
+    let bestRes = "";
     for (const line of lines) {
       const trimmed = line.trim();
       if (trimmed.startsWith("#EXT-X-STREAM-INF")) {
         pendingInf = trimmed;
       } else if (pendingInf && trimmed && !trimmed.startsWith("#")) {
+        const rm = pendingInf.match(/RESOLUTION=(\d+x\d+)/i);
+        const bm = pendingInf.match(/(?:AVERAGE-)?BANDWIDTH=(\d+)/i);
+        const fm = pendingInf.match(/FRAME-RATE=([\d.]+)/i);
+        const cm = pendingInf.match(/CODECS="([^"]+)"/i);
+        const h = rm ? (parseInt(rm[1].split("x")[1], 10) || 0) : 0;
+        const bw = bm ? (parseInt(bm[1], 10) || 0) : 0;
+        const score = h * 10000000 + bw;
+        if (score > bestScore) {
+          bestScore = score;
+          if (rm) bestRes = rm[1];
+          if (bw > 0) bandwidth = bw;
+          if (fm) fps = Math.round(parseFloat(fm[1]) || 0);
+          if (cm) codecs = parseCodecTag(cm[1]);
+        }
         if (/1920x1080|1080/i.test(pendingInf) || /1080p/i.test(trimmed)) {
           try {
             direct1080Url = new URL(trimmed, entry.url).href;
@@ -789,8 +806,9 @@ async function parseM3u8Metadata(entry) {
         pendingInf = "";
       }
     }
+    resolution = bestRes || "最高画质";
   } else {
-    // 媒体子清单：提取分辨率
+    // 媒体子清单：提取分辨率与编码信息
     const resMatch = text.match(/RESOLUTION=(\d+x\d+)/i);
     if (resMatch) {
       resolution = resMatch[1];
@@ -808,10 +826,11 @@ async function parseM3u8Metadata(entry) {
     }
   }
 
-  // 计算切片总时长
+  // 计算切片总时长与分片数量
   const durMatches = text.matchAll(/#EXTINF:([\d.]+)/g);
   for (const m of durMatches) {
     duration += parseFloat(m[1]) || 0;
+    segmentCount += 1;
   }
 
   const { mediaList = [] } = await chrome.storage.local.get("mediaList");
@@ -819,33 +838,36 @@ async function parseM3u8Metadata(entry) {
   const hasEndlist = text.includes("#EXT-X-ENDLIST");
   if (item) {
     if (resolution) item.resolution = resolution;
+    if (bandwidth > 0) item.bandwidth = bandwidth;
+    if (fps > 0) item.fps = fps;
+    if (codecs) item.codecs = codecs;
+    if (segmentCount > 0) item.segmentCount = segmentCount;
     if (isMasterPlaylist) {
       item.isMaster = true;
       item.isFeature = true;
       item.isAd = false;
       if (direct1080Url) item.direct1080Url = direct1080Url;
-      // 不再从同标签页随便找一个有 duration 的条目来"继承"：
-      // 同一页面可能同时存在 6 秒预告片和 3 小时正片，继承会把短片段撑成数小时。
-      // 真实时长交给播放器的 UPDATE_MEDIA_METADATA（按 streamUrl 精确绑定）补齐。
     } else if (duration > 0) {
       const playlistDur = Math.round(duration);
       if (!hasEndlist) {
-        // 直播式清单（无 ENDLIST）这里只是当前滑动窗口的时长，
-        // 绝不能拿它覆盖播放器报出的真实总时长，否则会出现「1:57:22 变成 0:06」
         if (!item.duration) item.duration = playlistDur;
         item.isLive = true;
       } else if (playlistDur > (item.duration || 0)) {
-        // 点播清单：仅用更长的清单总时长补齐，绝不缩短已有真实时长
         item.duration = playlistDur;
       }
-      // 只回写"自己所属"的 master（通过 masterUrl 精确匹配），
-      // 不再随便挑同标签页的 master，避免把某条流的时长写到别的视频上
       if (item.masterUrl) {
         const ownMaster = mediaList.find((it) => it.tabId === item.tabId && it.url === item.masterUrl);
-        if (ownMaster && playlistDur > (ownMaster.duration || 0)) {
-          ownMaster.duration = playlistDur;
+        if (ownMaster) {
+          if (playlistDur > (ownMaster.duration || 0)) ownMaster.duration = playlistDur;
+          if (segmentCount > 0 && !ownMaster.segmentCount) ownMaster.segmentCount = segmentCount;
+          if (ownMaster.bandwidth > 0 && ownMaster.duration > 0 && !ownMaster.contentLength) {
+            ownMaster.estimatedSize = Math.round((ownMaster.bandwidth / 8) * ownMaster.duration);
+          }
         }
       }
+    }
+    if (item.bandwidth > 0 && item.duration > 0 && !item.contentLength) {
+      item.estimatedSize = Math.round((item.bandwidth / 8) * item.duration);
     }
 
     if (hasKey) {
@@ -1213,7 +1235,7 @@ async function pushTaskToLocalClient(taskData) {
   for (const host of ['127.0.0.1', 'localhost']) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 3500);
+      const timer = setTimeout(() => controller.abort(), 8000);
       const resp = await fetch(`http://${host}:18910/api/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1223,6 +1245,13 @@ async function pushTaskToLocalClient(taskData) {
       clearTimeout(timer);
       if (resp.ok) {
         return await resp.json();
+      } else {
+        try {
+          const errJson = await resp.json();
+          return { success: false, error: errJson.error || `HTTP ${resp.status}` };
+        } catch (e) {
+          return { success: false, error: `HTTP ${resp.status}` };
+        }
       }
     } catch (e) {}
   }

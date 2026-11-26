@@ -1099,12 +1099,23 @@
     loadAndRenderMedia();
   }
 
+  let _renderTimer = null;
+  function scheduleLoadAndRenderMedia() {
+    if (_renderTimer) clearTimeout(_renderTimer);
+    _renderTimer = setTimeout(() => {
+      _renderTimer = null;
+      loadAndRenderMedia();
+    }, 65);
+  }
+
   async function loadAndRenderMedia() {
     const res = await chrome.storage.local.get('mediaList');
     mediaList = (res.mediaList || []).filter((it) => !isFragmentUrl(it.url));
-    renderList();
-    updateCategoryCounts();
-    updateBatchBar();
+    requestAnimationFrame(() => {
+      renderList();
+      updateCategoryCounts();
+      updateBatchBar();
+    });
   }
 
   /** 把 "1920x1080" / "1080P" / "4K" 等写法统一换成画面高度数值，解析不出来返回 0 */
@@ -1374,6 +1385,16 @@
     if (resLabel) {
       tagsHtml += `<span class="tag-badge tag-res">${escapeHtml(resLabel)}</span>`;
     }
+    if (item.fps && item.fps > 0) {
+      tagsHtml += `<span class="tag-badge tag-fps">${item.fps}fps</span>`;
+    }
+    if (item.codecs) {
+      tagsHtml += `<span class="tag-badge tag-codec">${escapeHtml(item.codecs)}</span>`;
+    }
+    if (item.bandwidth && item.bandwidth > 0) {
+      const mbps = (item.bandwidth / 1000000).toFixed(1);
+      tagsHtml += `<span class="tag-badge tag-bitrate">${mbps} Mbps</span>`;
+    }
     const durLabel = formatDurationLabel(item.duration);
     if (durLabel) {
       tagsHtml += `<span class="tag-badge tag-dur">${durLabel}</span>`;
@@ -1382,6 +1403,11 @@
     }
     if (item.contentLength > 0) {
       tagsHtml += `<span class="tag-badge tag-size">${formatSize(item.contentLength)}</span>`;
+    } else if (item.estimatedSize > 0) {
+      tagsHtml += `<span class="tag-badge tag-size" title="基于码率与时长估算">~${formatSize(item.estimatedSize)}</span>`;
+    }
+    if (item.segmentCount > 0) {
+      tagsHtml += `<span class="tag-badge tag-segs">${item.segmentCount}片</span>`;
     }
     if (item.hasKey) {
       tagsHtml += `<span class="tag-badge tag-key">${t('tag_encrypted', '加密 (AES-128)')}</span>`;
@@ -1647,9 +1673,10 @@
       });
 
       let pushed = false;
+      let serverErr = '';
       try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 2500);
+        const timer = setTimeout(() => controller.abort(), 8000);
         const resp = await fetch(`http://127.0.0.1:${clientPort}/api/tasks`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1664,17 +1691,31 @@
           pushBtn.style.color = '#ffffff';
           pushBtn.disabled = false;
           return;
+        } else if (resp) {
+          try {
+            const errJson = await resp.json();
+            serverErr = errJson.error || errJson.message || `HTTP ${resp.status}`;
+          } catch (e) {
+            serverErr = `HTTP ${resp.status}`;
+          }
         }
       } catch (err) {}
 
       if (!pushed) {
+        if (serverErr) {
+          pushBtn.textContent = '推送失败';
+          pushBtn.title = serverErr;
+          pushBtn.disabled = false;
+          return;
+        }
         chrome.runtime.sendMessage({ action: 'PUSH_TO_CLIENT', data: taskData }, (res) => {
           if (res && res.success) {
             pushBtn.textContent = t('cap_pushed', '已加入队列');
             pushBtn.style.backgroundColor = '#166534';
             pushBtn.style.color = '#ffffff';
           } else {
-            pushBtn.textContent = t('status_offline', '客户端离线');
+            pushBtn.textContent = res && res.error ? '推送失败' : t('status_offline', '客户端离线');
+            if (res && res.error) pushBtn.title = res.error;
           }
           pushBtn.disabled = false;
         });

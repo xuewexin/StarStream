@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 StarStream Pro - Medien-Downloader
@@ -70,7 +70,7 @@
 
 
 > [!TIP]
-> ### 🆕 Neueste Version v3.2.7 · 2026-11-15
+> ### 🆕 Neueste Version v3.2.7 · 2026-11-26
 >
 > - 🎬 **100% DASH Audio/Video-Remuxing behoben** — Vollständige Behebung des fehlenden `audio_url`-Feldes im TaskManager. Explizites FFmpeg-Stream-Mapping (`-map 0:v:0 -map 1:a:0`) mit AAC-Transcodierungs-Fallback : Behebt das Problem, dass die Vorschau Ton hat, der Download jedoch stumm ist!
 > - 🛡️ **Umgehung von Sicherheits- und CAPTCHA-Herausforderungen** — Erkennt HTTP 412 und Cloudflare-Challenges; 1-Klick-Browser-Verifizierung und sofortige Token-Synchronisierung zur nahtlosen Fortsetzung des Downloads.
@@ -245,3 +245,15 @@ Nach Erhalt der E-Mail werden wir uns schnellstmöglich um Ihr Anliegen kümmern
 
 ### 🏷️ Search Topics & SEO Keywords
 `m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+---
+
+## ⭐ Support & Star History
+
+If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
+  </a>
+</p>

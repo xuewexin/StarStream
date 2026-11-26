@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 StarStream Pro - Baixador de Mídia
@@ -69,7 +69,7 @@
 
 
 > [!TIP]
-> ### 🆕 Versão mais recente v3.2.7 · 2026-11-15
+> ### 🆕 Versão mais recente v3.2.7 · 2026-11-26
 >
 > - 🎬 **Correção de 100% na multiplexação de áudio/vídeo DASH** — Corrigida a perda de `audio_url` no TaskManager; novo mapeamento explícito de fluxos no FFmpeg (`-map 0:v:0 -map 1:a:0`) com fallback para transcodificação AAC : adeus aos vídeos baixados sem áudio!
 > - 🛡️ **Superação de desafios de segurança e CAPTCHA** — Captura de HTTP 412 e bloqueios da Cloudflare com resolução no navegador e ressincronização imediata de credenciais.
@@ -242,3 +242,15 @@ Responderemos e atenderemos às suas dúvidas e sugestões o mais rápido possí
 
 ### 🏷️ Search Topics & SEO Keywords
 `m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+---
+
+## ⭐ Support & Star History
+
+If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
+  </a>
+</p>

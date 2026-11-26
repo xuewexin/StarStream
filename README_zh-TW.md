@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/images/starstream_logo.png" width="128" height="128" alt="StarStream Logo">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
 </p>
 
 # 🌟 星流媒體下載器 (StarStream Pro)
@@ -69,7 +69,7 @@
 ---
 
 > [!TIP]
-> ### 🆕 最新版本 v3.2.7 · 2026-11-15
+> ### 🆕 最新版本 v3.2.7 · 2026-11-26
 >
 > | 更新 | 說明 |
 > | --- | --- |
@@ -152,14 +152,14 @@
 
 | 下載方式 | 包含組件 | 適用場景 | 下載連結 |
 |---|---|---|---|
-| **⭐ 推薦：StarStream_v3.2.3_Portable.zip 全套免安裝包** | 內建完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 瀏覽器插件源碼 | **強烈推薦未安裝 FFmpeg / N_m3u8DL 的使用者**，解壓即用，全套核心內建 | [👉 下載 Portable 免安裝包](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_v3.2.3_Portable.zip) |
-| **🚀 獨立單檔案版：StarStream.exe (82.5MB)** | 最新編譯獨立單檔案可執行程式 (內建全部相依性) | **適合本機已有 FFmpeg 或 N_m3u8DL 的使用者**，自動全盤掃描識別相依性；**請放入獨立空白資料夾執行** | [👉 點選直接下載 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream.exe) |
-| **🧩 必裝搭檔：瀏覽器探測插件獨立包 (v3.2.3)** | 純插件原始碼包 (僅 177KB)，含 MV3 探測/自動匹配瀏覽器代理/畫質時長智慧排序 | 探測網頁影片、當前頁面純淨展示、按時長畫質降序置頂 | [👉 下載 Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.3/StarStream_Browser_Extension_v3.2.3.zip) |
+| **⭐ 推薦：StarStream_v3.2.7_Portable.zip 全套免安裝包** | 內建完整 **StarStream.exe** + **N_m3u8DL-RE** + **FFmpeg** + 瀏覽器插件源碼 | **強烈推薦未安裝 FFmpeg / N_m3u8DL 的使用者**，解壓即用，全套核心內建 | [👉 下載 Portable 免安裝包](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_v3.2.7_Portable.zip) |
+| **🚀 獨立單檔案版：StarStream.exe (82.5MB)** | 最新編譯獨立單檔案可執行程式 (內建全部相依性) | **適合本機已有 FFmpeg 或 N_m3u8DL 的使用者**，自動全盤掃描識別相依性；**請放入獨立空白資料夾執行** | [👉 點選直接下載 StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream.exe) |
+| **🧩 必裝搭檔：瀏覽器探測插件獨立包 (v3.2.7)** | 純插件原始碼包 (僅 177KB)，含 MV3 探測/自動匹配瀏覽器代理/畫質時長智慧排序 | 探測網頁影片、當前頁面純淨展示、按時長畫質降序置頂 | [👉 下載 Extension.zip (177KB)](https://github.com/xuewexin/StarStream/releases/download/v3.2.7/StarStream_Browser_Extension_v3.2.7.zip) |
 | **GitHub Releases 官方發行版主頁** | 查看所有發佈版本、更新日誌與資源列表 | 追溯所有更新與校驗包 | [👉 瀏覽 Releases 頁面](https://github.com/xuewexin/StarStream/releases) |
 
 > 💡 **下載與使用重要建議 (必讀指南)**：
 > 1. **未安裝 FFmpeg 與 N_m3u8DL 的使用者**：
->    👉 **強烈建議直接下載【便攜完整包 (`StarStream_v3.2.3_Portable.zip`)】**！便攜包內已預置並配置好了全部必需的 `ffmpeg.exe` 與 `N_m3u8DL-RE.exe` 核心引擎，解壓即可直接使用，無需任何環境配置。
+>    👉 **強烈建議直接下載【便攜完整包 (`StarStream_v3.2.7_Portable.zip`)】**！便攜包內已預置並配置好了全部必需的 `ffmpeg.exe` 與 `N_m3u8DL-RE.exe` 核心引擎，解壓即可直接使用，無需任何環境配置。
 > 2. **本機已有 FFmpeg 或 N_m3u8DL 的使用者**：
 >    👉 **可以直接下載單檔案【獨立主程式 (`StarStream.exe`)】**！星流在首次啟動時會自動全盤掃描系統環境變數（`PATH`）與常見目錄，智慧識別並自動掛載這兩個前置依賴工具，無需重複配置。
 > 3. **⚠️ 執行注意事項 (強烈建議)**：
@@ -306,3 +306,15 @@ flowchart TD
 
 ### 🏷️ 核心技术与检索索引 (Search Topics & Keywords)
 `m3u8-downloader` • `video-downloader` • `catcatch-alternative` • `n-m3u8dl-re-gui` • `simpleg-upgrade` • `ffmpeg-gui` • `hls-stream-sniffer` • `dash-mpd-downloader` • `browser-extension` • `bilibili-video-download` • `douyin-watermark-free` • `chrome-video-extractor` • `yt-dlp-gui` • `stream-recorder` • `idm-alternative` • `media-downloader` • `video-sniffer` • `hls-downloader`
+
+---
+
+## ⭐ Support & Star History
+
+If **StarStream Pro** helps you capture and download media effortlessly, please consider giving this repository a **⭐ Star** and sharing it!
+
+<p align="center">
+  <a href="https://star-history.com/#xuewexin/StarStream&Date">
+    <img src="https://api.star-history.com/svg?repos=xuewexin/StarStream&type=Date" width="85%" alt="Star History Chart">
+  </a>
+</p>
