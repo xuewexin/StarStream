@@ -50,16 +50,18 @@ object SnifferScripts {
                 if (window.__starstream_ignore_re && window.__starstream_ignore_re.test(path)) return;
                 if (/(init\.mp4|init\.m4s|\/bfs\/|bvc_preview|sprite|thumb|cover|avatar)/i.test(clean)) return;
                 const matchedCustom = window.__starstream_ext_re && window.__starstream_ext_re.test(clean);
-                const matchedPlatform = /(\/upgcxcode\/|playurl|douyinvod\.com|iesdouyin\.com|kwaicdn\.com|xhscdn\.com|\/api\/hls\/|302\d{2}\.m4s)/i.test(clean);
-                if (matchedCustom || matchedPlatform) {
+                const matchedAudio = /\.(mp3|m4a|aac|flac|wav|ogg|opus)(\?|#|${'$'})|302\d{2}\.m4s|mime(?:_type)?=audio|\/ies-music\/|douyinstatic\.com.*\.(mp3|m4a)/i.test(clean);
+                const matchedPlatform = /(\/upgcxcode\/|playurl|douyinvod\.com|iesdouyin\.com|douyinstatic\.com|bytevcloudvod\.com|googlevideo\.com\/videoplayback|kwaicdn\.com|xhscdn\.com|\/api\/hls\/|302\d{2}\.m4s)/i.test(clean);
+                if (matchedCustom || matchedPlatform || matchedAudio) {
                   updateDomVideoMeta();
-                  const isVid = /\.(m3u8|mpd|mp4|m4s|flv|webm|mkv|mov|avi)(\?|#|${'$'})/i.test(clean) || matchedPlatform;
+                  const isVid = !matchedAudio && (/\.(m3u8|mpd|mp4|m4s|flv|webm|mkv|mov|avi)(\?|#|${'$'})/i.test(clean) || matchedPlatform);
+                  const resolvedType = mediaType || (matchedAudio ? 'audio' : '');
                   const finalDur = durSec || (isVid ? lastDomDur : 0);
                   const finalRes = resStr || (isVid ? lastDomRes : '');
                   try {
                     window.StarStreamBridge.onMediaFound(
                       absUrl,
-                      mediaType || '',
+                      resolvedType,
                       document.title || '',
                       window.location.href,
                       finalDur,

@@ -657,9 +657,20 @@ class DownloadRunner(
             onProgress()
 
             val outMp4 = File(outDir, "$safeName.mp4")
-            val ok = AndroidMediaMuxer.muxVideoAndAudio(videoTmp, audioTmp, outMp4)
-            if (!ok || !outMp4.exists() || outMp4.length() < 1024) {
-                throw Exception("FFmpeg 音画双轨合成 MP4 失败（请下拉刷新令牌后重试）")
+            // 智能流探测：对于泛网站配对双流 (dual_dash)，若视频文件本身已自带原生音轨，优先保留其原生音画避免误被背景音乐替换；
+            // 若视频轨无声音 (!vIn.second) 或为 B站标准 DASH，立即调用 FFmpeg 进行双轨无损合并！
+            val vIn = AndroidMediaMuxer.probeStreamPresence(videoTmp)
+            if (task.mediaType == "dual_dash" && vIn.first && vIn.second) {
+                task.speedText = "视频自身已含完整音画，正在封装标准 MP4..."
+                onProgress()
+                if (!AndroidMediaMuxer.remuxTsToMp4(videoTmp, outMp4)) {
+                    videoTmp.copyTo(outMp4, overwrite = true)
+                }
+            } else {
+                val ok = AndroidMediaMuxer.muxVideoAndAudio(videoTmp, audioTmp, outMp4)
+                if (!ok || !outMp4.exists() || outMp4.length() < 1024) {
+                    throw Exception("FFmpeg 音画双轨合成 MP4 失败（请下拉刷新令牌后重试）")
+                }
             }
             completedOk = true
             outMp4

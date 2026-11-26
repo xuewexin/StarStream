@@ -618,34 +618,40 @@ async function insertIntoStorage(entry) {
     return;
   }
 
-  // 跨轨智能自动配对：若新录入独立音频，自动挂载到同标签页缺少音频的视频轨
-  if (entry.mediaType === "audio" || (entry.url && entry.url.includes("30280.m4s"))) {
+  // 跨轨智能自动配对：应用到 B站、抖音及所有音视频分离网站（有单独音频与视频即自动配对为一键合并）
+  if (entry.mediaType === "audio" || (entry.url && /302\d{2}\.m4s|mime(?:_type)?=audio|\/ies-music\//i.test(entry.url))) {
     const matchingVideo = mediaList.find(
       (it) =>
-        (it.mediaType === "video" || it.mediaType === "bili_dash") &&
+        (it.mediaType === "video" || it.mediaType === "bili_dash" || it.mediaType === "dual_dash") &&
         !it.audioUrl &&
         (it.tabId === entry.tabId || (entry.pageUrl && it.pageUrl === entry.pageUrl))
     );
     if (matchingVideo) {
       matchingVideo.audioUrl = entry.url;
-      matchingVideo.mediaType = "bili_dash";
-      if (!matchingVideo.pageTitle.includes("【B站音画合一】")) {
-        matchingVideo.pageTitle = `【B站音画合一】${matchingVideo.pageTitle.replace(/^【.*?】\s*/, "")}`;
+      const isBili = isBiliDashUrl(matchingVideo.url) || /bilibili\.com/i.test(matchingVideo.pageUrl || "");
+      const isDy = /douyinvod\.com|douyin\.com|iesdouyin\.com/i.test(matchingVideo.url || matchingVideo.pageUrl || "");
+      matchingVideo.mediaType = isBili ? "bili_dash" : "dual_dash";
+      const tagPrefix = isBili ? "【B站音画合一】" : (isDy ? "【抖音音画合一】" : "【音画合一】");
+      if (!matchingVideo.pageTitle.includes("音画合一")) {
+        matchingVideo.pageTitle = `${tagPrefix}${matchingVideo.pageTitle.replace(/^【.*?】\s*/, "")}`;
       }
     }
-  } else if (entry.mediaType === "video" || entry.mediaType === "bili_dash") {
+  } else if (entry.mediaType === "video" || entry.mediaType === "bili_dash" || entry.mediaType === "dual_dash") {
     // 若新录入视频轨且无音频，自动从同标签页已有的独立音频轨中配对
     if (!entry.audioUrl) {
       const matchingAudio = mediaList.find(
         (it) =>
-          it.mediaType === "audio" &&
+          (it.mediaType === "audio" || (it.url && /302\d{2}\.m4s|mime(?:_type)?=audio|\/ies-music\//i.test(it.url))) &&
           (it.tabId === entry.tabId || (entry.pageUrl && it.pageUrl === entry.pageUrl))
       );
       if (matchingAudio) {
         entry.audioUrl = matchingAudio.url;
-        entry.mediaType = "bili_dash";
-        if (!entry.pageTitle.includes("【B站音画合一】")) {
-          entry.pageTitle = `【B站音画合一】${entry.pageTitle.replace(/^【.*?】\s*/, "")}`;
+        const isBili = isBiliDashUrl(entry.url) || /bilibili\.com/i.test(entry.pageUrl || "");
+        const isDy = /douyinvod\.com|douyin\.com|iesdouyin\.com/i.test(entry.url || entry.pageUrl || "");
+        entry.mediaType = isBili ? "bili_dash" : "dual_dash";
+        const tagPrefix = isBili ? "【B站音画合一】" : (isDy ? "【抖音音画合一】" : "【音画合一】");
+        if (!entry.pageTitle.includes("音画合一")) {
+          entry.pageTitle = `${tagPrefix}${entry.pageTitle.replace(/^【.*?】\s*/, "")}`;
         }
       }
     }

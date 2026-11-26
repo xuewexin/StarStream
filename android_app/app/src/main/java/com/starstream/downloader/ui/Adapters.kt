@@ -45,8 +45,8 @@ class SniffedAdapter(
         holder.title.text = m.title
 
         val (iconRes, tintRes, typeLabel) = when {
-            m.audioUrl.isNotBlank() || m.mediaType == "bili_dash" ->
-                Triple(R.drawable.ic_video, R.color.accent_purple, "音画双流 DASH")
+            m.audioUrl.isNotBlank() || m.mediaType == "bili_dash" || m.mediaType == "dual_dash" ->
+                Triple(R.drawable.ic_video, R.color.accent_purple, "音画合一 · 一键合并")
             m.mediaType == "m3u8" ->
                 Triple(R.drawable.ic_video, R.color.accent_cyan, "M3U8 流媒体")
             m.mediaType == "audio" ->
@@ -69,6 +69,7 @@ class SniffedAdapter(
         holder.itemView.setOnClickListener { onInspect(m) }
         holder.btnPreview.visibility = if (m.mediaType == "file") View.GONE else View.VISIBLE
         holder.btnPreview.setOnClickListener { onPreview(m) }
+        holder.btn.text = if (m.audioUrl.isNotBlank() || m.mediaType == "bili_dash" || m.mediaType == "dual_dash") "合并下载" else "下载"
         holder.btn.setOnClickListener { onDownload(m) }
     }
 

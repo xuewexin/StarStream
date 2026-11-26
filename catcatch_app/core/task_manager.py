@@ -114,8 +114,8 @@ class TaskManager(QObject):
             save_name = "video"
 
         audio_url = (task_info.get("audio_url") or task_info.get("audioUrl") or "").strip()
-        if audio_url and media_type not in ["m3u8", "bili_dash"]:
-            media_type = "bili_dash"
+        if audio_url and media_type not in ["m3u8", "bili_dash", "dual_dash"]:
+            media_type = "dual_dash"
 
         blob_err = "blob: 为浏览器临时内存对象，非网络地址。请播放视频后在插件列表中选择实际嗅探到的 m3u8 地址！"
         task = {

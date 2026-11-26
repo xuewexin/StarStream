@@ -18,10 +18,6 @@
   <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
 </p>
 
-<p align="center">
-  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
-</p>
-
 # StarStream Pro — Medien-Downloader
 
 **Web-Sniffer-Erweiterung (MV3) · Multithread-Desktop-Client · Native Android-App**
@@ -35,24 +31,41 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
-    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
+    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
     <img src="https://img.shields.io/badge/Standalone-StarStream.exe-059669?style=for-the-badge" alt="EXE">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
-    <img src="https://img.shields.io/badge/Browser--Erweiterung-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
+    <img src="https://img.shields.io/badge/Browser--Erweiterung-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
-    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="APK">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
+    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="APK">
   </a>
 </p>
 
 </div>
+
+---
+
+## 💡 Warum StarStream Pro?
+
+| Häufiges Problem | Technische Lösung von StarStream Pro |
+|---|---|
+| Getrennte Audio-/Videostreams ohne Ton oder Mux-Fehler | Seitenübergreifende Auto-Kopplung von Video & Audio + verlustfreies **FFmpeg / FFmpegKit** Muxing zu MP4 |
+| Mühsame Serien-Downloads ohne klare Dateinamen | Serien-Crawler benennt Dateien automatisch als **Videotitel + Episoden-Suffix** |
+| Strenge Anti-Hotlink-Sperren (403/412) & CDN-Drosselung | Browser-`Cookie`/`Referer`-Sync und automatische Token-Erneuerung zur Geschwindigkeitssteigerung |
+| Starre Dateityp-Schalter & Warten vor dem Abspielen | IDM-ähnliche editierbare Erweiterungsliste, Wiedergabe während des Downloads & externer Player-Proxy |
+
+---
+
+<p align="center">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
+</p>
 
 ---
 

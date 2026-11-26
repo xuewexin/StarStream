@@ -132,22 +132,102 @@ def parse_video_url(url: str, proxy: str = "", extra_headers: dict = None) -> di
         return _parse_generic_web(target_url, session)
 
 
+def _extract_json_object(text, marker):
+    idx = text.find(marker)
+    if idx == -1:
+        return None
+    brace = text.find("{", idx)
+    if brace == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(brace, min(len(text), brace + 400000)):
+        ch = text[i]
+        if esc:
+            esc = False
+            continue
+        if ch == "\\" and in_str:
+            esc = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if not in_str:
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[brace:i + 1])
+                    except Exception:
+                        return None
+    return None
+
+
+def _find_douyin_item(obj):
+    if isinstance(obj, dict):
+        if "video" in obj and isinstance(obj["video"], dict) and "play_addr" in obj["video"]:
+            return obj
+        for v in obj.values():
+            found = _find_douyin_item(v)
+            if found:
+                return found
+    elif isinstance(obj, list):
+        for v in obj:
+            found = _find_douyin_item(v)
+            if found:
+                return found
+    return None
+
+
 def _parse_douyin(url, session):
-    """解析抖音无水印视频直链 (多引擎协同: 静态提取 -> 移动端接口 -> yt-dlp -> 浏览器嗅探直达)"""
+    """解析抖音无水印视频直链 (手机分享页 _ROUTER_DATA -> 静态源码 -> 移动端接口 -> yt-dlp -> 浏览器嗅探)"""
+    mob_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
     try:
-        # 跟随短链重定向
-        resp = session.get(url, allow_redirects=True, timeout=8)
+        # 优先使用移动端 UA 跟进短链，避免桌面端触发 JS 人机挑战页
+        resp = session.get(url, headers={"User-Agent": mob_ua}, allow_redirects=True, timeout=8)
         final_url = resp.url
 
-        # 匹配视频 ID
-        m_vid = re.search(r'/video/(\d+)', final_url)
-        if not m_vid:
-            m_vid = re.search(r'item_ids=(\d+)', final_url)
-
+        m_vid = re.search(r'/(?:video|note)/(\d+)', final_url) or re.search(r'(?:item_ids|modal_id)=(\d+)', final_url)
         html = resp.text
         m_title = re.search(r'<title>([^<]+)</title>', html)
         title = m_title.group(1).replace(" - 抖音", "").strip() if m_title else "抖音视频"
         title = re.sub(r'[\r\n\t]+', ' ', title).strip()
+
+        # 引擎 0: 移动端 iesdouyin /share/video/{id}/ 内嵌 _ROUTER_DATA (绕过桌面 JS 校验)
+        if m_vid:
+            vid = m_vid.group(1)
+            try:
+                share_resp = session.get(f"https://www.iesdouyin.com/share/video/{vid}/", headers={"User-Agent": mob_ua}, timeout=8)
+                router_data = _extract_json_object(share_resp.text, "_ROUTER_DATA")
+                item = _find_douyin_item(router_data) if router_data else None
+                if item:
+                    desc = (item.get("desc") or title or f"douyin_{vid}").strip()
+                    url_list = ((item.get("video") or {}).get("play_addr") or {}).get("url_list") or []
+                    if url_list:
+                        clean_url = str(url_list[0]).replace("playwm", "play")
+                        # 跟进 iesdouyin/aweme/v1/play 重定向取得最终直链
+                        try:
+                            r_cdn = session.get(clean_url, headers={"User-Agent": mob_ua}, allow_redirects=True, stream=True, timeout=6)
+                            if r_cdn.url and r_cdn.url.startswith("http"):
+                                clean_url = r_cdn.url
+                            r_cdn.close()
+                        except Exception:
+                            pass
+                        return {
+                            "success": True,
+                            "title": re.sub(r'[\r\n\t]+', ' ', desc)[:80],
+                            "url": clean_url,
+                            "media_type": "video",
+                            "duration": int((item.get("duration") or 0) / 1000) if (item.get("duration") or 0) > 1000 else int(item.get("duration") or 0),
+                            "resolution": "1080P",
+                            "headers": {"User-Agent": mob_ua, "Referer": "https://www.douyin.com/"},
+                            "error": ""
+                        }
+            except Exception:
+                pass
 
         # 引擎 1: 从网页源码直接正则匹配视频直链 (支持 URL-Decode 深入解析 RENDER_DATA / _ROUTER_DATA)
         m_play = re.search(r'"play_addr":\{"uri":"[^"]*","url_list":\["([^"]+)"', html)
@@ -1339,11 +1419,17 @@ def submit_series_downloads(
         success_count = 0
         failed_list = []
 
+        series_base = re.sub(r'[\\/*?:"<>|]', '_', (series_title or "").strip()).strip()[:50]
         for idx, ep in enumerate(episodes):
             raw_title = (ep.get("title") or f"第{idx + 1}集").strip()
-            ep_idx = ep.get("index") or (idx + 1)
-            prefix = f"{int(ep_idx):02d} - " if add_index_prefix else ""
-            final_title = re.sub(r'[\\/*?:"<>|]', '_', f"{prefix}{raw_title}").strip()
+            ep_idx = int(ep.get("index") or (idx + 1))
+            clean_ep = re.sub(r'[\\/*?:"<>|]', '_', raw_title).strip()
+            if series_base and series_base.lower() not in clean_ep.lower():
+                ep_part = f"{ep_idx:02d}_{clean_ep}" if add_index_prefix else clean_ep
+                final_title = f"{series_base} - {ep_part}"
+            else:
+                prefix = f"{ep_idx:02d}_" if add_index_prefix else ""
+                final_title = f"{prefix}{clean_ep}"
 
             if on_progress:
                 try:

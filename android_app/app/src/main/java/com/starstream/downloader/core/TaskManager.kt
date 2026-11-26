@@ -147,7 +147,7 @@ object TaskManager {
             url = m.url,
             audioUrl = m.audioUrl,
             pageUrl = m.pageUrl,
-            mediaType = if (m.audioUrl.isNotBlank()) "bili_dash" else m.mediaType,
+            mediaType = if (m.audioUrl.isNotBlank()) (if (m.mediaType == "bili_dash") "bili_dash" else "dual_dash") else m.mediaType,
             resolution = m.resolution,
             durationSec = m.durationSec,
             subDir = subDir,

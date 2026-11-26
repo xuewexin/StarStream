@@ -1356,19 +1356,20 @@
     const domain = getDomain(item.url);
     const title = item.pageTitle || '视频流';
 
-    // 智能配对：若当前为 B站/视频流且未携带音频，自动从列表同标签页检索独立音频轨并完成就地配对
-    if (!item.audioUrl && (item.mediaType === 'bili_dash' || item.mediaType === 'video' || (item.url && item.url.includes('bilivideo')))) {
+    // 智能配对：支持 B站、抖音及全网音视频分离站点的跨轨就地配对
+    if (!item.audioUrl && (item.mediaType === 'bili_dash' || item.mediaType === 'dual_dash' || item.mediaType === 'video' || (item.url && /bilivideo|douyinvod|googlevideo/i.test(item.url)))) {
       const pairedAudio = (mediaList || []).find((other) => other.mediaType === 'audio' && (other.tabId === item.tabId || (other.pageUrl && other.pageUrl === item.pageUrl)));
       if (pairedAudio) {
         item.audioUrl = pairedAudio.url;
-        item.mediaType = 'bili_dash';
+        item.mediaType = (item.url && /bilivideo|hdslb/i.test(item.url)) ? 'bili_dash' : 'dual_dash';
       }
     }
 
-    let tagsHtml = `<span class="tag-badge tag-type" style="${item.mediaType === 'bili_dash' ? 'background: linear-gradient(135deg, rgba(236,72,153,0.22), rgba(139,92,246,0.24)); border: 1px solid rgba(236,72,153,0.45); color: #f472b6; font-weight: 600;' : ''}">${item.mediaType === 'bili_dash' ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
-    if (item.mediaType === 'bili_dash') {
+    const isDualMux = (item.mediaType === 'bili_dash' || item.mediaType === 'dual_dash' || !!item.audioUrl);
+    let tagsHtml = `<span class="tag-badge tag-type" style="${isDualMux ? 'background: linear-gradient(135deg, rgba(236,72,153,0.22), rgba(139,92,246,0.24)); border: 1px solid rgba(236,72,153,0.45); color: #f472b6; font-weight: 600;' : ''}">${isDualMux ? '音画合一' : (item.mediaType || 'media').toUpperCase()}</span>`;
+    if (isDualMux) {
       if (item.audioUrl) {
-        tagsHtml += `<span class="tag-badge" style="background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.38);color:#34d399;" title="已成功抓取并配对高品质独立音频轨">已配对音频</span>`;
+        tagsHtml += `<span class="tag-badge" style="background:rgba(16,185,129,0.16);border:1px solid rgba(16,185,129,0.38);color:#34d399;" title="已成功抓取并配对独立音频轨">已配对音频</span>`;
       } else {
         tagsHtml += `<span class="tag-badge" style="background:rgba(245,158,11,0.16);border:1px solid rgba(245,158,11,0.38);color:#fbbf24;" title="正在监听音频轨，若未加载可点击上方重新嗅探">等待音频</span>`;
       }
@@ -1456,7 +1457,7 @@
       <div class="card-tags">${tagsHtml}</div>
       <div class="card-url-box" title="${t('tip_copy_url', '点击复制完整直链')}">${escapeHtml(item.url)}</div>
       <div class="card-actions">
-        <button class="btn-sm btn-primary action-push">${item.mediaType === 'bili_dash' ? '一键合并下载' : t('btn_push')}</button>
+        <button class="btn-sm btn-primary action-push">${isDualMux ? '一键合并下载' : t('btn_push')}</button>
         <button class="btn-sm btn-secondary action-config" title="${t('btn_config')}">${t('btn_config')}</button>
         <button class="btn-sm btn-secondary action-copy-cmd" title="${t('btn_copy_cmd')}">${t('btn_copy_cmd')}</button>
         <button class="btn-sm btn-secondary action-preview">${t('btn_preview')}</button>

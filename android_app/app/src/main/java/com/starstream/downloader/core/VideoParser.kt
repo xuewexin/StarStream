@@ -20,6 +20,7 @@ import java.util.UUID
 object VideoParser {
 
     private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    private const val MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
 
     private fun mergeCookieStrings(vararg cookieStrings: String?): String {
         val jar = linkedMapOf<String, String>()
@@ -565,10 +566,71 @@ object VideoParser {
         }
     }
 
+    private fun findDouyinPlayNode(obj: Any?): JSONObject? {
+        when (obj) {
+            is JSONObject -> {
+                val vid = obj.optJSONObject("video")
+                if (vid != null && vid.has("play_addr")) return obj
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val found = findDouyinPlayNode(obj.opt(keys.next()))
+                    if (found != null) return found
+                }
+            }
+            is org.json.JSONArray -> {
+                for (i in 0 until obj.length()) {
+                    val found = findDouyinPlayNode(obj.opt(i))
+                    if (found != null) return found
+                }
+            }
+        }
+        return null
+    }
+
     private fun parseDouyin(url: String): ParseResult {
         return try {
-            val h = mutableMapOf<String, String>()
-            val pageRes = httpGetWithCookies(url, h)
+            val mobHeaders = mutableMapOf("User-Agent" to MOBILE_UA)
+            val pageRes = httpGetWithCookies(url, mobHeaders)
+            val finalUrl = pageRes.finalUrl
+            val vidMatch = Regex("/(?:video|note)/(\\d+)").find(finalUrl)
+                ?: Regex("(?:item_ids|modal_id)=(\\d+)").find(finalUrl)
+                ?: Regex("\"aweme_?[iI]d\"\\s*:\\s*\"(\\d+)\"").find(pageRes.body)
+
+            // 引擎 0: 使用移动端 UA 访问 iesdouyin /share/video/{id}/ 解析内置 _ROUTER_DATA (绕过桌面端 JS WAF 验证)
+            if (vidMatch != null) {
+                val vid = vidMatch.groupValues[1]
+                try {
+                    val shareRes = httpGetWithCookies("https://www.iesdouyin.com/share/video/$vid/", mobHeaders)
+                    val routerJson = extractJsonVar(shareRes.body, "_ROUTER_DATA")
+                    val item = findDouyinPlayNode(routerJson)
+                    if (item != null) {
+                        val desc = item.optString("desc").trim().ifBlank { "douyin_$vid" }
+                            .replace(Regex("[\\r\\n\\t]+"), " ").take(80)
+                        val urlList = item.optJSONObject("video")?.optJSONObject("play_addr")?.optJSONArray("url_list")
+                        if (urlList != null && urlList.length() > 0) {
+                            var rawPlay = urlList.optString(0, "").replace("playwm", "play")
+                            if (rawPlay.startsWith("http")) {
+                                try {
+                                    val resolved = httpGetWithCookies(rawPlay, mobHeaders)
+                                    if (resolved.finalUrl.startsWith("http")) rawPlay = resolved.finalUrl
+                                } catch (_: Exception) {}
+                                val rawDur = item.optInt("duration", 0)
+                                val durSec = if (rawDur > 1000) rawDur / 1000 else rawDur
+                                return ParseResult(
+                                    success = true,
+                                    title = desc,
+                                    url = rawPlay,
+                                    mediaType = "video",
+                                    durationSec = durSec,
+                                    resolution = "1080P",
+                                    headers = mutableMapOf("User-Agent" to MOBILE_UA, "Referer" to "https://www.douyin.com/")
+                                )
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
             val html = pageRes.body
             val title = Regex("<title>([^<]+)</title>").find(html)?.groupValues?.get(1)?.replace(" - 抖音", "")?.trim() ?: "抖音视频"
             val decoded = try { URLDecoder.decode(html, "UTF-8") } catch (_: Exception) { html }
@@ -576,9 +638,9 @@ object VideoParser {
                 ?: Regex("\"(https://[^\\s\"'<>]+\\.douyinvod\\.com/[^\\s\"'<>]+)\"").find(decoded)
             if (mPlay != null) {
                 val rawUrl = mPlay.groupValues[1].replace("\\u0026", "&").replace("playwm", "play")
-                ParseResult(true, title, rawUrl, mediaType = "video", resolution = "1080P", headers = mutableMapOf("Referer" to "https://www.douyin.com/"))
+                ParseResult(true, title, rawUrl, mediaType = "video", resolution = "1080P", headers = mutableMapOf("User-Agent" to MOBILE_UA, "Referer" to "https://www.douyin.com/"))
             } else {
-                ParseResult(false, title = title, error = "抖音当前视频触发了动态 JS 验证，请点击下方「去内置浏览器打开并嗅探」播放即可捕获！")
+                ParseResult(false, title = title, error = "NEED_WEBVIEW:抖音当前链接启用了动态 JS 验证")
             }
         } catch (e: Exception) {
             ParseResult(false, error = "抖音解析失败: ${e.message}")
@@ -842,12 +904,19 @@ object VideoParser {
         extraHeaders: Map<String, String>,
         onStatus: (String) -> Unit
     ) {
-        val safeSubDir = if (createSubDir) seriesTitle.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim().take(60) else ""
+        val seriesBase = seriesTitle.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim().take(50)
+        val safeSubDir = if (createSubDir) seriesBase else ""
         CoroutineScope(Dispatchers.IO).launch {
             var okCount = 0
             episodes.forEachIndexed { idx, ep ->
-                val prefix = if (addPrefix) String.format("%02d - ", ep.index) else ""
-                val title = "$prefix${ep.title}".replace(Regex("[\\\\/*?:\"<>|]"), "_").trim()
+                val epClean = ep.title.replace(Regex("[\\\\/*?:\"<>|]"), "_").trim()
+                val title = if (seriesBase.isNotBlank() && !epClean.contains(seriesBase, ignoreCase = true)) {
+                    val epSuffix = if (addPrefix) String.format("%02d_%s", ep.index, epClean) else epClean
+                    "$seriesBase - $epSuffix"
+                } else {
+                    val prefix = if (addPrefix) String.format("%02d_", ep.index) else ""
+                    "$prefix$epClean"
+                }.trim()
                 withContext(Dispatchers.Main) {
                     onStatus("正在解析 (${idx + 1}/${episodes.size}): $title")
                 }

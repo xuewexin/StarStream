@@ -18,10 +18,6 @@
   <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
 </p>
 
-<p align="center">
-  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
-</p>
-
 # StarStream Pro - 통합 미디어 다운로더
 
 **웹 미디어 스니퍼 확장 (MV3) · 고속 멀티스레드 데스크톱 클라이언트 · 네이티브 Android 앱**
@@ -35,24 +31,41 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
-    <img src="https://img.shields.io/badge/포터블%20패키지-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
+    <img src="https://img.shields.io/badge/포터블%20패키지-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="Portable">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
     <img src="https://img.shields.io/badge/단독%20실행%20파일-StarStream.exe-059669?style=for-the-badge" alt="EXE">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
-    <img src="https://img.shields.io/badge/브라우저%20확장-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
+    <img src="https://img.shields.io/badge/브라우저%20확장-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
-    <img src="https://img.shields.io/badge/Android%20앱-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="APK">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
+    <img src="https://img.shields.io/badge/Android%20앱-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="APK">
   </a>
 </p>
 
 </div>
+
+---
+
+## 💡 왜 StarStream Pro인가요?
+
+| 자주 겪는 문제 | StarStream Pro의 해결 방식 |
+|---|---|
+| 영상·음성 분리 스트림 다운로드 시 무음/병합 실패 | Bilibili, Douyin 등 모든 분리 스트림 사이트 자동 페어링 + **FFmpeg / FFmpegKit** 무손실 MP4 병합 |
+| 연속극/강의 시리즈 일괄 저장 및 파일명 정리 | **영상 제목 + 회차** 형식으로 자동 명명하여 일괄 다운로드 |
+| 까다로운 핫링크 차단 및 CDN 속도 제한 | 브라우저 `Cookie` / `Referer` 동기화 및 속도 저하 시 자동 토큰 갱신 가속 |
+| 원하는 확장자만 골라 캡처 & 받으면서 바로 보기 | IDM 스타일 확장자 추가/삭제, 다운로드 중 실시간 재생 및 외부 플레이어 미리보기 지원 |
+
+---
+
+<p align="center">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
+</p>
 
 ---
 

@@ -1,14 +1,14 @@
-# StarStream Android 客户端 (v3.2.8)
+# StarStream Android 客户端 (v3.2.9)
 
 <p align="center">
   <img src="../docs/images/starstream_logo.png" width="112" alt="StarStream Android Logo">
 </p>
 
-**StarStream Android** 是星流媒体下载器的原生 Kotlin 移动端，集成 **FFmpegKit 无损混流引擎** 与多内核嗅探浏览器，可在手机端独立完成网页嗅探、链接解析、音画无损合并、动态令牌刷新提速、边下边看与外部在线预览。
+**StarStream Android** 是星流媒体下载器的原生 Kotlin 移动端，集成 **FFmpegKit 无损混流引擎** 与多内核嗅探浏览器，可在手机端独立完成网页嗅探、链接解析（含抖音移动端免 JS 验证直提与后台 WebView 自动执行）、全站音画分离一键合并、动态令牌刷新提速、边下边看与外部在线预览。
 
 ## 主要特性
 
-- **PC 同款 FFmpeg 音画混流与全网链接解析**：内置 `FFmpegKit`（支持 `-map 0:v:0 -map 1:a:0 -c copy` 与 AAC 自动兼容混流及 `aac_adtstoasc`），彻底解决 B站/M3U8 合并无画面、无声音或失败问题；全网解析支持自动会话 Cookie 与 `buvid3` 凭证同步及网页内嵌流兜底。
+- **PC 同款 FFmpeg 全站音画合一与链接解析**：内置 `FFmpegKit`（支持 `-map 0:v:0 -map 1:a:0 -c copy` 与 AAC 自动兼容混流及 `aac_adtstoasc`），将 B站双流模式推广至 **抖音及所有音视频分离网站** 一键合并为完整有声 MP4；链接解析内置抖音分享页 `_ROUTER_DATA` 引擎、B站 `buvid3` 凭证初始化及静默 WebView 自动提取，系列剧集按 **视频名字 + 集数后缀** 自动命名。
 - **IDM 风格自定义爬取扩展名**：设置页可自由添加或点击删除任意需要嗅探捕获的文件扩展名（视频 / 音频 / 文档 / 安装包 / 压缩包等），不再局限于固定开关。
 - **动态令牌刷新提速 & 完整任务控制**：
   - 下载过程中监测限速并 **自动刷新源站令牌与重建高速连接**；

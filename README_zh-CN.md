@@ -18,10 +18,6 @@
   <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
 </p>
 
-<p align="center">
-  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
-</p>
-
 # 星流媒体下载器 (StarStream Pro)
 
 **全平台网页音视频与文件智能嗅探扩展 · 工业级多线程并发桌面端 · 原生硬解混流 Android 客户端**
@@ -37,20 +33,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
-    <img src="https://img.shields.io/badge/桌面全套便携包-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="下载便携全套包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
+    <img src="https://img.shields.io/badge/桌面全套便携包-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="下载便携全套包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
     <img src="https://img.shields.io/badge/独立主程序-StarStream.exe-059669?style=for-the-badge" alt="下载独立单文件版">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
-    <img src="https://img.shields.io/badge/浏览器嗅探扩展-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="下载浏览器扩展">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
+    <img src="https://img.shields.io/badge/浏览器嗅探扩展-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="下载浏览器扩展">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
-    <img src="https://img.shields.io/badge/Android%20手机端-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="下载安卓客户端">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
+    <img src="https://img.shields.io/badge/Android%20手机端-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="下载安卓客户端">
   </a>
 </p>
 
@@ -58,7 +54,7 @@
 > ### 三端一体化协同体验：桌面客户端 + 浏览器扩展 + Android 移动端
 > - **浏览器嗅探扩展 (Manifest V3)**：在日常浏览网页播放视频或下载文件时，自动截取 HLS (M3U8)、DASH (MPD)、MP4 等真实流媒体数据流，智能提取清晰度、时长与分集目录，并在播放器右上角提供悬浮下载胶囊一键推送客户端。
 > - **桌面下载客户端 (PyQt5 + N_m3u8DL-RE + FFmpeg)**：内置高性能流媒体并发拉取核心与多媒体工具箱，支持高并发多线程分块下载、音视频双轨无损混流 MP4、AES-128 解密、批量格式转码及可选离线画质增强。
-> - **Android 移动端 (原生 Kotlin + MediaMuxer)**：内置极简多内核嗅探浏览器、多文件类型爬取（视频/音频/文档/压缩包）、边下边看、外部播放器防盗链在线预览、可折叠分类书签与历史记录恢复。
+> - **Android 移动端 (原生 Kotlin + FFmpegKit)**：内置极简多内核嗅探浏览器、多文件类型爬取（视频/音频/文档/压缩包）、边下边看、外部播放器防盗链在线预览、可折叠分类书签与历史记录恢复。
 
 <p align="center">
   <a href="#-实机运行展示">实机展示</a> •
@@ -82,6 +78,12 @@
 | 多集课程、连续剧集逐集点击太繁琐 | 内置选集扫描与批量连爬引擎，自动正序命名归档到独立剧集文件夹 |
 | 防盗链鉴权严苛，第三方工具常报 403 | 自动提取浏览器 `Referer`、`Cookie`、`User-Agent` 并严格对齐当前代理出口 |
 | 手机端想边下载边预览大体积长视频 | 内置本地 `127.0.0.1` 流媒体缓冲代理，已落盘分片秒读取，支持边下边看与外部播放器在线预览 |
+
+---
+
+<p align="center">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
+</p>
 
 ---
 
@@ -155,10 +157,10 @@ Android 原生客户端源码位于 [android_app/](android_app/)，编译产物�
 
 | 发行版本 | 内置组件 | 适用场景 | 获取链接 |
 |---|---|---|---|
-| **桌面全套便携包** | `StarStream.exe` + `N_m3u8DL-RE` + `FFmpeg` + 文档 | **推荐未配置环境用户**，解压即用，全部底层核心预置完成 | [StarStream_v3.2.8_Portable.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip) |
-| **独立单文件桌面版** | 单文件独立程序（自动全盘探测本地引擎） | 本地已存在 `FFmpeg` 的用户；请置于单独空文件夹内运行 | [StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe) |
-| **浏览器嗅探扩展包** | Manifest V3 纯扩展源码目录 | 搭配桌面客户端使用，开启网页悬浮嗅探与批量推送 | [StarStream_Browser_Extension_v3.2.8.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip) |
-| **Android 手机端** | 原生 Kotlin 安装包（含内置浏览器与硬件混流） | 手机端独立网页嗅探、边下边看、同系列连爬与文件下载 | [StarStream-Android-v3.2.8.apk](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk) |
+| **桌面全套便携包** | `StarStream.exe` + `N_m3u8DL-RE` + `FFmpeg` + 文档 | **推荐未配置环境用户**，解压即用，全部底层核心预置完成 | [StarStream_v3.2.9_Portable.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip) |
+| **独立单文件桌面版** | 单文件独立程序（自动全盘探测本地引擎） | 本地已存在 `FFmpeg` 的用户；请置于单独空文件夹内运行 | [StarStream.exe](https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe) |
+| **浏览器嗅探扩展包** | Manifest V3 纯扩展源码目录 | 搭配桌面客户端使用，开启网页悬浮嗅探与批量推送 | [StarStream_Browser_Extension_v3.2.9.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip) |
+| **Android 手机端** | 原生 Kotlin 安装包（含内置浏览器与硬件混流） | 手机端独立网页嗅探、边下边看、同系列连爬与文件下载 | [StarStream-Android-v3.2.9.apk](https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk) |
 
 ---
 
@@ -167,7 +169,7 @@ Android 原生客户端源码位于 [android_app/](android_app/)，编译产物�
 | 能力维度 | StarStream Pro 核心实现 |
 |---|---|
 | **全协议网络抓取** | 深度介入媒体播放元素与网络异步请求，支持 HLS 加密分片、DASH 分离音视频及大体积文件断点分块 |
-| **自动化封装标准 MP4** | 桌面端基于 FFmpeg、移动端基于原生 `MediaExtractor + MediaMuxer` 无损封装并自动对齐音画时间轴 |
+| **自动化封装标准 MP4** | 桌面端基于 FFmpeg、移动端内置 `FFmpegKit` 与原生兜底双引擎无损封装并自动对齐音画时间轴 |
 | **防盗链环境对齐** | 全链路继承网页播放上下文（Referer / Cookie / UA 与代理通道），从根源避免跨节点导致的 403 拒绝 |
 | **可选画质增强（默认关闭）** | 支持手动启用本地离线清晰锐化或开源超分辨率算法增强低清片源（全程本地免费运行，无云端限制） |
 | **全开源透明** | 桌面端、浏览器扩展、Android 客户端全套源码公开，零收费功能、无商业广告与强制绑定 |
@@ -176,7 +178,7 @@ Android 原生客户端源码位于 [android_app/](android_app/)，编译产物�
 
 ## 🧩 浏览器扩展加载指南
 
-1. 下载并解压 [StarStream_Browser_Extension_v3.2.8.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip)（或直接使用仓库内 [m3u8-sniffer-extension/](m3u8-sniffer-extension/) 目录）。
+1. 下载并解压 [StarStream_Browser_Extension_v3.2.9.zip](https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip)（或直接使用仓库内 [m3u8-sniffer-extension/](m3u8-sniffer-extension/) 目录）。
 2. 在常用现代浏览器的地址栏打开 **扩展程序管理页**，开启右上角 **「开发者模式」**。
 3. 点击 **「加载已解压的扩展程序」**，选择 `m3u8-sniffer-extension` 目录后固定到工具栏即可联动桌面客户端使用。
 

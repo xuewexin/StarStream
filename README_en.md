@@ -18,10 +18,6 @@
   <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
 </p>
 
-<p align="center">
-  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
-</p>
-
 # StarStream Pro — All-in-One Media Sniffer & Downloader
 
 **Cross-Platform Web Media Sniffer Extension (MV3) · High-Speed Multi-Threaded Desktop Client · Native Android App**
@@ -37,20 +33,20 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
-    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="Download Portable Package">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
+    <img src="https://img.shields.io/badge/Portable%20Suite-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="Download Portable Package">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
     <img src="https://img.shields.io/badge/Standalone%20Client-StarStream.exe-059669?style=for-the-badge" alt="Download Standalone Executable">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
-    <img src="https://img.shields.io/badge/Sniffer%20Extension-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="Download Browser Extension">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
+    <img src="https://img.shields.io/badge/Sniffer%20Extension-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="Download Browser Extension">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
-    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="Download Android APK">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
+    <img src="https://img.shields.io/badge/Android%20APK-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="Download Android APK">
   </a>
 </p>
 
@@ -58,9 +54,26 @@
 > ### Unified Desktop, Browser Extension & Mobile Ecosystem
 > - **Browser Sniffer Extension (MV3)**: Automatically intercepts HLS (`M3U8`), DASH (`MPD`/`M4S`), MP4, audio, and batch episode playlists while browsing, displaying resolution, bitrate, and duration on a clean floating capsule.
 > - **Desktop Client (PyQt5 + N_m3u8DL-RE + FFmpeg)**: Multi-threaded chunked downloading, lossless audio-video muxing, AES-128 decryption, batch format converter, and optional offline local video clarity enhancement.
-> - **Android Client (Native Kotlin + MediaMuxer)**: Built-in minimalist multi-kernel sniffer browser, multi-type file crawling, watch-while-downloading, external player streaming preview, collapsible bookmark folders, and persistent tabs/history.
+> - **Android Client (Native Kotlin + FFmpegKit)**: Built-in minimalist multi-kernel sniffer browser, multi-type file crawling, watch-while-downloading, external player streaming preview, collapsible bookmark folders, and persistent tabs/history.
 
 </div>
+
+---
+
+## 💡 Why StarStream Pro?
+
+| Common Pain Point | How StarStream Pro Solves It |
+|---|---|
+| Split audio/video streams play with no sound or fail to mux | Auto-pairs audio & video streams across Bilibili, Douyin, and all split-track sites, losslessly muxing with **FFmpeg / FFmpegKit** into standard MP4 |
+| Tedious manual downloads & messy episode names | Batch series crawler automatically names files as **Series Title + Episode Suffix** |
+| Strict anti-hotlink 403/412 errors & CDN throttling | Syncs browser `Cookie`, `Referer`, `User-Agent`, and refreshes tokens automatically to break CDN speed caps |
+| Fixed extension toggles & waiting to preview large videos | IDM-style editable capture extension list, instant watch-while-downloading, and external player streaming proxy |
+
+---
+
+<p align="center">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
+</p>
 
 ---
 
@@ -116,7 +129,7 @@
 
 ## 📦 Releases & Source Build
 
-- Grab prebuilt releases directly from [GitHub Releases v3.2.8](https://github.com/xuewexin/StarStream/releases/tag/v3.2.8).
+- Grab prebuilt releases directly from [GitHub Releases v3.2.9](https://github.com/xuewexin/StarStream/releases/tag/v3.2.9).
 - **Desktop Source**: `pip install -r requirements.txt && python run_app.py`
 - **Android Source**: `cd android_app && gradle assembleDebug --no-daemon`
 

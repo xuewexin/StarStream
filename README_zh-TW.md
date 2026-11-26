@@ -18,10 +18,6 @@
   <img src="docs/images/starstream_logo.png" width="144" alt="StarStream Pro Logo">
 </p>
 
-<p align="center">
-  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
-</p>
-
 # 星流媒體下載器 (StarStream Pro)
 
 **全平台網頁影音與檔案智慧探測擴充 · 工業級多執行緒並發桌面端 · 原生硬解混流 Android 客戶端**
@@ -35,24 +31,41 @@
 <br>
 
 <p align="center">
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_v3.2.8_Portable.zip">
-    <img src="https://img.shields.io/badge/桌面便攜全套包-StarStream_v3.2.8_Portable.zip-2563eb?style=for-the-badge" alt="下載便攜全套包">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_v3.2.9_Portable.zip">
+    <img src="https://img.shields.io/badge/桌面便攜全套包-StarStream_v3.2.9_Portable.zip-2563eb?style=for-the-badge" alt="下載便攜全套包">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream.exe">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream.exe">
     <img src="https://img.shields.io/badge/獨立主程式-StarStream.exe-059669?style=for-the-badge" alt="下載獨立版">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream_Browser_Extension_v3.2.8.zip">
-    <img src="https://img.shields.io/badge/瀏覽器探測擴充-Extension_v3.2.8.zip-7c3aed?style=for-the-badge" alt="下載瀏覽器擴充">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream_Browser_Extension_v3.2.9.zip">
+    <img src="https://img.shields.io/badge/瀏覽器探測擴充-Extension_v3.2.9.zip-7c3aed?style=for-the-badge" alt="下載瀏覽器擴充">
   </a>
   &nbsp;&nbsp;
-  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.8/StarStream-Android-v3.2.8.apk">
-    <img src="https://img.shields.io/badge/Android%20手機端-StarStream--Android--v3.2.8.apk-0284c7?style=for-the-badge" alt="下載安卓版">
+  <a href="https://github.com/xuewexin/StarStream/releases/download/v3.2.9/StarStream-Android-v3.2.9.apk">
+    <img src="https://img.shields.io/badge/Android%20手機端-StarStream--Android--v3.2.9.apk-0284c7?style=for-the-badge" alt="下載安卓版">
   </a>
 </p>
 
 </div>
+
+---
+
+## 💡 為什麼選擇 StarStream Pro？
+
+| 常見下載痛點 | StarStream Pro 的技術解決方案 |
+|---|---|
+| 影音分離流下載後沒有畫面或沒有聲音 | 全站自動配對獨立音軌與視訊軌（B站 / 抖音等），桌面與手機皆透過 **FFmpeg** 無損混流封裝為標準 MP4 |
+| 多集課程、連續劇集逐集點擊繁瑣 | 內建選集掃描與批次連爬引擎，依「**影片名稱 + 集數**」自動規範命名歸檔 |
+| 防盜鏈鑑權與限速導致下載失敗 | 自動同步瀏覽器 `Cookie` / `Referer` / `User-Agent`，監測限速並主動刷新令牌重建高速連線 |
+| 手機端想邊下邊看與自訂抓取格式 | 支援 IDM 風格自訂爬取副檔名列表、邊下邊看代理與外部播放器防盜鏈線上預覽 |
+
+---
+
+<p align="center">
+  <img src="docs/images/hero_banner.png" width="96%" alt="StarStream Pro Hero Banner">
+</p>
 
 ---
 

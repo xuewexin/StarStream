@@ -224,14 +224,14 @@ class FileDownloadTask:
         except Exception:
             pass
 
-        # 检查是否为 DASH 音视频双流任务 (如 B站 音画合一)
+        # 检查是否为 DASH / 音画分离双流任务 (B站 / 抖音 / 通用音画合并)
         audio_url = (self.task_data.get("audio_url") or self.task_data.get("audioUrl") or "").strip()
-        if audio_url or self.task_data.get("media_type") == "bili_dash":
+        if audio_url or self.task_data.get("media_type") in ("bili_dash", "dual_dash"):
             if audio_url:
                 self._download_dual_stream(url, audio_url, req_headers, save_dir, save_name)
                 return
             elif self.on_log:
-                self.on_log("[音画提示] 检测到单轨 DASH 流，正在按视频轨标准格式下载...")
+                self.on_log("[音画提示] 检测到单轨流，正在按视频标准格式下载...")
 
         # 1. 探测资源头部信息
         content_length = 0

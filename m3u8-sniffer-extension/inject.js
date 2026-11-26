@@ -6,9 +6,16 @@
 
   // 1. 媒体核心正则定义
   const PLAYLIST_REGEX = /\.(m3u8|mpd)(\?|#|$)/i;
+  const AUDIO_REGEX = /\.(mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)|302\d{2}\.m4s|mime(?:_type)?=audio|\/ies-music\/|douyinstatic\.com.*\.(mp3|m4a)/i;
   const MEDIA_REGEX = /\.(m3u8|mpd|mp4|webm|flv|f4v|mkv|avi|mov|wmv|mp3|m4a|aac|wav|ogg|flac|opus)(\?|#|$)/i;
-  const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
+  const SHORT_VIDEO_CDN_REGEX = /(douyinvod\.com|snssdk\.com|iesdouyin\.com|douyinstatic\.com|bilivideo\.(com|cn)|hdslb\.com|kwaicdn\.com|kwai\.net|xhscdn\.com|weibo\.com\/.*\.mp4)/i;
   const STREAM_KEYWORD_REGEX = /((\.m3u8|\.mpd|\.flv|\.mp4|\.m4s|manifest|\/dash\/|\/hls\/|\/playlist|\/master)([\?&#\/]|$))|(\b(playurl|play_url|videoplayurl|getvideo|getstream)\b)/i;
+
+  function guessMediaType(url) {
+    if (PLAYLIST_REGEX.test(url)) return 'm3u8';
+    if (AUDIO_REGEX.test(url)) return 'audio';
+    return 'video';
+  }
 
   function isBiliDashUrl(url) {
     if (!url) return false;
@@ -154,7 +161,7 @@
     if (reqUrl && (MEDIA_REGEX.test(reqUrl) || SHORT_VIDEO_CDN_REGEX.test(reqUrl) || STREAM_KEYWORD_REGEX.test(reqUrl)) && !isFragment(reqUrl) && !reqUrl.startsWith('blob:')) {
       notifyMedia({
         url: reqUrl,
-        mediaType: PLAYLIST_REGEX.test(reqUrl) ? 'm3u8' : 'video',
+        mediaType: guessMediaType(reqUrl),
         sourceType: 'fetch_url'
       });
     }
@@ -205,7 +212,7 @@
       if (url && typeof url === 'string' && (MEDIA_REGEX.test(url) || SHORT_VIDEO_CDN_REGEX.test(url) || STREAM_KEYWORD_REGEX.test(url)) && !isFragment(url) && !url.startsWith('blob:')) {
         notifyMedia({
           url: url,
-          mediaType: PLAYLIST_REGEX.test(url) ? 'm3u8' : 'video',
+          mediaType: guessMediaType(url),
           sourceType: 'xhr_url'
         });
       }

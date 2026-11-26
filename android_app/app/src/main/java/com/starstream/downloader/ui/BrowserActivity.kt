@@ -1105,7 +1105,10 @@ class BrowserActivity : AppCompatActivity() {
         val streamExts = setOf("m3u8", "mpd")
         val videoExts = setOf("mp4", "flv", "webm", "mkv", "mov", "avi", "m4s", "ts", "rmvb", "m4v")
 
-        if (hintType == "audio" || (ext in audioExts && ext in customExts) || Regex("302\\d{2}\\.m4s").containsMatchIn(clean)) {
+        if (hintType == "audio" ||
+            Regex("302\\d{2}\\.m4s|mime(?:_type)?=audio|/ies-music/|douyinstatic\\.com.*\\.(?:mp3|m4a|aac)", RegexOption.IGNORE_CASE).containsMatchIn(clean) ||
+            (ext in audioExts && ext in customExts)
+        ) {
             return "audio" to (ext.ifBlank { "m4a" })
         }
         if ((ext in streamExts && ext in customExts) || clean.contains("/api/hls/")) {
@@ -1116,7 +1119,7 @@ class BrowserActivity : AppCompatActivity() {
         ) {
             return "bili_dash" to (ext.ifBlank { "mp4" })
         }
-        if (Regex("(douyinvod\\.com|iesdouyin\\.com|kwaicdn\\.com|xhscdn\\.com)", RegexOption.IGNORE_CASE).containsMatchIn(clean)) {
+        if (Regex("(douyinvod\\.com|iesdouyin\\.com|bytevcloudvod\\.com|kwaicdn\\.com|xhscdn\\.com|googlevideo\\.com/videoplayback)", RegexOption.IGNORE_CASE).containsMatchIn(clean)) {
             return "video" to (ext.ifBlank { "mp4" })
         }
         if (ext.isNotEmpty() && ext in customExts) {
@@ -1180,34 +1183,58 @@ class BrowserActivity : AppCompatActivity() {
         if (cookie.isNotBlank()) headers["Cookie"] = cookie
         headers["User-Agent"] = cachedUserAgent
 
-        if (isBili && isAudio) {
-            // 为所有尚缺音轨的 B站 DASH 视频全部绑定音轨，优先使用 AAC (30280/30232/30216) 确保原生混流有声音
-            val isCompatAac = Regex("302(80|32|16)\\.m4s").containsMatchIn(lower)
-            var matchedAny = false
+        // 全站通用音画自动配对：仿照 B站 DASH 模式推广至抖音、YouTube 及所有音视频分离网站
+        if (isAudio) {
+            val isCompatAac = Regex("302(80|32|16)\\.m4s|mp4a|\\.m4a|\\.aac", RegexOption.IGNORE_CASE).containsMatchIn(lower)
+            var pairedCount = 0
             tab.sniffedList.forEach { v ->
-                if (v.mediaType == "bili_dash" && (v.audioUrl.isBlank() || isCompatAac)) {
+                val samePage = pageUrl.isBlank() || v.pageUrl.isBlank() || v.pageUrl == pageUrl
+                val isVideoTarget = v.mediaType == "bili_dash" || v.mediaType == "dual_dash" || v.mediaType == "video"
+                if (samePage && isVideoTarget && (v.audioUrl.isBlank() || isCompatAac)) {
                     v.audioUrl = url
-                    matchedAny = true
+                    val vIsBili = v.url.lowercase().contains("bilivideo") || v.url.lowercase().contains("hdslb.com") || v.mediaType == "bili_dash"
+                    v.mediaType = if (vIsBili) "bili_dash" else "dual_dash"
+                    if (!v.title.startsWith("[音画合一]")) {
+                        v.title = "[音画合一] ${v.title.removePrefix("[音画合一] ")}"
+                    }
+                    pairedCount++
                 }
             }
-            if (matchedAny) {
+            if (isBili && pairedCount > 0) {
                 if (currentTab() === tab) updateSniffBadge()
                 return
             }
         }
+
         var pairedAudio = ""
-        if (isBili && !isAudio) {
-            pairedAudio = tab.sniffedList.find {
-                it.mediaType == "audio" && Regex("302(80|32|16)\\.m4s").containsMatchIn(it.url.lowercase())
-            }?.url ?: tab.sniffedList.find { it.mediaType == "audio" }?.url ?: ""
+        var finalType = mType
+        if (!isAudio && (mType == "video" || mType == "bili_dash")) {
+            val matchA = tab.sniffedList.find {
+                it.mediaType == "audio" &&
+                    (pageUrl.isBlank() || it.pageUrl.isBlank() || it.pageUrl == pageUrl) &&
+                    Regex("302(80|32|16)\\.m4s|mp4a|\\.m4a|\\.aac", RegexOption.IGNORE_CASE).containsMatchIn(it.url.lowercase())
+            } ?: tab.sniffedList.find {
+                it.mediaType == "audio" && (pageUrl.isBlank() || it.pageUrl.isBlank() || it.pageUrl == pageUrl)
+            }
+            if (matchA != null) {
+                pairedAudio = matchA.url
+                finalType = if (isBili) "bili_dash" else "dual_dash"
+            }
+        }
+
+        val cleanTitle = pageTitle.ifBlank { "网页捕获媒体" }
+        val displayTitle = when {
+            pairedAudio.isNotBlank() && !cleanTitle.startsWith("[音画合一]") -> "[音画合一] $cleanTitle"
+            isAudio -> "[独立音频] $cleanTitle"
+            else -> cleanTitle
         }
 
         val item = SniffedMedia(
             id = UUID.randomUUID().toString().take(8),
-            title = pageTitle.ifBlank { "网页捕获媒体" },
+            title = displayTitle,
             url = url,
             audioUrl = pairedAudio,
-            mediaType = mType,
+            mediaType = finalType,
             resolution = resolution,
             durationSec = durationSec,
             contentLength = contentLength,
@@ -1215,7 +1242,11 @@ class BrowserActivity : AppCompatActivity() {
             pageUrl = pageUrl,
             headers = headers
         )
-        tab.sniffedList.add(0, item)
+        if (isAudio) {
+            tab.sniffedList.add(item)
+        } else {
+            tab.sniffedList.add(0, item)
+        }
         if (currentTab() === tab) updateSniffBadge()
     }
 
@@ -1295,7 +1326,7 @@ class BrowserActivity : AppCompatActivity() {
         }
 
         val typeName = when {
-            item.audioUrl.isNotBlank() || item.mediaType == "bili_dash" -> "音画分离双流 DASH (将自动混流封装 MP4)"
+            item.audioUrl.isNotBlank() || item.mediaType == "bili_dash" || item.mediaType == "dual_dash" -> "音画双流分离合并 (FFmpeg 一键合成 MP4)"
             item.mediaType == "m3u8" -> "M3U8 HLS 分片流"
             item.mediaType == "audio" -> "音频文件 (.${item.fileExt.ifBlank { "m4a" }})"
             item.mediaType == "file" -> "文档 / 压缩包 / 安装包 (.${item.fileExt.ifBlank { "bin" }})"

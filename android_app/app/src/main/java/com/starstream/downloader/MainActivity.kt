@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
     private var filterMode = 0 // 0=全部, 1=队列中, 2=已完成
 
     companion object {
-        private const val CURRENT_VERSION = "3.2.8"
+        private const val CURRENT_VERSION = "3.2.9"
         private const val REPO_URL = "https://github.com/xuewexin/StarStream"
         private const val ISSUES_URL = "https://github.com/xuewexin/StarStream/issues"
     }
